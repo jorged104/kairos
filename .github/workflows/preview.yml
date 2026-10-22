@@ -1,0 +1,59 @@
+# Despliegue del entorno de previsualización (spec 002).
+# Solo se dispara con push a main: nunca con pull_request, para que el código
+# de un fork no pueda ejecutarse en el runner del servidor.
+name: Previsualización
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Tests del backend
+        working-directory: backend
+        run: go test ./...
+
+      - name: Dependencias del frontend
+        working-directory: frontend
+        run: npm ci --no-fund --no-audit
+
+      - name: Tests del frontend
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Build del frontend
+        working-directory: frontend
+        run: npm run build
+
+  deploy:
+    name: Despliegue
+    needs: test
+    runs-on: [self-hosted, kairos-preview]
+    # Un despliegue cada vez; el siguiente espera en cola en vez de cancelar el actual.
+    concurrency:
+      group: preview-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Desplegar
+        run: bash deploy/preview/deploy.sh

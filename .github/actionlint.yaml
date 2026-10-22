@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # Runner del servidor de previsualización (deploy/preview/README.md).
+  labels:
+    - kairos-preview
