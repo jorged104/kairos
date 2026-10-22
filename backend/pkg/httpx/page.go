@@ -1,7 +1,7 @@
 package httpx
 
 import (
-	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -15,9 +15,8 @@ func (p Page) Offset() int { return (p.Number - 1) * p.Size }
 
 // ParsePage reads ?page and ?page_size; ok is false if they are not positive
 // integers or the size exceeds maxSize.
-func ParsePage(r *http.Request, defSize, maxSize int) (Page, bool) {
+func ParsePage(q url.Values, defSize, maxSize int) (Page, bool) {
 	p := Page{Number: 1, Size: defSize}
-	q := r.URL.Query()
 	if v := q.Get("page"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 {

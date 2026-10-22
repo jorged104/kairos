@@ -58,7 +58,7 @@ type listResponse struct {
 // List returns the audit log, newest first, filtered by affected user
 // (?user_id), actor (?actor_id) and time range (?from, ?to in RFC 3339 or YYYY-MM-DD).
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	page, ok := httpx.ParsePage(r, defaultPageSize, maxPageSize)
+	page, ok := httpx.ParsePage(r.URL.Query(), defaultPageSize, maxPageSize)
 	if !ok {
 		apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "page"))
 		return

@@ -23,6 +23,7 @@ func NewHandler(svc *Service, logger *slog.Logger) *Handler {
 
 // Routes require a session; each operation checks its own permission.
 func (h *Handler) Routes(r chi.Router) {
+	r.Get("/users", h.List)
 	r.Post("/users", h.Create)
 	r.Get("/users/{id}", h.Get)
 	r.Patch("/users/{id}", h.Update)
@@ -167,4 +168,14 @@ func (h *Handler) RemoveTeam(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := h.svc.RemoveTeam(r.Context(), authz.FromContext(r.Context()), id, teamID)
 	h.respond(w, http.StatusOK, u, err)
+}
+
+// List is the directory (RF-109 to RF-116).
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	res, err := h.svc.Directory(r.Context(), authz.FromContext(r.Context()), r.URL.Query())
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, res)
 }
