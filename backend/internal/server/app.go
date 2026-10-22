@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"openscum/internal/attributes"
 	"openscum/internal/audit"
 	"openscum/internal/auth"
 	"openscum/internal/authz"
@@ -35,6 +36,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	authH := auth.NewHandler(cfg.Auth, authSvc, store, sessions, logger)
 	auditH := audit.NewHandler(store, logger)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
+	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
 
 	router.Route("/api", func(api chi.Router) {
 		api.Use(auth.CSRF(cfg.Auth.PublicURL, logger))
@@ -44,6 +46,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			p.Use(auth.RequireSession(sessions, loader, logger))
 			authH.Routes(p)
 			teamsH.Routes(p)
+			attributesH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 		})
 	})

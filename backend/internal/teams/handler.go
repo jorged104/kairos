@@ -126,10 +126,9 @@ func (h *Handler) RemoveLeader(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) pathID(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {
-	id, err := uuid.Parse(chi.URLParam(r, name))
-	if err != nil {
+	id, ok := httpx.PathUUID(r, name)
+	if !ok {
 		apperr.Write(w, h.logger, apperr.ErrNotFound)
-		return id, false
 	}
-	return id, true
+	return id, ok
 }
