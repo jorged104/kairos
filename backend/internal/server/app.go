@@ -12,6 +12,7 @@ import (
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/health"
+	"openscum/internal/teams"
 )
 
 // App wires every module behind one router. main and the integration tests
@@ -33,6 +34,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	authSvc := auth.NewService(cfg.Auth, store, loader, hasher, auth.NewRateLimiter(), logger)
 	authH := auth.NewHandler(cfg.Auth, authSvc, store, sessions, logger)
 	auditH := audit.NewHandler(store, logger)
+	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 
 	router.Route("/api", func(api chi.Router) {
 		api.Use(auth.CSRF(cfg.Auth.PublicURL, logger))
@@ -41,6 +43,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 		api.Group(func(p chi.Router) {
 			p.Use(auth.RequireSession(sessions, loader, logger))
 			authH.Routes(p)
+			teamsH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 		})
 	})

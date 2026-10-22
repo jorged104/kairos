@@ -72,6 +72,35 @@ func (q *Queries) CountActiveChildren(ctx context.Context, parentID *uuid.UUID) 
 	return count, err
 }
 
+const countTeamMembers = `-- name: CountTeamMembers :many
+SELECT team_id, count(*) AS members FROM team_members GROUP BY team_id
+`
+
+type CountTeamMembersRow struct {
+	TeamID  uuid.UUID
+	Members int64
+}
+
+func (q *Queries) CountTeamMembers(ctx context.Context) ([]CountTeamMembersRow, error) {
+	rows, err := q.db.Query(ctx, countTeamMembers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountTeamMembersRow
+	for rows.Next() {
+		var i CountTeamMembersRow
+		if err := rows.Scan(&i.TeamID, &i.Members); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO teams (name, name_normalized, parent_id, external_ref)
 VALUES ($1, $2, $3, $4)
@@ -198,12 +227,15 @@ func (q *Queries) LeaderScopeTeamIDs(ctx context.Context, userID uuid.UUID) ([]u
 }
 
 const listTeamLeaders = `-- name: ListTeamLeaders :many
-SELECT team_id, user_id FROM team_leaders
+SELECT l.team_id, l.user_id, u.name
+FROM team_leaders l JOIN users u ON u.id = l.user_id
+ORDER BY u.name
 `
 
 type ListTeamLeadersRow struct {
 	TeamID uuid.UUID
 	UserID uuid.UUID
+	Name   string
 }
 
 func (q *Queries) ListTeamLeaders(ctx context.Context) ([]ListTeamLeadersRow, error) {
@@ -215,7 +247,7 @@ func (q *Queries) ListTeamLeaders(ctx context.Context) ([]ListTeamLeadersRow, er
 	var items []ListTeamLeadersRow
 	for rows.Next() {
 		var i ListTeamLeadersRow
-		if err := rows.Scan(&i.TeamID, &i.UserID); err != nil {
+		if err := rows.Scan(&i.TeamID, &i.UserID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

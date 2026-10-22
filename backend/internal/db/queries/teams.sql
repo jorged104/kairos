@@ -46,7 +46,12 @@ WITH RECURSIVE tree AS (
 SELECT tree.id FROM tree;
 
 -- name: ListTeamLeaders :many
-SELECT team_id, user_id FROM team_leaders;
+SELECT l.team_id, l.user_id, u.name
+FROM team_leaders l JOIN users u ON u.id = l.user_id
+ORDER BY u.name;
+
+-- name: CountTeamMembers :many
+SELECT team_id, count(*) AS members FROM team_members GROUP BY team_id;
 
 -- name: AddTeamLeader :exec
 INSERT INTO team_leaders (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;
