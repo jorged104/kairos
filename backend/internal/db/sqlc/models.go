@@ -3,3 +3,114 @@
 //   sqlc v1.30.0
 
 package sqlc
+
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type Attribute struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Type           string
+	Required       bool
+	Options        json.RawMessage
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type AuditLog struct {
+	ID         int64
+	OccurredAt time.Time
+	ActorID    *uuid.UUID
+	ActorKind  string
+	Action     string
+	TargetType string
+	TargetID   string
+	Before     json.RawMessage
+	After      json.RawMessage
+}
+
+type IdpMapping struct {
+	ID            uuid.UUID
+	Issuer        string
+	Claim         string
+	ExternalValue string
+	TargetType    string
+	Target        string
+	CreatedAt     time.Time
+}
+
+type LocalCredential struct {
+	UserID       uuid.UUID
+	PasswordHash string
+	UpdatedAt    time.Time
+}
+
+type OidcLoginState struct {
+	State        string
+	Nonce        string
+	CodeVerifier string
+	ReturnTo     string
+	CreatedAt    time.Time
+}
+
+type Team struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	ParentID       *uuid.UUID
+	ExternalRef    *string
+	ArchivedAt     *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type TeamLeader struct {
+	TeamID    uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt time.Time
+}
+
+type TeamMember struct {
+	TeamID    uuid.UUID
+	UserID    uuid.UUID
+	Source    string
+	CreatedAt time.Time
+}
+
+type User struct {
+	ID              uuid.UUID
+	Name            string
+	Email           string
+	EmailNormalized string
+	Status          string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type UserAttributeValue struct {
+	UserID      uuid.UUID
+	AttributeID uuid.UUID
+	Value       json.RawMessage
+	UpdatedAt   time.Time
+}
+
+type UserIdentity struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Issuer    string
+	Subject   string
+	CreatedAt time.Time
+}
+
+type UserRole struct {
+	UserID    uuid.UUID
+	Role      string
+	Source    string
+	CreatedAt time.Time
+}
