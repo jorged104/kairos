@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
+import HealthStatus from '@/features/health/HealthStatus.vue'
+import { useReadiness } from '@/features/health/useReadiness'
 
-const { t } = useI18n()
+const { data } = useReadiness()
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-svh max-w-xl flex-col justify-center gap-6 p-4">
-    <h1 class="text-2xl font-semibold">{{ t('health.title') }}</h1>
+  <main class="mx-auto flex min-h-svh max-w-xl flex-col justify-center p-4">
+    <HealthStatus :state="data" />
   </main>
 </template>
