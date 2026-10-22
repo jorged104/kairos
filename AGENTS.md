@@ -28,7 +28,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 | Capa | Tecnología |
 |---|---|
 | Frontend | Vue 3, Vite, TypeScript, Vue Router, Pinia, TanStack Query, vue-i18n |
-| UI | Tailwind CSS, shadcn-vue (Radix Vue), Lucide (`lucide-vue-next`) |
+| UI | Tailwind CSS v4, shadcn-vue (Reka UI), Lucide (`@lucide/vue`) |
 | Editor / tablas / DnD | TipTap, TanStack Table, VueDraggablePlus |
 | Backend | Go, Chi, pgx/v5, sqlc, Squirrel, go-playground/validator, slog |
 | Tiempo real | Gorilla WebSocket |
@@ -40,6 +40,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 ```
 .
 ├── AGENTS.md
+├── .env.example               # copiar a .env; nunca credenciales reales
 ├── docker-compose.yml
 ├── Makefile
 ├── docs/
@@ -57,6 +58,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   ├── internal/
 │   │   ├── config/            # carga de env/config
 │   │   ├── server/            # router Chi, middlewares, rutas
+│   │   ├── health/            # /health/live y /health/ready
 │   │   ├── auth/              # JWT, hashing, middleware de auth
 │   │   ├── users/
 │   │   ├── objectives/
@@ -70,6 +72,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │       ├── queries/       # .sql de entrada para sqlc
 │   │       └── sqlc/          # código generado (no editar a mano)
 │   ├── pkg/                   # utilidades reutilizables sin dependencias internas
+│   │   └── httpx/             # WriteJSON / WriteError (formato de error común)
 │   ├── sqlc.yaml
 │   ├── go.mod
 │   └── Dockerfile
@@ -97,8 +100,8 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── locales/           # catálogos i18n, un fichero por idioma (es.json, ...)
 │   │   └── types/             # tipos compartidos con la API
 │   ├── index.html
-│   ├── vite.config.ts
-│   ├── tailwind.config.ts
+│   ├── vite.config.ts         # Tailwind v4 vía plugin (sin tailwind.config.ts), proxy /health, Vitest
+│   ├── components.json        # configuración de shadcn-vue
 │   ├── package.json
 │   └── Dockerfile
 └── scripts/                   # seeds, utilidades de desarrollo
@@ -115,13 +118,19 @@ Cada módulo de `backend/internal/<dominio>/` sigue el mismo patrón: `handler.g
 
 ## Comandos
 
+Requisitos en el host: Docker con Compose v2, Go ≥ 1.24, Node ≥ 22 y `make`. Antes de nada: `cp .env.example .env`.
+
 ```bash
-make up          # levanta Postgres y servicios con Docker Compose
-make migrate     # aplica migraciones Goose
-make sqlc        # regenera código de sqlc
-make test        # tests del backend
-make dev-api     # backend en modo desarrollo
-make dev-web     # frontend con Vite
+make up          # BD (espera hasta 60 s a que esté sana) + API + frontend en contenedores
+make db          # solo PostgreSQL
+make api         # solo la API (no arranca la BD; sin BD, la API sale con error)
+make web         # solo el frontend (Vite, http://localhost:5173)
+make down        # para y elimina los contenedores
+make migrate     # aplica migraciones Goose (nunca se aplican al arrancar)
+make sqlc        # regenera código de sqlc (se ejecuta en contenedor)
+make test        # tests de backend y frontend (test-api / test-web por separado)
+make dev-api     # API en el host contra la BD en contenedor
+make dev-web     # Vite en el host
 ```
 
 ## Convenciones
