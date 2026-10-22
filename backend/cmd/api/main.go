@@ -11,10 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"openscum/internal/config"
+	"openscum/internal/db/sqlc"
+	"openscum/internal/health"
 	"openscum/internal/server"
 )
-
-const startupDBTimeout = 2 * time.Second
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -36,9 +36,13 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
+	healthSvc := health.NewService(health.NewRepository(sqlc.New(pool)), health.DatabaseTimeout)
+	router := server.NewRouter(logger)
+	health.NewHandler(healthSvc, logger).Routes(router)
+
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           server.NewRouter(logger),
+		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	logger.Info("API escuchando", slog.String("port", cfg.Port))
@@ -52,7 +56,7 @@ func connectDB(ctx context.Context, url string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("configurar la base de datos: %w", err)
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, startupDBTimeout)
+	pingCtx, cancel := context.WithTimeout(ctx, health.DatabaseTimeout)
 	defer cancel()
 	if err := pool.Ping(pingCtx); err != nil {
 		pool.Close()
