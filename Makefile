@@ -7,7 +7,7 @@ export MSYS_NO_PATHCONV := 1
 DB_WAIT_SECONDS := 60
 SQLC_IMAGE := sqlc/sqlc:1.30.0
 
-.PHONY: db api down migrate sqlc test-api
+.PHONY: db api down migrate sqlc test test-api test-web
 
 db: ## Arranca PostgreSQL y espera a que esté sano (máx. 60 s)
 	@docker compose up -d --wait --wait-timeout $(DB_WAIT_SECONDS) db || \
@@ -26,5 +26,10 @@ migrate: ## Aplica las migraciones pendientes (nunca se ejecuta al arrancar)
 sqlc: ## Regenera el código de sqlc (en contenedor: sqlc necesita cgo)
 	docker run --rm -v "$(CURDIR)/backend:/src" -w /src $(SQLC_IMAGE) generate
 
+test: test-api test-web ## Tests de backend y frontend
+
 test-api: ## Tests del backend
 	cd backend && go test ./...
+
+test-web: ## Tests del frontend
+	cd frontend && npm test -- --run
