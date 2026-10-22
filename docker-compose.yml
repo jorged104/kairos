@@ -27,5 +27,15 @@ services:
         condition: service_healthy
     restart: "no"
 
+  web:
+    build: ./frontend
+    environment:
+      API_PROXY_TARGET: http://api:8080
+      WEB_PORT: "5173"
+    ports:
+      - "${WEB_PORT}:5173"
+    depends_on:
+      - api
+
 volumes:
   pgdata:
