@@ -37,6 +37,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	defer pool.Close()
 
 	app := server.NewApp(cfg, db.NewStore(pool), logger)
+	go app.Hub.Run(ctx)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

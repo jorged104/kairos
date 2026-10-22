@@ -14,6 +14,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
+	"openscum/internal/realtime"
 	"openscum/internal/teams"
 	"openscum/internal/users"
 )
@@ -24,6 +25,8 @@ type App struct {
 	Handler  http.Handler
 	Sessions *auth.Sessions
 	Loader   *auth.PrincipalLoader
+	// Hub must be started with Hub.Run.
+	Hub *realtime.Hub
 }
 
 func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
@@ -46,6 +49,9 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
 	usersH := users.NewHandler(users.NewService(cfg, store, authSvc, hasher, loader), logger)
 
+	hub := realtime.NewHub(sessions, loader, cfg.Auth.PublicURL, logger)
+	router.Get("/ws", hub.ServeWS)
+
 	router.Route("/api", func(api chi.Router) {
 		api.Use(auth.CSRF(cfg.Auth.PublicURL, logger))
 		authH.PublicRoutes(api)
@@ -62,5 +68,5 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub}
 }
