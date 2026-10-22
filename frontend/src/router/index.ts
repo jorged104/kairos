@@ -23,6 +23,15 @@ export const routes = [
     component: AppLayout,
     children: [
       { path: '', name: 'status', component: () => import('@/pages/StatusPage.vue') },
+      { path: 'users', name: 'users', component: () => import('@/pages/UsersPage.vue') },
+      {
+        path: 'users/new',
+        name: 'user-new',
+        component: () => import('@/pages/UserNewPage.vue'),
+        meta: { permissions: ['users:create:all', 'users:create:team'] as Permission[] },
+      },
+      { path: 'users/:id', name: 'user', component: () => import('@/pages/UserDetailPage.vue'), props: true },
+      { path: 'account', name: 'account', component: () => import('@/pages/AccountPage.vue') },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
