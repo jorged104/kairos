@@ -1,0 +1,23 @@
+# Dependencias y builds
+node_modules/
+dist/
+backend/bin/
+*.exe
+*.test
+coverage.out
+
+# Entorno
+.env
+.env.*
+!.env.example
+*.local
+
+# Herramientas
+.codegraph/
+.claude/settings.local.json
+
+# SO / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
