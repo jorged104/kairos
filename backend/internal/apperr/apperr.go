@@ -79,11 +79,18 @@ func newValidator() *validator.Validate {
 	return v
 }
 
+// Normalizer is implemented by requests that clean their fields (e.g. trim
+// spaces) before validation.
+type Normalizer interface{ Normalize() }
+
 // Decode reads a JSON body into v and validates its `validate` tags.
 func Decode(r *http.Request, v any) error {
 	dec := json.NewDecoder(io.LimitReader(r.Body, maxBodyBytes))
 	if err := dec.Decode(v); err != nil {
 		return ErrValidation.WithDetail("body", "json")
+	}
+	if n, ok := v.(Normalizer); ok {
+		n.Normalize()
 	}
 	return Validate(v)
 }

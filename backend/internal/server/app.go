@@ -29,7 +29,9 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	router := NewRouter(logger)
 	health.NewHandler(health.NewService(health.NewRepository(store.Queries), health.DatabaseTimeout), logger).Routes(router)
 
-	authH := auth.NewHandler(cfg.Auth, store, sessions, logger)
+	hasher := auth.NewHasher(cfg.Auth.PasswordHashMemory, cfg.Auth.PasswordHashTime)
+	authSvc := auth.NewService(cfg.Auth, store, loader, hasher, auth.NewRateLimiter(), logger)
+	authH := auth.NewHandler(cfg.Auth, authSvc, store, sessions, logger)
 	auditH := audit.NewHandler(store, logger)
 
 	router.Route("/api", func(api chi.Router) {

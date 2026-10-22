@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"strings"
+
 	"github.com/google/uuid"
 
 	"openscum/internal/authz"
@@ -46,6 +48,11 @@ type registerRequest struct {
 	Name     string `json:"name" validate:"required,max=200"`
 	Email    string `json:"email" validate:"required,email,max=320"`
 	Password string `json:"password"`
+}
+
+func (r *registerRequest) Normalize() {
+	r.Name = strings.TrimSpace(r.Name)
+	r.Email = strings.TrimSpace(r.Email)
 }
 
 type changePasswordRequest struct {
