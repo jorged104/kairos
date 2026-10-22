@@ -57,5 +57,24 @@ services:
     depends_on:
       - api
 
+  # IdP de prueba (spec 003). Solo con el profile sso: make up-sso.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    profiles: [sso]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # Solo desarrollo.
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # El navegador ve a Keycloak en localhost:8180 (el issuer de los tokens);
+      # la API en contenedor lo alcanza por keycloak:8080.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      - ./scripts/keycloak:/opt/keycloak/data/import:ro
+
 volumes:
   pgdata:
