@@ -22,6 +22,22 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
       API_PORT: "8080"
+      AUTH_MODE: ${AUTH_MODE}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PUBLIC_URL: ${PUBLIC_URL}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      DEFAULT_ROLE: ${DEFAULT_ROLE-member}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      TRUST_PROXY: "true"
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      # Dentro de la red de Compose la API ve a Keycloak por su nombre de servicio.
+      OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL_CONTAINER:-http://keycloak:8080/realms/kairos}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      OIDC_ROLE_SOURCE: ${OIDC_ROLE_SOURCE:-idp}
+      OIDC_LINK_BY_EMAIL: ${OIDC_LINK_BY_EMAIL:-false}
     ports:
       - "${API_PORT}:8080"
     depends_on:
