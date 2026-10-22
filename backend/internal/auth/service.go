@@ -67,7 +67,7 @@ func (s *Service) Login(ctx context.Context, email, password, ip string) (uuid.U
 		return uuid.Nil, apperr.ErrAccountInactive
 	}
 	if err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		return s.applyBootstrap(ctx, q, u.ID, u.EmailNormalized)
+		return s.ApplyBootstrap(ctx, q, u.ID, u.EmailNormalized)
 	}); err != nil {
 		return uuid.Nil, err
 	}
@@ -136,7 +136,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (uuid.UUID,
 				return err
 			}
 		}
-		return s.applyBootstrap(ctx, q, u.ID, u.EmailNormalized)
+		return s.ApplyBootstrap(ctx, q, u.ID, u.EmailNormalized)
 	})
 	return id, err
 }
@@ -166,9 +166,9 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, p *authz.Principal, cur
 	return s.store.UpsertCredential(ctx, sqlc.UpsertCredentialParams{UserID: p.UserID, PasswordHash: hash})
 }
 
-// applyBootstrap makes the bootstrap email an admin while no active admin
+// ApplyBootstrap makes the bootstrap email an admin while no active admin
 // exists (RF-54 to RF-56).
-func (s *Service) applyBootstrap(ctx context.Context, q *sqlc.Queries, userID uuid.UUID, email string) error {
+func (s *Service) ApplyBootstrap(ctx context.Context, q *sqlc.Queries, userID uuid.UUID, email string) error {
 	if s.cfg.BootstrapAdminEmail == "" || email != s.cfg.BootstrapAdminEmail {
 		return nil
 	}
