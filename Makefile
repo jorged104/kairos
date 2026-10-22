@@ -3,7 +3,7 @@ export
 
 DB_WAIT_SECONDS := 60
 
-.PHONY: db down
+.PHONY: db down test-api
 
 db: ## Arranca PostgreSQL y espera a que esté sano (máx. 60 s)
 	@docker compose up -d --wait --wait-timeout $(DB_WAIT_SECONDS) db || \
@@ -11,3 +11,6 @@ db: ## Arranca PostgreSQL y espera a que esté sano (máx. 60 s)
 
 down: ## Para y elimina los contenedores
 	docker compose down
+
+test-api: ## Tests del backend
+	cd backend && go test ./...
