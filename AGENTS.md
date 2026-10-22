@@ -27,7 +27,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Vue 3, Vite, TypeScript, Vue Router, Pinia, TanStack Query |
+| Frontend | Vue 3, Vite, TypeScript, Vue Router, Pinia, TanStack Query, vue-i18n |
 | UI | Tailwind CSS, shadcn-vue (Radix Vue), Lucide (`lucide-vue-next`) |
 | Editor / tablas / DnD | TipTap, TanStack Table, VueDraggablePlus |
 | Backend | Go, Chi, pgx/v5, sqlc, Squirrel, go-playground/validator, slog |
@@ -94,6 +94,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── pages/
 │   │   ├── composables/
 │   │   ├── lib/
+│   │   ├── locales/           # catálogos i18n, un fichero por idioma (es.json, ...)
 │   │   └── types/             # tipos compartidos con la API
 │   ├── index.html
 │   ├── vite.config.ts
@@ -128,5 +129,6 @@ make dev-web     # frontend con Vite
 * Go: `gofmt`, `go vet`, errores envueltos con `fmt.Errorf("...: %w", err)`, logging estructurado con `slog`.
 * TypeScript: `strict: true`, sin `any`, componentes en `<script setup lang="ts">`.
 * API: JSON en `snake_case`, respuestas de error con `{ "error": { "code": "...", "message": "..." } }`.
+* i18n: ningún texto visible fijo en componentes; todo sale de `frontend/src/locales/<idioma>.json` con claves jerárquicas por dominio (`health.api.available`). Idioma por defecto: español (`es`). El frontend traduce los errores de la API a partir de `error.code`, no muestra `error.message` al usuario.
 * Nombres de tablas en plural y `snake_case`; claves primarias `uuid`.
 * Ramas: `feat/<spec-id>-<descripcion>`, `fix/<descripcion>`.
