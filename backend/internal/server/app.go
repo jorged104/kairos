@@ -13,6 +13,7 @@ import (
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/health"
+	"openscum/internal/idpmappings"
 	"openscum/internal/teams"
 	"openscum/internal/users"
 )
@@ -35,6 +36,11 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	hasher := auth.NewHasher(cfg.Auth.PasswordHashMemory, cfg.Auth.PasswordHashTime)
 	authSvc := auth.NewService(cfg.Auth, store, loader, hasher, auth.NewRateLimiter(), logger)
 	authH := auth.NewHandler(cfg.Auth, authSvc, store, sessions, logger)
+	oidcH := auth.NewOIDC(cfg.OIDC, cfg.Auth, store, authSvc, sessions, logger)
+	if cfg.Auth.OIDCEnabled() {
+		authH.SetEndSessionURL(oidcH.EndSessionURL)
+	}
+	mappingsH := idpmappings.NewHandler(store, cfg.OIDC.Issuer, logger)
 	auditH := audit.NewHandler(store, logger)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
@@ -43,6 +49,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	router.Route("/api", func(api chi.Router) {
 		api.Use(auth.CSRF(cfg.Auth.PublicURL, logger))
 		authH.PublicRoutes(api)
+		oidcH.Routes(api)
 
 		api.Group(func(p chi.Router) {
 			p.Use(auth.RequireSession(sessions, loader, logger))
@@ -51,6 +58,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			attributesH.Routes(p)
 			usersH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
+			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
 		})
 	})
 
