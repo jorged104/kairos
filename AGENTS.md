@@ -21,6 +21,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 * La asignación de XP se dispara en el backend (cambio de estado a `completed`), nunca desde el frontend.
 * El acceso a base de datos va por sqlc para queries fijas y Squirrel solo para filtros dinámicos. No escribas SQL en strings dentro de handlers.
 * Los cambios de esquema se hacen con migraciones Goose. No edites migraciones ya aplicadas; crea una nueva.
+* Cada migración debe dejar funcionando la versión anterior de la API (la vuelta atrás de previsualización no deshace migraciones): solo cambios aditivos; borrar o renombrar columnas/tablas se hace en dos despliegues (primero el código deja de usarlas, después se eliminan).
 * Commits pequeños y atómicos. Un commit por cambio lógico.
 
 ## Stack
@@ -41,8 +42,11 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 .
 ├── AGENTS.md
 ├── .env.example               # copiar a .env; nunca credenciales reales
-├── docker-compose.yml
+├── docker-compose.yml         # entorno de desarrollo local
 ├── Makefile
+├── .github/workflows/
+│   └── preview.yml            # tests + despliegue de previsualización en push a main
+├── deploy/preview/            # compose, deploy.sh y guía del servidor de previsualización
 ├── docs/
 │   ├── constitution.md        # principios no negociables del proyecto
 │   ├── specs/                 # specs funcionales (solo lectura para agentes), una carpeta por spec
@@ -132,6 +136,14 @@ make test        # tests de backend y frontend (test-api / test-web por separado
 make dev-api     # API en el host contra la BD en contenedor
 make dev-web     # Vite en el host
 ```
+
+## Previsualización
+
+Cada push a `main` pasa los tests en GitHub y se despliega en un servidor doméstico con un runner self-hosted (`deploy/preview/`, spec 002). Puesta en marcha y operación en [deploy/preview/README.md](deploy/preview/README.md).
+
+* El repo es público y los logs de Actions también: nunca escribas el hostname de previsualización ni credenciales en el repo, en el workflow ni en la salida de `deploy.sh`. Viven solo en `~/kairos/preview.env` en el servidor.
+* El workflow que usa el runner self-hosted solo se dispara con `push` a `main`. No añadas disparadores `pull_request` que lo usen.
+* Si cambias `deploy.sh`, pásale `shellcheck`; si cambias el workflow, `actionlint` (ambos en contenedor, ver `task.md` de la spec 002).
 
 ## Convenciones
 
