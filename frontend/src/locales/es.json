@@ -1,6 +1,6 @@
 {
   "health": {
-    "title": "Estado del sistema",
+    "title": "Estado del Sistema",
     "description": "Conexión entre el frontend, la API y la base de datos.",
     "api": {
       "label": "API"
