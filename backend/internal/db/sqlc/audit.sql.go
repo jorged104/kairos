@@ -69,12 +69,16 @@ func (q *Queries) InsertAudit(ctx context.Context, arg InsertAuditParams) error 
 }
 
 const listAudit = `-- name: ListAudit :many
-SELECT id, occurred_at, actor_id, actor_kind, action, target_type, target_id, before, after FROM audit_log
-WHERE ($1::text IS NULL OR target_id = $1)
-  AND ($2::uuid IS NULL OR actor_id = $2)
-  AND ($3::timestamptz IS NULL OR occurred_at >= $3)
-  AND ($4::timestamptz IS NULL OR occurred_at < $4)
-ORDER BY occurred_at DESC, id DESC
+SELECT a.id, a.occurred_at, a.actor_id, a.actor_kind, a.action, a.target_type, a.target_id,
+       a.before, a.after, actor.name AS actor_name, target.name AS target_name
+FROM audit_log a
+LEFT JOIN users actor ON actor.id = a.actor_id
+LEFT JOIN users target ON a.target_type = 'user' AND target.id::text = a.target_id
+WHERE ($1::text IS NULL OR a.target_id = $1)
+  AND ($2::uuid IS NULL OR a.actor_id = $2)
+  AND ($3::timestamptz IS NULL OR a.occurred_at >= $3)
+  AND ($4::timestamptz IS NULL OR a.occurred_at < $4)
+ORDER BY a.occurred_at DESC, a.id DESC
 LIMIT $6 OFFSET $5
 `
 
@@ -87,7 +91,21 @@ type ListAuditParams struct {
 	RowLimit  int32
 }
 
-func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]AuditLog, error) {
+type ListAuditRow struct {
+	ID         int64
+	OccurredAt time.Time
+	ActorID    *uuid.UUID
+	ActorKind  string
+	Action     string
+	TargetType string
+	TargetID   string
+	Before     json.RawMessage
+	After      json.RawMessage
+	ActorName  *string
+	TargetName *string
+}
+
+func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]ListAuditRow, error) {
 	rows, err := q.db.Query(ctx, listAudit,
 		arg.TargetID,
 		arg.ActorID,
@@ -100,9 +118,9 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]AuditLo
 		return nil, err
 	}
 	defer rows.Close()
-	var items []AuditLog
+	var items []ListAuditRow
 	for rows.Next() {
-		var i AuditLog
+		var i ListAuditRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.OccurredAt,
@@ -113,6 +131,8 @@ func (q *Queries) ListAudit(ctx context.Context, arg ListAuditParams) ([]AuditLo
 			&i.TargetID,
 			&i.Before,
 			&i.After,
+			&i.ActorName,
+			&i.TargetName,
 		); err != nil {
 			return nil, err
 		}
