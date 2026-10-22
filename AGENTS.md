@@ -50,10 +50,10 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 ├── docs/
 │   ├── constitution.md        # principios no negociables del proyecto
 │   ├── specs/                 # specs funcionales (solo lectura para agentes), una carpeta por spec
-│   │   ├── 001-auth/spec.md
-│   │   ├── 002-work-hierarchy/spec.md
-│   │   ├── 003-gamification/spec.md
-│   │   └── ...
+│   │   ├── 001-infraestructura-base/      # spec.md, plan.md, task(s).md
+│   │   ├── 002-entorno-previsualizacion/
+│   │   ├── 003-usuarios/                  # auth local/OIDC, roles, permisos, equipos, atributos
+│   │   └── ...                            # jerarquía de trabajo y gamificación: siguientes números libres
 │   └── adr/                   # decisiones de arquitectura
 ├── backend/
 │   ├── cmd/
@@ -63,16 +63,25 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── config/            # carga de env/config
 │   │   ├── server/            # router Chi, middlewares, rutas
 │   │   ├── health/            # /health/live y /health/ready
-│   │   ├── auth/              # JWT, hashing, middleware de auth
-│   │   ├── users/
+│   │   ├── apperr/            # errores de dominio con status y código; Decode + validación
+│   │   ├── authz/             # roles, permisos y la matriz única rol → permisos
+│   │   ├── auth/              # sesión (cookie JWT), CSRF, login local, OIDC (BFF), rate limit
+│   │   ├── audit/             # registro de cambios en la misma transacción y consulta
+│   │   ├── users/             # alta, edición, estados, roles y equipos de usuarios; directorio
+│   │   ├── teams/             # equipos jerárquicos y líderes
+│   │   ├── attributes/        # atributos dinámicos de usuario
+│   │   ├── idpmappings/       # homologación de roles y grupos del IdP
 │   │   ├── objectives/
 │   │   ├── projects/
 │   │   ├── milestones/
 │   │   ├── workitems/         # actividades y subactividades (parent_id)
 │   │   ├── gamification/      # ledger, reglas de XP/monedas, niveles
 │   │   ├── realtime/          # hub WebSocket
+│   │   ├── apitest/           # tests HTTP de la API completa contra una BD temporal e IdP simulado
 │   │   └── db/
-│   │       ├── migrations/    # Goose: NNNN_descripcion.sql
+│   │       ├── store.go       # pool + queries sqlc + InTx
+│   │       ├── dbtest/        # crea una BD por test desde TEST_DATABASE_URL
+│   │       ├── migrations/    # Goose: NNNN_descripcion.sql (embebidas para los tests)
 │   │       ├── queries/       # .sql de entrada para sqlc
 │   │       └── sqlc/          # código generado (no editar a mano)
 │   ├── pkg/                   # utilidades reutilizables sin dependencias internas
@@ -109,6 +118,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   ├── package.json
 │   └── Dockerfile
 └── scripts/                   # seeds, utilidades de desarrollo
+    └── keycloak/              # realm-export.json del IdP de prueba (make up-sso)
 ```
 
 Cada módulo de `backend/internal/<dominio>/` sigue el mismo patrón: `handler.go` (HTTP), `service.go` (lógica), `repository.go` (acceso a datos vía sqlc/Squirrel), `types.go`.
@@ -126,6 +136,7 @@ Requisitos en el host: Docker con Compose v2, Go ≥ 1.24, Node ≥ 22 y `make`.
 
 ```bash
 make up          # BD (espera hasta 60 s a que esté sana) + API + frontend en contenedores
+make up-sso      # como up, más Keycloak de prueba en localhost:8180 (profile sso)
 make db          # solo PostgreSQL
 make api         # solo la API (no arranca la BD; sin BD, la API sale con error)
 make web         # solo el frontend (Vite, http://localhost:5173)
@@ -133,6 +144,7 @@ make down        # para y elimina los contenedores
 make migrate     # aplica migraciones Goose (nunca se aplican al arrancar)
 make sqlc        # regenera código de sqlc (se ejecuta en contenedor)
 make test        # tests de backend y frontend (test-api / test-web por separado)
+                 # los de integración necesitan TEST_DATABASE_URL (en .env); sin ella se omiten salvo en CI
 make dev-api     # API en el host contra la BD en contenedor
 make dev-web     # Vite en el host
 ```
@@ -153,3 +165,5 @@ Cada push a `main` pasa los tests en GitHub y se despliega en un servidor domés
 * i18n: ningún texto visible fijo en componentes; todo sale de `frontend/src/locales/<idioma>.json` con claves jerárquicas por dominio (`health.api.available`). Idioma por defecto: español (`es`). El frontend traduce los errores de la API a partir de `error.code`, no muestra `error.message` al usuario.
 * Nombres de tablas en plural y `snake_case`; claves primarias `uuid`.
 * Ramas: `feat/<spec-id>-<descripcion>`, `fix/<descripcion>`.
+* Autorización: los endpoints comprueban permisos (`authz`), nunca nombres de rol. Un permiso nuevo se añade a la matriz única de `internal/authz` y al test `apitest/matrix_test.go`.
+* Toda mutación de usuarios, roles, equipos, atributos u homologaciones se audita con `audit.Record` dentro de la misma transacción.

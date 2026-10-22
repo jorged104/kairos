@@ -222,7 +222,7 @@ Códigos de error nuevos (el frontend los traduce): `unauthenticated`, `forbidde
 `no_role`, `last_admin`, `idp_managed`, `user_offboarded`, `team_name_conflict`, `team_cycle`,
 `team_archived`, `team_has_children`, `attribute_name_conflict`, `attribute_type_locked`,
 `attribute_invalid_value`, `attribute_required`, `attribute_retired`, `option_required`,
-`invalid_filter`, `not_found`.
+`invalid_filter`, `not_found`, `leader_not_lead`, `idp_mapping_conflict`.
 
 **Último administrador (RF-38, RF-79):** las operaciones que pueden quitar un admin activo toman
 `pg_advisory_xact_lock` y cuentan admins activos dentro de la misma transacción.
