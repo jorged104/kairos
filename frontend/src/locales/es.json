@@ -1,0 +1,23 @@
+{
+  "health": {
+    "title": "Estado del sistema",
+    "description": "Conexión entre el frontend, la API y la base de datos.",
+    "api": {
+      "label": "API"
+    },
+    "database": {
+      "label": "Base de datos"
+    },
+    "status": {
+      "available": "Disponible",
+      "unavailable": "No disponible",
+      "unknown": "Desconocido",
+      "checking": "Comprobando…"
+    },
+    "error": {
+      "title": "Hay servicios sin conexión",
+      "apiUnavailable": "No se puede contactar con la API. Se reintentará automáticamente cada 30 segundos.",
+      "databaseUnavailable": "La API funciona, pero la base de datos no responde. Se reintentará automáticamente cada 30 segundos."
+    }
+  }
+}
