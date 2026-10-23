@@ -531,6 +531,13 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Pro
 	if out.CustomFieldIDs, err = q.ListProjectCustomFieldIDs(ctx, row.ID); err != nil {
 		return out, fmt.Errorf("campos del proyecto: %w", err)
 	}
+	// Empty lists go out as [] rather than null.
+	if out.TypeIDs == nil {
+		out.TypeIDs = []uuid.UUID{}
+	}
+	if out.CustomFieldIDs == nil {
+		out.CustomFieldIDs = []uuid.UUID{}
+	}
 	values, err := q.ListProjectCustomValues(ctx, row.ID)
 	if err != nil {
 		return out, fmt.Errorf("valores del proyecto: %w", err)

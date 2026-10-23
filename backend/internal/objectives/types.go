@@ -85,7 +85,10 @@ type Objective struct {
 	Projects     []ProjectLink   `json:"projects"`
 	Milestones   []MilestoneLink `json:"milestones"`
 	Can          struct {
+		// Manage covers edits and links, only while draft or active; Status
+		// covers the status actions, reopening included.
 		Manage bool `json:"manage"`
+		Status bool `json:"status"`
 	} `json:"can"`
 }
 

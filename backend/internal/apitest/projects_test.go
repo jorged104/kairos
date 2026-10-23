@@ -3,6 +3,7 @@ package apitest
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -319,4 +320,30 @@ func TestPhasesAndGates(t *testing.T) {
 	}
 	s.lead.Post(ph+"/gates/middle", map[string]any{"passed": true}).Expect(t, http.StatusNotFound)
 	s.member.Post(ph+"/gates/finish", map[string]any{"passed": true}).Expect(t, http.StatusForbidden, "forbidden")
+}
+
+// Empty lists must reach the client as [] (the UI calls .includes and .length on them).
+func TestEmptyListsAreArrays(t *testing.T) {
+	s := newWorkSetup(t)
+	p := s.project(t, s.lead, map[string]any{"identifier": "EMP", "name": "Vacío", "work_item_type_ids": []uuid.UUID{}})
+	res := s.lead.Get("/api/projects/" + p.ID.String())
+	for _, field := range []string{`"work_item_type_ids":[]`, `"custom_field_ids":[]`} {
+		if !strings.Contains(string(res.Body), field) {
+			t.Fatalf("project lacks %s: %s", field, res.Body)
+		}
+	}
+	act := s.env.CatalogID("work_item_types", "Actividad")
+	s.lead.Do(http.MethodPut, "/api/projects/"+p.ID.String()+"/types", map[string]any{"ids": []uuid.UUID{act}}).Expect(t, http.StatusOK)
+	// A type whose workflow allows nothing from the current status.
+	nuevo, prog := s.env.CatalogID("statuses", "Nuevo"), s.env.CatalogID("statuses", "En progreso")
+	s.admin.Do(http.MethodPut, "/api/work-item-types/"+act.String()+"/transitions", map[string]any{"transitions": []map[string]any{
+		{"from_status_id": prog, "to_status_id": nuevo},
+	}}).Expect(t, http.StatusOK)
+	wi := s.item(t, s.member, p.ID, map[string]any{})
+	res = s.member.Get("/api/work-items/" + wi.ID.String())
+	for _, field := range []string{`"allowed_status_ids":[]`, `"dependencies":[]`} {
+		if !strings.Contains(string(res.Body), field) {
+			t.Fatalf("work item lacks %s: %s", field, res.Body)
+		}
+	}
 }

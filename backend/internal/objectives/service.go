@@ -530,7 +530,8 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, o sqlc.Objec
 	if err != nil {
 		return out, err
 	}
-	out.Can.Manage = p.CanManageObjective(r) && o.Status != StatusClosed && o.Status != StatusCancelled
+	out.Can.Status = p.CanManageObjective(r)
+	out.Can.Manage = out.Can.Status && o.Status != StatusClosed && o.Status != StatusCancelled
 	people, err := q.WorkItemPeople(ctx, []uuid.UUID{o.OwnerID})
 	if err != nil {
 		return out, fmt.Errorf("leer responsable: %w", err)

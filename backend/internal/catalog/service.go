@@ -409,6 +409,9 @@ func AllowedTargets(ctx context.Context, q *sqlc.Queries, p *authz.Principal, ty
 	if err != nil {
 		return nil, fmt.Errorf("transiciones permitidas: %w", err)
 	}
+	if ids == nil {
+		ids = []uuid.UUID{}
+	}
 	return ids, nil
 }
 
