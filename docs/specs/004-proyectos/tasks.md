@@ -74,7 +74,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-124, RF-125, RF-127, RF-134, RF-135
   - Hecho cuando: `apitest/matrix_test.go` recorre todas las operaciones nuevas con cada rol y ámbito y obtiene el código de la matriz; un test comprueba que cada mutación deja su entrada de auditoría y que la descripción solo aparece como `description_changed`.
 
-- [ ] **T15 — Prueba de rendimiento**
+- [x] **T15 — Prueba de rendimiento**
   - Depende de: T14
   - RF: requisitos no funcionales de tamaño y rendimiento
   - Hecho cuando: con el tamaño de diseño, cada umbral se cumple en local (mediana de 5); si no, se añade la tabla de cierre y se repite.
