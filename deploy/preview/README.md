@@ -4,7 +4,7 @@ Cada push a `main` se despliega solo en el servidor de casa ([spec 002](../../do
 
 ```
 push a main ─► GitHub Actions ─ test (GitHub) ─► deploy (runner en el servidor) ─► deploy.sh
-Internet ─► Cloudflare ─► túnel ─► Traefik ─► web (nginx) ─/health─► api ─► db
+Internet ─► Cloudflare ─► túnel ─► Traefik ─► web (nginx) ─/health, /api, /ws─► api ─► db
 ```
 
 - [`compose.yml`](compose.yml): proyecto `kairos-preview` con red interna propia. Solo `web` se une a la red de Traefik y ningún servicio publica puertos.
@@ -54,7 +54,11 @@ curl -fsSLo preview.env https://raw.githubusercontent.com/jorged104/kairos/main/
 chmod 600 preview.env
 nano preview.env
 ```
-Rellena `PREVIEW_HOST`, `POSTGRES_PASSWORD` y los dos valores de Traefik. Para averiguarlos:
+Rellena `PREVIEW_HOST`, `POSTGRES_PASSWORD`, los dos valores de Traefik y la autenticación
+(spec 003): `AUTH_MODE`, un `SESSION_SECRET` propio (`openssl rand -base64 48`) y
+`BOOTSTRAP_ADMIN_EMAIL` con tu email para ser administrador al registrarte o entrar por primera
+vez. Con `AUTH_MODE=oidc` o `both`, añade también los datos `OIDC_*` del IdP y registra en él
+`https://<PREVIEW_HOST>/api/auth/oidc/callback` como URL de retorno. Para averiguarlos:
 - **Red de Traefik:** `docker inspect <contenedor-traefik> -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'`
 - **Entrypoint:** es el nombre que usa tu configuración de Traefik para el puerto al que llega el túnel. Por ejemplo, `--entrypoints.web.address=:80` → `web`. Usa el mismo que tienen las labels de Home Assistant.
 
@@ -84,6 +88,11 @@ curl -s https://<PREVIEW_HOST>/health/ready
 | Versión desplegada | `cat ~kairos-runner/kairos/last-good` |
 | Parar el entorno | `docker compose -p kairos-preview stop` |
 | Borrar los datos | `docker volume rm kairos-preview_pgdata`, con el entorno parado |
+
+## Actualizar a una versión con variables nuevas
+Si un cambio añade variables obligatorias (por ejemplo, `AUTH_MODE` y `SESSION_SECRET` en la spec
+003), añádelas a `~/kairos/preview.env` **antes** de fusionar en `main`. Si faltan, `deploy.sh`
+falla al construir y la versión anterior sigue en marcha.
 
 ## Limitaciones conocidas
 - **Downtime breve:** al cambiar de versión hay unos segundos sin servicio mientras se recrean los contenedores y Traefik los detecta.

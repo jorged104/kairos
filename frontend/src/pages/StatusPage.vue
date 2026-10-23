@@ -6,7 +6,7 @@ const { data } = useReadiness()
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-svh max-w-xl flex-col justify-center p-4">
+  <div class="mx-auto max-w-xl py-8">
     <HealthStatus :state="data" />
-  </main>
+  </div>
 </template>

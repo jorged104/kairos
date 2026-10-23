@@ -7,10 +7,13 @@ export MSYS_NO_PATHCONV := 1
 DB_WAIT_SECONDS := 60
 SQLC_IMAGE := sqlc/sqlc:1.30.0
 
-.PHONY: up db api web down migrate sqlc test test-api test-web dev-api dev-web
+.PHONY: up up-sso db api web down migrate sqlc test test-api test-web dev-api dev-web
 
 up: db ## Arranca BD, API y frontend; la API solo arranca si la BD está sana
 	docker compose up -d --build --no-deps api web
+
+up-sso: db ## Como up, más Keycloak de prueba (profile sso) en localhost:8180
+	docker compose --profile sso up -d --build --no-deps keycloak api web
 
 db: ## Arranca PostgreSQL y espera a que esté sano (máx. 60 s)
 	@docker compose up -d --wait --wait-timeout $(DB_WAIT_SECONDS) db || \
@@ -22,8 +25,8 @@ api: ## Arranca la API en contenedor sin arrastrar la BD (falla si la BD no est�
 web: ## Arranca el frontend (Vite) en contenedor
 	docker compose up -d --build --no-deps web
 
-down: ## Para y elimina los contenedores
-	docker compose down
+down: ## Para y elimina los contenedores (también Keycloak)
+	docker compose --profile sso down
 
 migrate: ## Aplica las migraciones pendientes (nunca se ejecuta al arrancar)
 	@cd backend && go tool goose -dir internal/db/migrations postgres "$$DATABASE_URL" up || \

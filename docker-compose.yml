@@ -22,6 +22,22 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
       API_PORT: "8080"
+      AUTH_MODE: ${AUTH_MODE}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PUBLIC_URL: ${PUBLIC_URL}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      DEFAULT_ROLE: ${DEFAULT_ROLE-member}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      TRUST_PROXY: "true"
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      # Dentro de la red de Compose la API ve a Keycloak por su nombre de servicio.
+      OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL_CONTAINER:-http://keycloak:8080/realms/kairos}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      OIDC_ROLE_SOURCE: ${OIDC_ROLE_SOURCE:-idp}
+      OIDC_LINK_BY_EMAIL: ${OIDC_LINK_BY_EMAIL:-false}
     ports:
       - "${API_PORT}:8080"
     depends_on:
@@ -40,6 +56,25 @@ services:
       - "${WEB_PORT}:5173"
     depends_on:
       - api
+
+  # IdP de prueba (spec 003). Solo con el profile sso: make up-sso.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    profiles: [sso]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # Solo desarrollo.
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # El navegador ve a Keycloak en localhost:8180 (el issuer de los tokens);
+      # la API en contenedor lo alcanza por keycloak:8080.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      - ./scripts/keycloak:/opt/keycloak/data/import:ro
 
 volumes:
   pgdata:

@@ -1,0 +1,125 @@
+{
+  "realm": "kairos",
+  "displayName": "Kairos (desarrollo)",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "client": {
+      "kairos": [
+        { "name": "kairos-admin", "description": "Homologado a admin" },
+        { "name": "kairos-lead", "description": "Homologado a lead" },
+        { "name": "kairos-member", "description": "Homologado a member" }
+      ]
+    }
+  },
+  "groups": [
+    {
+      "name": "Areas",
+      "subGroups": [
+        { "name": "BI", "subGroups": [{ "name": "Reportes" }] },
+        { "name": "Innovacion" },
+        { "name": "Desarrollo", "subGroups": [{ "name": "Backend" }, { "name": "Frontend" }] },
+        { "name": "CienciaDatos" }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "kairos",
+      "name": "Kairos",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-only-kairos-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:5173/api/auth/oidc/callback", "http://localhost:8080/api/auth/oidc/callback"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "usermodel.clientRoleMapping.clientId": "kairos",
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "claim.name": "groups",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "ana",
+      "email": "ana@kairos.local",
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "López",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "kairos-dev-123", "temporary": false }],
+      "clientRoles": { "kairos": ["kairos-lead"] },
+      "groups": ["/Areas/BI"]
+    },
+    {
+      "username": "bruno",
+      "email": "bruno@kairos.local",
+      "emailVerified": true,
+      "firstName": "Bruno",
+      "lastName": "Díaz",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "kairos-dev-123", "temporary": false }],
+      "clientRoles": { "kairos": ["kairos-member"] },
+      "groups": ["/Areas/BI/Reportes"]
+    },
+    {
+      "username": "carla",
+      "email": "carla@kairos.local",
+      "emailVerified": true,
+      "firstName": "Carla",
+      "lastName": "Ruiz",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "kairos-dev-123", "temporary": false }],
+      "clientRoles": { "kairos": ["kairos-member"] },
+      "groups": ["/Areas/Desarrollo/Backend"]
+    },
+    {
+      "username": "admin",
+      "email": "admin@kairos.local",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Kairos",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "kairos-dev-123", "temporary": false }],
+      "clientRoles": { "kairos": ["kairos-admin"] },
+      "groups": ["/Areas/Innovacion"]
+    }
+  ]
+}

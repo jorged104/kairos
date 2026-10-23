@@ -1,0 +1,68 @@
+// Package attributes manages the dynamic user attributes (RF-94 to RF-108).
+package attributes
+
+import (
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	"openscum/internal/apperr"
+)
+
+const (
+	TypeText    = "text"
+	TypeNumber  = "number"
+	TypeDate    = "date"
+	TypeBoolean = "boolean"
+	TypeSelect  = "select"
+)
+
+const maxTextLength = 1000
+
+// Option is a choice of a select attribute. Retired options are kept for the
+// users that already have them but cannot be chosen again (RF-107).
+type Option struct {
+	Value   string `json:"value" validate:"required,max=200"`
+	Retired bool   `json:"retired"`
+}
+
+type Attribute struct {
+	ID        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	Type      string     `json:"type"`
+	Required  bool       `json:"required"`
+	Options   []Option   `json:"options"`
+	RetiredAt *time.Time `json:"retired_at"`
+}
+
+func (a Attribute) Retired() bool { return a.RetiredAt != nil }
+
+type createRequest struct {
+	Name     string   `json:"name" validate:"required,max=200"`
+	Type     string   `json:"type" validate:"required,oneof=text number date boolean select"`
+	Required bool     `json:"required"`
+	Options  []Option `json:"options" validate:"dive"`
+}
+
+func (r *createRequest) Normalize() {
+	r.Name = strings.TrimSpace(r.Name)
+	for i := range r.Options {
+		r.Options[i].Value = strings.TrimSpace(r.Options[i].Value)
+	}
+}
+
+type updateRequest = createRequest
+
+var (
+	errNameConflict = apperr.New(http.StatusConflict, "attribute_name_conflict", "Ya existe un atributo activo con ese nombre")
+	errTypeLocked   = apperr.New(http.StatusConflict, "attribute_type_locked", "No se puede cambiar el tipo de un atributo con valores")
+	errOptionNeeded = apperr.New(http.StatusBadRequest, "option_required", "Un atributo de selección necesita al menos una opción")
+	errRetired      = apperr.New(http.StatusConflict, "attribute_retired", "El atributo está retirado")
+	ErrInvalidValue = apperr.New(http.StatusBadRequest, "attribute_invalid_value", "El valor no es válido para el atributo")
+	ErrRequired     = apperr.New(http.StatusBadRequest, "attribute_required", "Falta un atributo obligatorio")
+)
+
+// NormalizeName compares attribute names ignoring case and outer spaces (RF-101).
+func NormalizeName(name string) string { return strings.ToLower(strings.TrimSpace(name)) }

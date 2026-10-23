@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"openscum/internal/config"
-	"openscum/internal/db/sqlc"
+	"openscum/internal/db"
 	"openscum/internal/health"
 	"openscum/internal/server"
 )
@@ -36,16 +36,15 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	healthSvc := health.NewService(health.NewRepository(sqlc.New(pool)), health.DatabaseTimeout)
-	router := server.NewRouter(logger)
-	health.NewHandler(healthSvc, logger).Routes(router)
+	app := server.NewApp(cfg, db.NewStore(pool), logger)
+	go app.Hub.Run(ctx)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           router,
+		Handler:           app.Handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	logger.Info("API escuchando", slog.String("port", cfg.Port))
+	logger.Info("API escuchando", slog.String("port", cfg.Port), slog.String("auth_mode", cfg.Auth.Mode))
 	return srv.ListenAndServe()
 }
 
