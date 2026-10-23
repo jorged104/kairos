@@ -9,7 +9,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: soporte de todos; RF-11
   - Hecho cuando: la migración sube y baja en limpio; sqlc genera sin errores; tests de BD de las claves compuestas (padre, hito y fase de otro proyecto rechazados por la BD), de los `CHECK` (identificador, fechas, horas, avance, hito cumplido ↔ fecha) y de que solo hay un estado y una prioridad por defecto; los datos iniciales existen.
 
-- [ ] **T2 — Permisos y participante** (`internal/authz`, loader de `internal/auth`)
+- [x] **T2 — Permisos y participante** (`internal/authz`, loader de `internal/auth`)
   - Depende de: T1
   - RF: RF-123, RF-124, RF-126
   - Hecho cuando: tests unitarios de los permisos nuevos por rol, de `CanManageProject`, `CanWriteWorkItems`, `CanDeleteWorkItem` y `CanManageObjective` (ámbito, responsable, participante por equipo ancestro, `viewer` nunca); el loader carga `ParticipantTeams`.

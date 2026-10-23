@@ -140,7 +140,7 @@ projects:manage:owner                       lead, member   (responsable; viewer 
 workitems:write:all | workitems:write:team  admin | lead
 workitems:write:participant                 lead, member
 workitems:delete:own                        lead, member   (autor, sin hijos)
-objectives:create:org                       admin
+objectives:create:all                       admin          (cualquier alcance)
 objectives:create:team                      lead           (alcance equipo/proyecto en su ámbito)
 objectives:manage:all | objectives:manage:team  admin | lead
 objectives:manage:owner                     lead, member
