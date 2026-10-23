@@ -24,7 +24,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-1 a RF-11
   - Hecho cuando: tests de alta, duplicado, retirada con uso, retirada del por defecto, cambio de estado por defecto, transiciones por tipo y rol, y `status_closed_locked`.
 
-- [ ] **T5 — Campos personalizados** (`internal/customfields`)
+- [x] **T5 — Campos personalizados** (`internal/customfields`)
   - Depende de: T4
   - RF: RF-12 a RF-17
   - Hecho cuando: tests de cada tipo, límite por tipo de work item, activación por proyecto, obligatorios y retirada, reutilizando las reglas de 003.
