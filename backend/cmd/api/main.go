@@ -38,6 +38,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	app := server.NewApp(cfg, db.NewStore(pool), logger)
 	go app.Hub.Run(ctx)
+	go app.Events.Run(ctx)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

@@ -14,7 +14,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-123, RF-124, RF-126
   - Hecho cuando: tests unitarios de los permisos nuevos por rol, de `CanManageProject`, `CanWriteWorkItems`, `CanDeleteWorkItem` y `CanManageObjective` (ámbito, responsable, participante por equipo ancestro, `viewer` nunca); el loader carga `ParticipantTeams`.
 
-- [ ] **T3 — Piezas comunes: texto enriquecido, versión y outbox** (`internal/richtext`, `internal/events`, `internal/fields`)
+- [x] **T3 — Piezas comunes: texto enriquecido, versión y outbox** (`internal/richtext`, `internal/events`, `internal/fields`)
   - Depende de: T1
   - RF: RF-70, RF-71, RF-116 a RF-122 (infraestructura), RF-13
   - Hecho cuando: tests de la lista blanca (válidos e inválidos, límites); `Emit` en tx deshecha no deja evento; el dispatcher entrega en orden, reintenta si el consumidor falla y no se salta eventos de transacciones lentas; `attributes` sigue pasando sus tests tras extraer `fields`.

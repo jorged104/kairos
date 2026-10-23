@@ -11,6 +11,7 @@ import (
 	"maps"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -51,6 +52,13 @@ var (
 	ErrValidation      = New(http.StatusBadRequest, "validation_failed", "Datos no válidos")
 	ErrInvalidFilter   = New(http.StatusBadRequest, "invalid_filter", "Filtro no válido")
 )
+
+// VersionConflict rejects a change based on an outdated version (spec 004,
+// RF-73) and tells the client which version is current.
+func VersionConflict(current int32) *Error {
+	return New(http.StatusConflict, "version_conflict", "El elemento cambió desde que lo abriste").
+		WithDetail("version", strconv.Itoa(int(current)))
+}
 
 // Write sends err in the common format; unexpected errors become a logged 500.
 func Write(w http.ResponseWriter, logger *slog.Logger, err error) {

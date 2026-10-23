@@ -9,24 +9,20 @@ import (
 	"github.com/google/uuid"
 
 	"openscum/internal/apperr"
+	"openscum/internal/fields"
 )
 
 const (
-	TypeText    = "text"
-	TypeNumber  = "number"
-	TypeDate    = "date"
-	TypeBoolean = "boolean"
-	TypeSelect  = "select"
+	TypeText    = fields.TypeText
+	TypeNumber  = fields.TypeNumber
+	TypeDate    = fields.TypeDate
+	TypeBoolean = fields.TypeBoolean
+	TypeSelect  = fields.TypeSelect
 )
-
-const maxTextLength = 1000
 
 // Option is a choice of a select attribute. Retired options are kept for the
 // users that already have them but cannot be chosen again (RF-107).
-type Option struct {
-	Value   string `json:"value" validate:"required,max=200"`
-	Retired bool   `json:"retired"`
-}
+type Option = fields.Option
 
 type Attribute struct {
 	ID        uuid.UUID  `json:"id"`
@@ -58,11 +54,11 @@ type updateRequest = createRequest
 var (
 	errNameConflict = apperr.New(http.StatusConflict, "attribute_name_conflict", "Ya existe un atributo activo con ese nombre")
 	errTypeLocked   = apperr.New(http.StatusConflict, "attribute_type_locked", "No se puede cambiar el tipo de un atributo con valores")
-	errOptionNeeded = apperr.New(http.StatusBadRequest, "option_required", "Un atributo de selección necesita al menos una opción")
+	errOptionNeeded = fields.ErrOptionNeeded
 	errRetired      = apperr.New(http.StatusConflict, "attribute_retired", "El atributo está retirado")
 	ErrInvalidValue = apperr.New(http.StatusBadRequest, "attribute_invalid_value", "El valor no es válido para el atributo")
 	ErrRequired     = apperr.New(http.StatusBadRequest, "attribute_required", "Falta un atributo obligatorio")
 )
 
 // NormalizeName compares attribute names ignoring case and outer spaces (RF-101).
-func NormalizeName(name string) string { return strings.ToLower(strings.TrimSpace(name)) }
+func NormalizeName(name string) string { return fields.NormalizeName(name) }

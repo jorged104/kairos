@@ -2,7 +2,6 @@ package attributes
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -15,6 +14,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/fields"
 )
 
 type Service struct {
@@ -112,36 +112,9 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 	return out, err
 }
 
-// checkOptions validates the options of a select attribute. Options that
-// existed before and are missing from the request are kept as retired, so
-// users that have them keep their value (RF-107).
-func checkOptions(typ string, options, previous []Option) (json.RawMessage, error) {
-	if typ != TypeSelect {
-		return json.RawMessage("[]"), nil
-	}
-	out := make([]Option, 0, len(options)+len(previous))
-	seen := map[string]bool{}
-	active := 0
-	for _, o := range options {
-		if seen[o.Value] {
-			return nil, apperr.ErrValidation.WithDetail("field", "options")
-		}
-		seen[o.Value] = true
-		if !o.Retired {
-			active++
-		}
-		out = append(out, o)
-	}
-	for _, o := range previous {
-		if !seen[o.Value] {
-			out = append(out, Option{Value: o.Value, Retired: true})
-		}
-	}
-	if active == 0 {
-		return nil, errOptionNeeded
-	}
-	return json.Marshal(out)
-}
+// checkOptions validates the options of a select attribute; removed options
+// are kept as retired (RF-107).
+var checkOptions = fields.CheckOptions
 
 // SetRetired retires an attribute keeping its values (RF-103) or restores it (RF-106).
 func (s *Service) SetRetired(ctx context.Context, p *authz.Principal, id uuid.UUID, retired bool) (Attribute, error) {

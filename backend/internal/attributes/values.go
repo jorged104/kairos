@@ -5,13 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 
 	"openscum/internal/db/sqlc"
+	"openscum/internal/fields"
 )
 
 // Values maps attribute ids to JSON values; a JSON null removes the value.
@@ -21,66 +19,11 @@ type Values map[uuid.UUID]json.RawMessage
 // store, or nil when it clears the attribute (RF-97). previous lets a user
 // keep a select option that has been retired since (RF-107).
 func Normalize(a Attribute, raw, previous json.RawMessage) (json.RawMessage, error) {
-	invalid := ErrInvalidValue.WithDetail("attribute", a.ID.String())
-	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 || string(raw) == "null" {
-		return nil, nil
+	v, ok := fields.Normalize(a.Type, a.Options, raw, previous)
+	if !ok {
+		return nil, ErrInvalidValue.WithDetail("attribute", a.ID.String())
 	}
-	switch a.Type {
-	case TypeText:
-		var s string
-		if json.Unmarshal(raw, &s) != nil || utf8.RuneCountInString(s) > maxTextLength {
-			return nil, invalid
-		}
-		if s = strings.TrimSpace(s); s == "" {
-			return nil, nil
-		}
-		return json.Marshal(s)
-	case TypeNumber:
-		var f float64
-		if json.Unmarshal(raw, &f) != nil {
-			return nil, invalid
-		}
-		return json.Marshal(f)
-	case TypeDate:
-		var s string
-		if json.Unmarshal(raw, &s) != nil {
-			return nil, invalid
-		}
-		if _, err := time.Parse(time.DateOnly, s); err != nil {
-			return nil, invalid
-		}
-		return json.Marshal(s)
-	case TypeBoolean:
-		var b bool
-		if json.Unmarshal(raw, &b) != nil {
-			return nil, invalid
-		}
-		return json.Marshal(b)
-	case TypeSelect:
-		var s string
-		if json.Unmarshal(raw, &s) != nil {
-			return nil, invalid
-		}
-		if prev := previousString(previous); prev == s {
-			return json.Marshal(s)
-		}
-		for _, o := range a.Options {
-			if o.Value == s && !o.Retired {
-				return json.Marshal(s)
-			}
-		}
-		return nil, invalid
-	}
-	return nil, invalid
-}
-
-func previousString(previous json.RawMessage) string {
-	var s string
-	if len(previous) == 0 || json.Unmarshal(previous, &s) != nil {
-		return ""
-	}
-	return s
+	return v, nil
 }
 
 // Apply validates and saves a user's attribute values in the caller's

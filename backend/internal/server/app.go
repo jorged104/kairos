@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -12,6 +13,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/config"
 	"openscum/internal/db"
+	"openscum/internal/events"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
 	"openscum/internal/realtime"
@@ -27,6 +29,8 @@ type App struct {
 	Loader   *auth.PrincipalLoader
 	// Hub must be started with Hub.Run.
 	Hub *realtime.Hub
+	// Events must be started with Events.Run.
+	Events *events.Dispatcher
 }
 
 func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
@@ -45,6 +49,8 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	}
 	mappingsH := idpmappings.NewHandler(store, cfg.OIDC.Issuer, logger)
 	auditH := audit.NewHandler(store, logger)
+	eventsH := events.NewHandler(store, logger)
+	dispatcher := events.NewDispatcher(store, logger, time.Second)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
 	usersH := users.NewHandler(users.NewService(cfg, store, authSvc, hasher, loader), logger)
@@ -64,9 +70,10 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			attributesH.Routes(p)
 			usersH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
+			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher}
 }
