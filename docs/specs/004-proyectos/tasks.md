@@ -34,22 +34,22 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-18 a RF-33, RF-40 a RF-43, RF-128
   - Hecho cuando: tests de cada RF, incluidos identificador inmutable y en conflicto con archivados, ciclo y profundidad 5, responsable inválido, proyecto cerrado y archivado de solo lectura, fases instanciadas de la metodología, subárbol en una consulta y filtros del listado (equipo con subequipos).
 
-- [ ] **T7 — Work items** (`internal/workitems`: alta, edición, numeración, asignación, versión, borrado)
+- [x] **T7 — Work items** (`internal/workitems`: alta, edición, numeración, asignación, versión, borrado)
   - Depende de: T5, T6
   - RF: RF-61 a RF-74, RF-85, RF-129, RF-133
   - Hecho cuando: tests de cada RF, incluidos 20 altas concurrentes con números distintos, conflicto de versión con dos `PATCH`, asignado inválido, tipo no activo, descripción saneada, búsqueda por `KAI-42` y filtros del listado (hito efectivo incluido).
 
-- [ ] **T8 — Composición y derivados** (`internal/workitems`)
+- [x] **T8 — Composición y derivados** (`internal/workitems`)
   - Depende de: T7
   - RF: RF-75 a RF-85, RF-130
   - Hecho cuando: tests de padre de otro proyecto, ciclo (también con movimientos concurrentes cruzados), profundidad 10, ancestros y descendientes en una consulta, árbol del proyecto; test de referencia de derivados tras alta, edición, cierre, mover y borrar.
 
-- [ ] **T9 — Estados, flujos y eventos** (`internal/workitems` + `events`)
+- [x] **T9 — Estados, flujos y eventos** (`internal/workitems` + `events`)
   - Depende de: T8, T4
   - RF: RF-84, RF-86 a RF-89, RF-95, RF-116 a RF-118, RF-120 a RF-122
   - Hecho cuando: tests de transición permitida y rechazada por tipo y rol, tipo sin transiciones, admin que fuerza, transiciones posibles en la ficha, cierre bloqueado por `blocks`, y eventos al cerrar, reabrir y entre cerrados (ninguno).
 
-- [ ] **T10 — Dependencias** (`internal/workitems`)
+- [x] **T10 — Dependencias** (`internal/workitems`)
   - Depende de: T8
   - RF: RF-90 a RF-96
   - Hecho cuando: tests de los cuatro tipos, entre proyectos, consigo mismo, con ancestro o descendiente, duplicado, ciclo en `blocks`/`precedes` (también concurrente), desfase fuera de rango e incumplimiento de fechas indicado.

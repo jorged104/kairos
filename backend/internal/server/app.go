@@ -22,6 +22,7 @@ import (
 	"openscum/internal/realtime"
 	"openscum/internal/teams"
 	"openscum/internal/users"
+	"openscum/internal/workitems"
 )
 
 // App wires every module behind one router. main and the integration tests
@@ -56,6 +57,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
 	projectsH := projects.NewHandler(projects.NewService(store), logger)
+	workItemsH := workitems.NewHandler(workitems.NewService(store), logger)
 	dispatcher := events.NewDispatcher(store, logger, time.Second)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
@@ -78,6 +80,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			catalogH.Routes(p)
 			fieldsH.Routes(p)
 			projectsH.Routes(p)
+			workItemsH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
