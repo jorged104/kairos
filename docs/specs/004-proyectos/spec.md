@@ -1,6 +1,6 @@
 # Spec 004 — Proyectos, metodologías, hitos, work items y objetivos
 
-**Estado:** Borrador revisado (2026-10-23), pendiente de aprobación. Las decisiones abiertas
+**Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
 ## Contexto y objetivo
