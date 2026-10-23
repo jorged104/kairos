@@ -96,7 +96,7 @@ Las tareas marcadas **(tú)** necesitan acceso al servidor o una comprobación m
 
 - [ ] **T19 — Variables en el servidor (tú)**
   - Depende de: T18, **antes** de fusionar en `main`
-  - Hecho cuando: `~/kairos/preview.env` incluye `AUTH_MODE`, `SESSION_SECRET` y `PUBLIC_URL`.
+  - Hecho cuando: `~/kairos/preview.env` incluye `AUTH_MODE`, `SESSION_SECRET` y `BOOTSTRAP_ADMIN_EMAIL` (`PUBLIC_URL` la deriva el compose de `PREVIEW_HOST`).
 
 - [ ] **T20 — Demo manual (tú, con apoyo)**
   - Depende de: T14, T17
