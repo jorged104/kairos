@@ -79,7 +79,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: requisitos no funcionales de tamaño y rendimiento
   - Hecho cuando: con el tamaño de diseño, cada umbral se cumple en local (mediana de 5); si no, se añade la tabla de cierre y se repite.
 
-- [ ] **T16 — Frontend: base y catálogo** (`api/work.ts`, tipos, TipTap, componentes shadcn, `/admin/catalog`)
+- [x] **T16 — Frontend: base y catálogo** (`api/work.ts`, tipos, TipTap, componentes shadcn, `/admin/catalog`)
   - Depende de: T4, T5
   - RF: RF-136 a RF-138 (catálogo), RF-70
   - Hecho cuando: build y tests en verde (lista blanca compartida, i18n); desde el navegador se gestionan metodologías, fases, tipos, estados, prioridades, transiciones y campos.

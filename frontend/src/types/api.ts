@@ -29,6 +29,25 @@ export type Permission =
   | 'passwords:set'
   | 'audit:read'
   | 'self:password'
+  // Spec 004.
+  | 'work:read'
+  | 'templates:use'
+  | 'templates:manage'
+  | 'catalog:manage'
+  | 'projects:create:all'
+  | 'projects:create:team'
+  | 'projects:manage:all'
+  | 'projects:manage:team'
+  | 'projects:manage:owner'
+  | 'workitems:write:all'
+  | 'workitems:write:team'
+  | 'workitems:write:participant'
+  | 'workitems:delete:own'
+  | 'objectives:create:all'
+  | 'objectives:create:team'
+  | 'objectives:manage:all'
+  | 'objectives:manage:team'
+  | 'objectives:manage:owner'
 
 export interface RoleAssignment {
   role: Role

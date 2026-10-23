@@ -51,6 +51,12 @@ export const routes = [
         meta: { permissions: ['audit:read'] as Permission[] },
       },
       { path: 'account', name: 'account', component: () => import('@/pages/AccountPage.vue') },
+      {
+        path: 'admin/catalog',
+        name: 'catalog',
+        component: () => import('@/pages/CatalogPage.vue'),
+        meta: { permissions: ['catalog:manage'] as Permission[] },
+      },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },

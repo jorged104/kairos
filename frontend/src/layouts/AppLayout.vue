@@ -20,6 +20,7 @@ const links = computed(() =>
     { to: '/attributes', label: t('nav.attributes'), perm: 'attributes:manage' as Permission },
     { to: '/idp-mappings', label: t('nav.idpMappings'), perm: 'idp_mappings:manage' as Permission },
     { to: '/audit', label: t('nav.audit'), perm: 'audit:read' as Permission },
+    { to: '/admin/catalog', label: t('nav.catalog'), perm: 'catalog:manage' as Permission },
   ].filter((l) => !l.perm || auth.can(l.perm)),
 )
 
