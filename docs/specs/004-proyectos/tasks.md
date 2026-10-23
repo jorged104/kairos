@@ -4,7 +4,7 @@ Derivadas de [plan.md](plan.md) para [spec.md](spec.md), en orden de dependencia
 Un commit por tarea en `feat/004-proyectos`; ninguna se marca sin su verificación en verde.
 Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
 
-- [ ] **T1 — Esquema, datos iniciales y queries** (`00003_proyectos.sql`, `queries/*.sql`, `make sqlc`)
+- [x] **T1 — Esquema, datos iniciales y queries** (`00003_proyectos.sql`, `queries/*.sql`, `make sqlc`)
   - Depende de: —
   - RF: soporte de todos; RF-11
   - Hecho cuando: la migración sube y baja en limpio; sqlc genera sin errores; tests de BD de las claves compuestas (padre, hito y fase de otro proyecto rechazados por la BD), de los `CHECK` (identificador, fechas, horas, avance, hito cumplido ↔ fecha) y de que solo hay un estado y una prioridad por defecto; los datos iniciales existen.

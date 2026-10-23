@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Attribute struct {
@@ -35,6 +36,42 @@ type AuditLog struct {
 	After      json.RawMessage
 }
 
+type CustomField struct {
+	ID             uuid.UUID
+	Entity         string
+	Name           string
+	NameNormalized string
+	Type           string
+	Required       bool
+	Options        json.RawMessage
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type CustomFieldWorkItemType struct {
+	FieldID uuid.UUID
+	TypeID  uuid.UUID
+}
+
+type DomainEvent struct {
+	ID          int64
+	EventID     uuid.UUID
+	Type        string
+	OccurredAt  time.Time
+	ActorID     *uuid.UUID
+	ProjectID   *uuid.UUID
+	SubjectType string
+	SubjectID   uuid.UUID
+	Payload     json.RawMessage
+}
+
+type EventConsumer struct {
+	Name        string
+	LastEventID int64
+	UpdatedAt   time.Time
+}
+
 type IdpMapping struct {
 	ID            uuid.UUID
 	Issuer        string
@@ -45,10 +82,96 @@ type IdpMapping struct {
 	CreatedAt     time.Time
 }
 
+type KeyResult struct {
+	ID           uuid.UUID
+	ObjectiveID  uuid.UUID
+	Title        string
+	Unit         string
+	StartValue   pgtype.Numeric
+	TargetValue  pgtype.Numeric
+	CurrentValue pgtype.Numeric
+	CalcMode     string
+	Position     int32
+	Version      int32
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type KeyResultMilestone struct {
+	KeyResultID uuid.UUID
+	ObjectiveID uuid.UUID
+	MilestoneID uuid.UUID
+}
+
+type KeyResultWorkItem struct {
+	KeyResultID uuid.UUID
+	WorkItemID  uuid.UUID
+}
+
 type LocalCredential struct {
 	UserID       uuid.UUID
 	PasswordHash string
 	UpdatedAt    time.Time
+}
+
+type Methodology struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type Milestone struct {
+	ID              uuid.UUID
+	ProjectID       uuid.UUID
+	PhaseID         *uuid.UUID
+	Name            string
+	Description     json.RawMessage
+	DescriptionText string
+	DueDate         pgtype.Date
+	CompletedOn     pgtype.Date
+	Status          string
+	Position        int32
+	Version         int32
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type MilestoneWorkItem struct {
+	MilestoneID uuid.UUID
+	WorkItemID  uuid.UUID
+	ProjectID   uuid.UUID
+	CreatedAt   time.Time
+}
+
+type Objective struct {
+	ID              uuid.UUID
+	Title           string
+	Description     json.RawMessage
+	DescriptionText string
+	OwnerID         uuid.UUID
+	Scope           string
+	ScopeTeamID     *uuid.UUID
+	ScopeProjectID  *uuid.UUID
+	PeriodStart     pgtype.Date
+	PeriodEnd       pgtype.Date
+	Status          string
+	Version         int32
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type ObjectiveMilestone struct {
+	ObjectiveID uuid.UUID
+	MilestoneID uuid.UUID
+}
+
+type ObjectiveProject struct {
+	ObjectiveID uuid.UUID
+	ProjectID   uuid.UUID
 }
 
 type OidcLoginState struct {
@@ -57,6 +180,97 @@ type OidcLoginState struct {
 	CodeVerifier string
 	ReturnTo     string
 	CreatedAt    time.Time
+}
+
+type PhaseDefinition struct {
+	ID            uuid.UUID
+	MethodologyID uuid.UUID
+	Name          string
+	Position      int32
+	HasStartGate  bool
+	HasFinishGate bool
+	RetiredAt     *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type Priority struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	IsDefault      bool
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type Project struct {
+	ID                uuid.UUID
+	ParentID          *uuid.UUID
+	TemplateID        *uuid.UUID
+	TeamID            uuid.UUID
+	OwnerID           uuid.UUID
+	MethodologyID     *uuid.UUID
+	Identifier        string
+	Name              string
+	Description       json.RawMessage
+	DescriptionText   string
+	IsTemplate        bool
+	Lifecycle         string
+	Health            string
+	HealthExplanation string
+	StartDate         pgtype.Date
+	EndDate           pgtype.Date
+	Depth             int16
+	WiCounter         int32
+	Version           int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ProjectCustomField struct {
+	ProjectID uuid.UUID
+	FieldID   uuid.UUID
+}
+
+type ProjectCustomValue struct {
+	ProjectID uuid.UUID
+	FieldID   uuid.UUID
+	Value     json.RawMessage
+	UpdatedAt time.Time
+}
+
+type ProjectPhase struct {
+	ID                 uuid.UUID
+	ProjectID          uuid.UUID
+	DefinitionID       uuid.UUID
+	Position           int32
+	StartDate          pgtype.Date
+	FinishDate         pgtype.Date
+	StartGatePassedAt  *time.Time
+	StartGatePassedBy  *uuid.UUID
+	FinishGatePassedAt *time.Time
+	FinishGatePassedBy *uuid.UUID
+}
+
+type ProjectWorkItemType struct {
+	ProjectID uuid.UUID
+	TypeID    uuid.UUID
+}
+
+type Status struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	IsClosed       bool
+	IsDefault      bool
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type Team struct {
@@ -113,4 +327,72 @@ type UserRole struct {
 	Role      string
 	Source    string
 	CreatedAt time.Time
+}
+
+type WorkItem struct {
+	ID               uuid.UUID
+	ProjectID        uuid.UUID
+	TypeID           uuid.UUID
+	StatusID         uuid.UUID
+	PriorityID       uuid.UUID
+	ParentID         *uuid.UUID
+	SequenceNumber   int32
+	Title            string
+	Description      json.RawMessage
+	DescriptionText  string
+	AuthorID         uuid.UUID
+	AssigneeID       *uuid.UUID
+	StartDate        pgtype.Date
+	DueDate          pgtype.Date
+	EstimatedHours   pgtype.Numeric
+	RemainingHours   pgtype.Numeric
+	DoneRatio        int16
+	Position         int32
+	Depth            int16
+	AggEstimated     pgtype.Numeric
+	AggRemaining     pgtype.Numeric
+	AggCount         int32
+	AggRatioSum      int64
+	AggEstRatioSum   pgtype.Numeric
+	DerivedDoneRatio *int16
+	Version          int32
+	ClosedAt         *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type WorkItemCustomValue struct {
+	WorkItemID uuid.UUID
+	FieldID    uuid.UUID
+	Value      json.RawMessage
+	UpdatedAt  time.Time
+}
+
+type WorkItemDependency struct {
+	ID        uuid.UUID
+	FromID    uuid.UUID
+	ToID      uuid.UUID
+	Type      string
+	LagDays   int16
+	CreatedBy uuid.UUID
+	CreatedAt time.Time
+}
+
+type WorkItemType struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type WorkflowTransition struct {
+	ID           uuid.UUID
+	TypeID       uuid.UUID
+	FromStatusID uuid.UUID
+	ToStatusID   uuid.UUID
+	Role         *string
 }
