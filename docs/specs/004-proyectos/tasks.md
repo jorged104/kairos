@@ -59,7 +59,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-44 a RF-60
   - Hecho cuando: tests de estados y fecha real, atrasado, vinculación N:M, otro proyecto, efectivos directos y heredados sin duplicar, avance y horas propias, mover un work item cambia sus heredados, fase de otro proyecto y borrado/cancelación.
 
-- [ ] **T12 — Objetivos y resultados clave** (`internal/objectives`)
+- [x] **T12 — Objetivos y resultados clave** (`internal/objectives`)
   - Depende de: T11, T9
   - RF: RF-97 a RF-115, RF-119
   - Hecho cuando: tests de alcances, activación sin resultados clave, meta igual a inicial, avance manual y derivado (work items y hitos), meta menor que inicial, vinculación automática del proyecto, hito no ligado al objetivo, desligar en cascada, hito cancelado, `milestone.completed`/`reopened`.

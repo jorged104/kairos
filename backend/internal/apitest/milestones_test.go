@@ -37,7 +37,7 @@ func (s *workSetup) milestone(t *testing.T, project uuid.UUID, body map[string]a
 func (s *workSetup) getMilestone(t *testing.T, id uuid.UUID) milestoneDTO {
 	t.Helper()
 	var m milestoneDTO
-	s.viewer.Get("/api/milestones/" + id.String()).Expect(t, http.StatusOK).JSON(t, &m)
+	s.viewer.Get("/api/milestones/"+id.String()).Expect(t, http.StatusOK).JSON(t, &m)
 	return m
 }
 
@@ -71,7 +71,7 @@ func TestMilestoneInheritanceAndProgress(t *testing.T) {
 	s.link(t, s.lead, m2.ID, subs[1].ID).Expect(t, http.StatusNoContent)
 
 	var eff effectiveDTO
-	s.viewer.Get("/api/milestones/" + m1.ID.String() + "/work-items").Expect(t, http.StatusOK).JSON(t, &eff)
+	s.viewer.Get("/api/milestones/"+m1.ID.String()+"/work-items").Expect(t, http.StatusOK).JSON(t, &eff)
 	if len(eff.Items) != 4 {
 		t.Fatalf("M1 items = %+v, want the epic and its three children once (RF-52)", eff.Items)
 	}
@@ -89,7 +89,7 @@ func TestMilestoneInheritanceAndProgress(t *testing.T) {
 
 	// subs[1] counts for M1 (inherited) and M2 (direct) (RF-56).
 	var ms effectiveDTO
-	s.viewer.Get("/api/work-items/" + subs[1].ID.String() + "/milestones").Expect(t, http.StatusOK).JSON(t, &ms)
+	s.viewer.Get("/api/work-items/"+subs[1].ID.String()+"/milestones").Expect(t, http.StatusOK).JSON(t, &ms)
 	if len(ms.Items) != 2 {
 		t.Fatalf("milestones of the subactivity = %+v (RF-53)", ms.Items)
 	}
@@ -107,7 +107,7 @@ func TestMilestoneInheritanceAndProgress(t *testing.T) {
 	var list struct {
 		Items []milestoneDTO `json:"items"`
 	}
-	s.viewer.Get("/api/projects/" + project.String() + "/milestones").Expect(t, http.StatusOK).JSON(t, &list)
+	s.viewer.Get("/api/projects/"+project.String()+"/milestones").Expect(t, http.StatusOK).JSON(t, &list)
 	if len(list.Items) != 2 || list.Items[0].Progress.Total != 3 {
 		t.Fatalf("list = %+v", list.Items)
 	}
@@ -129,7 +129,7 @@ func TestMilestoneRules(t *testing.T) {
 			ID uuid.UUID `json:"id"`
 		} `json:"items"`
 	}
-	s.lead.Get("/api/projects/" + other.String() + "/phases").JSON(t, &phases)
+	s.lead.Get("/api/projects/"+other.String()+"/phases").JSON(t, &phases)
 	s.lead.Post("/api/projects/"+project.String()+"/milestones", map[string]any{"name": "X", "phase_id": phases.Items[0].ID}).
 		Expect(t, http.StatusBadRequest, "cross_project") // RF-58
 
@@ -154,7 +154,7 @@ func TestMilestoneRules(t *testing.T) {
 	var evs struct {
 		Items []struct{ Type string } `json:"items"`
 	}
-	s.admin.Get("/api/events?subject_id=" + m.ID.String()).JSON(t, &evs)
+	s.admin.Get("/api/events?subject_id="+m.ID.String()).JSON(t, &evs)
 	if len(evs.Items) != 2 || evs.Items[0].Type != "milestone.reopened" || evs.Items[1].Type != "milestone.completed" {
 		t.Fatalf("events = %+v (RF-119)", evs.Items)
 	}
@@ -172,7 +172,7 @@ func TestMilestoneRules(t *testing.T) {
 	var page struct {
 		Total int `json:"total"`
 	}
-	s.viewer.Get("/api/projects/" + project.String() + "/work-items?milestone_id=" + m2.ID.String()).Expect(t, http.StatusOK).JSON(t, &page)
+	s.viewer.Get("/api/projects/"+project.String()+"/work-items?milestone_id="+m2.ID.String()).Expect(t, http.StatusOK).JSON(t, &page)
 	if page.Total != 2 {
 		t.Fatalf("filtered = %d, want parent and child", page.Total)
 	}
