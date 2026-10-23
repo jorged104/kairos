@@ -19,7 +19,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-70, RF-71, RF-116 a RF-122 (infraestructura), RF-13
   - Hecho cuando: tests de la lista blanca (válidos e inválidos, límites); `Emit` en tx deshecha no deja evento; el dispatcher entrega en orden, reintenta si el consumidor falla y no se salta eventos de transacciones lentas; `attributes` sigue pasando sus tests tras extraer `fields`.
 
-- [ ] **T4 — Catálogo** (`internal/catalog`)
+- [x] **T4 — Catálogo** (`internal/catalog`)
   - Depende de: T2, T3
   - RF: RF-1 a RF-11
   - Hecho cuando: tests de alta, duplicado, retirada con uso, retirada del por defecto, cambio de estado por defecto, transiciones por tipo y rol, y `status_closed_locked`.
