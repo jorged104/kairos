@@ -37,7 +37,40 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/projects/{id}/phases", h.phases)
 		r.Patch("/phases/{id}", h.updatePhase)
 		r.Post("/phases/{id}/gates/{gate}", h.gate)
+		r.Post("/projects/from-template", h.fromTemplate)
 	})
+	r.With(auth.RequirePermission(authz.TemplatesUse, h.logger)).Get("/templates", h.templates)
+	r.Group(func(r chi.Router) {
+		r.Use(auth.RequirePermission(authz.TemplatesManage, h.logger))
+		r.Post("/projects/{id}/template", h.template(true))
+		r.Delete("/projects/{id}/template", h.template(false))
+	})
+}
+
+func (h *Handler) templates(w http.ResponseWriter, r *http.Request) {
+	ts, err := h.svc.Templates(r.Context())
+	h.reply(w, http.StatusOK, map[string]any{"items": ts}, err)
+}
+
+func (h *Handler) fromTemplate(w http.ResponseWriter, r *http.Request) {
+	var req fromTemplateRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	p, err := h.svc.FromTemplate(r.Context(), authz.FromContext(r.Context()), req)
+	h.reply(w, http.StatusCreated, p, err)
+}
+
+func (h *Handler) template(template bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := h.id(w, r)
+		if !ok {
+			return
+		}
+		p, err := h.svc.SetTemplate(r.Context(), authz.FromContext(r.Context()), id, template)
+		h.reply(w, http.StatusOK, p, err)
+	}
 }
 
 func (h *Handler) id(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {

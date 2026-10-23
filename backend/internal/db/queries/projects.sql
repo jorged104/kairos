@@ -131,3 +131,57 @@ UPDATE project_phases SET finish_gate_passed_at = sqlc.narg(passed_at), finish_g
 
 -- name: ListActivePhaseDefinitions :many
 SELECT * FROM phase_definitions WHERE methodology_id = $1 AND retired_at IS NULL ORDER BY position, name;
+
+-- Plantillas ----------------------------------------------------------------
+
+-- name: ListTemplates :many
+SELECT p.id, p.identifier, p.name, p.team_id, t.name AS team_name, p.methodology_id, m.name AS methodology_name
+FROM projects p
+JOIN teams t ON t.id = p.team_id
+LEFT JOIN methodologies m ON m.id = p.methodology_id
+WHERE p.is_template AND p.lifecycle <> 'archivado'
+ORDER BY p.name;
+
+-- name: ProjectHasObjectives :one
+SELECT EXISTS (SELECT 1 FROM objective_projects WHERE project_id = $1);
+
+-- name: ListProjectWorkItemsForCopy :many
+SELECT * FROM work_items WHERE project_id = $1 ORDER BY depth, sequence_number;
+
+-- name: ListProjectDependenciesForCopy :many
+SELECT d.* FROM work_item_dependencies d
+JOIN work_items a ON a.id = d.from_id
+JOIN work_items b ON b.id = d.to_id
+WHERE a.project_id = $1 AND b.project_id = $1;
+
+-- name: ListProjectMilestoneLinksForCopy :many
+SELECT milestone_id, work_item_id FROM milestone_work_items WHERE project_id = $1;
+
+-- name: ListProjectWorkItemValuesForCopy :many
+SELECT v.* FROM work_item_custom_values v JOIN work_items w ON w.id = v.work_item_id WHERE w.project_id = $1;
+
+-- name: CopyWorkItem :one
+INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
+                        description, description_text, author_id, start_date, due_date,
+                        estimated_hours, remaining_hours, position, depth)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+RETURNING id;
+
+-- name: SetWorkItemCounter :exec
+UPDATE projects SET wi_counter = $2 WHERE id = $1;
+
+-- name: CopyMilestone :one
+INSERT INTO milestones (project_id, phase_id, name, description, description_text, due_date, position)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id;
+
+-- name: CopyDependency :exec
+INSERT INTO work_item_dependencies (from_id, to_id, type, lag_days, created_by) VALUES ($1, $2, $3, $4, $5);
+
+-- name: CopyMilestoneLink :exec
+INSERT INTO milestone_work_items (milestone_id, work_item_id, project_id) VALUES ($1, $2, $3);
+
+-- name: CopyWorkItemValue :exec
+INSERT INTO work_item_custom_values (work_item_id, field_id, value) VALUES ($1, $2, $3);
+
+-- name: RecomputeWorkItemAggregates :exec
+SELECT work_item_recompute_project($1);

@@ -64,7 +64,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-97 a RF-115, RF-119
   - Hecho cuando: tests de alcances, activación sin resultados clave, meta igual a inicial, avance manual y derivado (work items y hitos), meta menor que inicial, vinculación automática del proyecto, hito no ligado al objetivo, desligar en cascada, hito cancelado, `milestone.completed`/`reopened`.
 
-- [ ] **T13 — Plantillas** (`internal/projects`)
+- [x] **T13 — Plantillas** (`internal/projects`)
   - Depende de: T6, T7, T10 (para copiar contenido de ejemplo)
   - RF: RF-34 a RF-39
   - Hecho cuando: tests de plantilla oculta en listados y sin eventos; copia de configuración; copia con contenido (jerarquía, dependencias internas, hitos, estado inicial, sin asignado, fechas desplazadas); cambios en la plantilla que no tocan proyectos ya creados.

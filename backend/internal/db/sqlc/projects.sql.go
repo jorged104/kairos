@@ -27,6 +27,140 @@ func (q *Queries) AddProjectType(ctx context.Context, arg AddProjectTypeParams) 
 	return err
 }
 
+const copyDependency = `-- name: CopyDependency :exec
+INSERT INTO work_item_dependencies (from_id, to_id, type, lag_days, created_by) VALUES ($1, $2, $3, $4, $5)
+`
+
+type CopyDependencyParams struct {
+	FromID    uuid.UUID
+	ToID      uuid.UUID
+	Type      string
+	LagDays   int16
+	CreatedBy uuid.UUID
+}
+
+func (q *Queries) CopyDependency(ctx context.Context, arg CopyDependencyParams) error {
+	_, err := q.db.Exec(ctx, copyDependency,
+		arg.FromID,
+		arg.ToID,
+		arg.Type,
+		arg.LagDays,
+		arg.CreatedBy,
+	)
+	return err
+}
+
+const copyMilestone = `-- name: CopyMilestone :one
+INSERT INTO milestones (project_id, phase_id, name, description, description_text, due_date, position)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+`
+
+type CopyMilestoneParams struct {
+	ProjectID       uuid.UUID
+	PhaseID         *uuid.UUID
+	Name            string
+	Description     json.RawMessage
+	DescriptionText string
+	DueDate         *time.Time
+	Position        int32
+}
+
+func (q *Queries) CopyMilestone(ctx context.Context, arg CopyMilestoneParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, copyMilestone,
+		arg.ProjectID,
+		arg.PhaseID,
+		arg.Name,
+		arg.Description,
+		arg.DescriptionText,
+		arg.DueDate,
+		arg.Position,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const copyMilestoneLink = `-- name: CopyMilestoneLink :exec
+INSERT INTO milestone_work_items (milestone_id, work_item_id, project_id) VALUES ($1, $2, $3)
+`
+
+type CopyMilestoneLinkParams struct {
+	MilestoneID uuid.UUID
+	WorkItemID  uuid.UUID
+	ProjectID   uuid.UUID
+}
+
+func (q *Queries) CopyMilestoneLink(ctx context.Context, arg CopyMilestoneLinkParams) error {
+	_, err := q.db.Exec(ctx, copyMilestoneLink, arg.MilestoneID, arg.WorkItemID, arg.ProjectID)
+	return err
+}
+
+const copyWorkItem = `-- name: CopyWorkItem :one
+INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
+                        description, description_text, author_id, start_date, due_date,
+                        estimated_hours, remaining_hours, position, depth)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+RETURNING id
+`
+
+type CopyWorkItemParams struct {
+	ProjectID       uuid.UUID
+	TypeID          uuid.UUID
+	StatusID        uuid.UUID
+	PriorityID      uuid.UUID
+	ParentID        *uuid.UUID
+	SequenceNumber  int32
+	Title           string
+	Description     json.RawMessage
+	DescriptionText string
+	AuthorID        uuid.UUID
+	StartDate       *time.Time
+	DueDate         *time.Time
+	EstimatedHours  *float64
+	RemainingHours  *float64
+	Position        int32
+	Depth           int16
+}
+
+func (q *Queries) CopyWorkItem(ctx context.Context, arg CopyWorkItemParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, copyWorkItem,
+		arg.ProjectID,
+		arg.TypeID,
+		arg.StatusID,
+		arg.PriorityID,
+		arg.ParentID,
+		arg.SequenceNumber,
+		arg.Title,
+		arg.Description,
+		arg.DescriptionText,
+		arg.AuthorID,
+		arg.StartDate,
+		arg.DueDate,
+		arg.EstimatedHours,
+		arg.RemainingHours,
+		arg.Position,
+		arg.Depth,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const copyWorkItemValue = `-- name: CopyWorkItemValue :exec
+INSERT INTO work_item_custom_values (work_item_id, field_id, value) VALUES ($1, $2, $3)
+`
+
+type CopyWorkItemValueParams struct {
+	WorkItemID uuid.UUID
+	FieldID    uuid.UUID
+	Value      json.RawMessage
+}
+
+func (q *Queries) CopyWorkItemValue(ctx context.Context, arg CopyWorkItemValueParams) error {
+	_, err := q.db.Exec(ctx, copyWorkItemValue, arg.WorkItemID, arg.FieldID, arg.Value)
+	return err
+}
+
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (parent_id, template_id, team_id, owner_id, methodology_id, identifier, name,
                       description, description_text, is_template, health, health_explanation,
@@ -313,6 +447,70 @@ func (q *Queries) ListActivePhaseDefinitions(ctx context.Context, methodologyID 
 	return items, nil
 }
 
+const listProjectDependenciesForCopy = `-- name: ListProjectDependenciesForCopy :many
+SELECT d.id, d.from_id, d.to_id, d.type, d.lag_days, d.created_by, d.created_at FROM work_item_dependencies d
+JOIN work_items a ON a.id = d.from_id
+JOIN work_items b ON b.id = d.to_id
+WHERE a.project_id = $1 AND b.project_id = $1
+`
+
+func (q *Queries) ListProjectDependenciesForCopy(ctx context.Context, projectID uuid.UUID) ([]WorkItemDependency, error) {
+	rows, err := q.db.Query(ctx, listProjectDependenciesForCopy, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItemDependency
+	for rows.Next() {
+		var i WorkItemDependency
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromID,
+			&i.ToID,
+			&i.Type,
+			&i.LagDays,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjectMilestoneLinksForCopy = `-- name: ListProjectMilestoneLinksForCopy :many
+SELECT milestone_id, work_item_id FROM milestone_work_items WHERE project_id = $1
+`
+
+type ListProjectMilestoneLinksForCopyRow struct {
+	MilestoneID uuid.UUID
+	WorkItemID  uuid.UUID
+}
+
+func (q *Queries) ListProjectMilestoneLinksForCopy(ctx context.Context, projectID uuid.UUID) ([]ListProjectMilestoneLinksForCopyRow, error) {
+	rows, err := q.db.Query(ctx, listProjectMilestoneLinksForCopy, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProjectMilestoneLinksForCopyRow
+	for rows.Next() {
+		var i ListProjectMilestoneLinksForCopyRow
+		if err := rows.Scan(&i.MilestoneID, &i.WorkItemID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProjectPhases = `-- name: ListProjectPhases :many
 SELECT ph.id, ph.project_id, ph.definition_id, ph.position, ph.start_date, ph.finish_date, ph.start_gate_passed_at, ph.start_gate_passed_by, ph.finish_gate_passed_at, ph.finish_gate_passed_by, d.name, d.has_start_gate, d.has_finish_gate
 FROM project_phases ph JOIN phase_definitions d ON d.id = ph.definition_id
@@ -394,6 +592,138 @@ func (q *Queries) ListProjectTypeIDs(ctx context.Context, projectID uuid.UUID) (
 	return items, nil
 }
 
+const listProjectWorkItemValuesForCopy = `-- name: ListProjectWorkItemValuesForCopy :many
+SELECT v.work_item_id, v.field_id, v.value, v.updated_at FROM work_item_custom_values v JOIN work_items w ON w.id = v.work_item_id WHERE w.project_id = $1
+`
+
+func (q *Queries) ListProjectWorkItemValuesForCopy(ctx context.Context, projectID uuid.UUID) ([]WorkItemCustomValue, error) {
+	rows, err := q.db.Query(ctx, listProjectWorkItemValuesForCopy, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItemCustomValue
+	for rows.Next() {
+		var i WorkItemCustomValue
+		if err := rows.Scan(
+			&i.WorkItemID,
+			&i.FieldID,
+			&i.Value,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjectWorkItemsForCopy = `-- name: ListProjectWorkItemsForCopy :many
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at FROM work_items WHERE project_id = $1 ORDER BY depth, sequence_number
+`
+
+func (q *Queries) ListProjectWorkItemsForCopy(ctx context.Context, projectID uuid.UUID) ([]WorkItem, error) {
+	rows, err := q.db.Query(ctx, listProjectWorkItemsForCopy, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItem
+	for rows.Next() {
+		var i WorkItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.TypeID,
+			&i.StatusID,
+			&i.PriorityID,
+			&i.ParentID,
+			&i.SequenceNumber,
+			&i.Title,
+			&i.Description,
+			&i.DescriptionText,
+			&i.AuthorID,
+			&i.AssigneeID,
+			&i.StartDate,
+			&i.DueDate,
+			&i.EstimatedHours,
+			&i.RemainingHours,
+			&i.DoneRatio,
+			&i.Position,
+			&i.Depth,
+			&i.AggEstimated,
+			&i.AggRemaining,
+			&i.AggCount,
+			&i.AggRatioSum,
+			&i.AggEstRatioSum,
+			&i.DerivedDoneRatio,
+			&i.Version,
+			&i.ClosedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTemplates = `-- name: ListTemplates :many
+
+SELECT p.id, p.identifier, p.name, p.team_id, t.name AS team_name, p.methodology_id, m.name AS methodology_name
+FROM projects p
+JOIN teams t ON t.id = p.team_id
+LEFT JOIN methodologies m ON m.id = p.methodology_id
+WHERE p.is_template AND p.lifecycle <> 'archivado'
+ORDER BY p.name
+`
+
+type ListTemplatesRow struct {
+	ID              uuid.UUID
+	Identifier      string
+	Name            string
+	TeamID          uuid.UUID
+	TeamName        string
+	MethodologyID   *uuid.UUID
+	MethodologyName *string
+}
+
+// Plantillas ----------------------------------------------------------------
+func (q *Queries) ListTemplates(ctx context.Context) ([]ListTemplatesRow, error) {
+	rows, err := q.db.Query(ctx, listTemplates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTemplatesRow
+	for rows.Next() {
+		var i ListTemplatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Identifier,
+			&i.Name,
+			&i.TeamID,
+			&i.TeamName,
+			&i.MethodologyID,
+			&i.MethodologyName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockProjectTree = `-- name: LockProjectTree :exec
 SELECT pg_advisory_xact_lock(hashtext('project-tree'))
 `
@@ -402,6 +732,17 @@ SELECT pg_advisory_xact_lock(hashtext('project-tree'))
 func (q *Queries) LockProjectTree(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockProjectTree)
 	return err
+}
+
+const projectHasObjectives = `-- name: ProjectHasObjectives :one
+SELECT EXISTS (SELECT 1 FROM objective_projects WHERE project_id = $1)
+`
+
+func (q *Queries) ProjectHasObjectives(ctx context.Context, projectID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, projectHasObjectives, projectID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const projectIsDescendant = `-- name: ProjectIsDescendant :one
@@ -579,6 +920,15 @@ func (q *Queries) ProjectTypeInUse(ctx context.Context, arg ProjectTypeInUsePara
 	return exists, err
 }
 
+const recomputeWorkItemAggregates = `-- name: RecomputeWorkItemAggregates :exec
+SELECT work_item_recompute_project($1)
+`
+
+func (q *Queries) RecomputeWorkItemAggregates(ctx context.Context, pProject uuid.UUID) error {
+	_, err := q.db.Exec(ctx, recomputeWorkItemAggregates, pProject)
+	return err
+}
+
 const removeProjectType = `-- name: RemoveProjectType :exec
 DELETE FROM project_work_item_types WHERE project_id = $1 AND type_id = $2
 `
@@ -700,6 +1050,20 @@ type SetStartGateParams struct {
 
 func (q *Queries) SetStartGate(ctx context.Context, arg SetStartGateParams) error {
 	_, err := q.db.Exec(ctx, setStartGate, arg.ID, arg.PassedAt, arg.PassedBy)
+	return err
+}
+
+const setWorkItemCounter = `-- name: SetWorkItemCounter :exec
+UPDATE projects SET wi_counter = $2 WHERE id = $1
+`
+
+type SetWorkItemCounterParams struct {
+	ID        uuid.UUID
+	WiCounter int32
+}
+
+func (q *Queries) SetWorkItemCounter(ctx context.Context, arg SetWorkItemCounterParams) error {
+	_, err := q.db.Exec(ctx, setWorkItemCounter, arg.ID, arg.WiCounter)
 	return err
 }
 
