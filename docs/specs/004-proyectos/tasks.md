@@ -54,7 +54,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-90 a RF-96
   - Hecho cuando: tests de los cuatro tipos, entre proyectos, consigo mismo, con ancestro o descendiente, duplicado, ciclo en `blocks`/`precedes` (también concurrente), desfase fuera de rango e incumplimiento de fechas indicado.
 
-- [ ] **T11 — Hitos** (`internal/milestones`)
+- [x] **T11 — Hitos** (`internal/milestones`)
   - Depende de: T6, T7
   - RF: RF-44 a RF-60
   - Hecho cuando: tests de estados y fecha real, atrasado, vinculación N:M, otro proyecto, efectivos directos y heredados sin duplicar, avance y horas propias, mover un work item cambia sus heredados, fase de otro proyecto y borrado/cancelación.

@@ -44,7 +44,7 @@ func (s *Service) Tree(ctx context.Context, p *authz.Principal, projectID uuid.U
 	}
 	out := make([]Node, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, node(project.Identifier, sqlc.WorkItemDescendantsRow(r)))
+		out = append(out, NodeFrom(project.Identifier, sqlc.WorkItemDescendantsRow(r)))
 	}
 	return out, nil
 }
@@ -61,12 +61,13 @@ func (s *Service) Descendants(ctx context.Context, p *authz.Principal, id uuid.U
 	}
 	out := make([]Node, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, node(project.Identifier, r))
+		out = append(out, NodeFrom(project.Identifier, r))
 	}
 	return out, nil
 }
 
-func node(identifier string, r sqlc.WorkItemDescendantsRow) Node {
+// NodeFrom builds a tree row; identifier is the project identifier.
+func NodeFrom(identifier string, r sqlc.WorkItemDescendantsRow) Node {
 	n := Node{
 		ID: r.ID, ParentID: r.ParentID, Key: Key(identifier, r.SequenceNumber), Title: r.Title, TypeID: r.TypeID,
 		StatusID: r.StatusID, PriorityID: r.PriorityID, Estimated: r.AggEstimated, Remaining: r.AggRemaining,
@@ -177,7 +178,7 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 			return Page{}, fmt.Errorf("leer work item: %w", err)
 		}
 		r.DueDate = due
-		out.Items = append(out.Items, node(project.Identifier, r))
+		out.Items = append(out.Items, NodeFrom(project.Identifier, r))
 	}
 	return out, rows.Err()
 }
