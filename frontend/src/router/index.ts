@@ -51,6 +51,18 @@ export const routes = [
         meta: { permissions: ['audit:read'] as Permission[] },
       },
       { path: 'account', name: 'account', component: () => import('@/pages/AccountPage.vue') },
+      { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
+      {
+        path: 'projects/new',
+        name: 'project-new',
+        component: () => import('@/pages/ProjectNewPage.vue'),
+        meta: { permissions: ['projects:create:all', 'projects:create:team'] as Permission[] },
+      },
+      { path: 'projects/:id', name: 'project', component: () => import('@/pages/ProjectPage.vue'), props: true },
+      { path: 'milestones/:id', name: 'milestone', component: () => import('@/pages/MilestonePage.vue'), props: true },
+      { path: 'work-items/:wikey', name: 'work-item', component: () => import('@/pages/WorkItemPage.vue'), props: true },
+      { path: 'objectives', name: 'objectives', component: () => import('@/pages/ObjectivesPage.vue') },
+      { path: 'objectives/:id', name: 'objective', component: () => import('@/pages/ObjectivePage.vue'), props: true },
       {
         path: 'admin/catalog',
         name: 'catalog',

@@ -299,7 +299,7 @@ export interface Objective {
     completed_on: string | null
     project: { id: string; identifier: string; name: string }
   }[]
-  can: { manage: boolean }
+  can: { manage: boolean; status: boolean }
 }
 
 export interface ObjectiveSummary {

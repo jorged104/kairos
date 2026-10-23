@@ -364,5 +364,202 @@
     "required": "Obligatorio",
     "optionsHelp": "Opciones separadas por comas",
     "limitTypes": "Solo para estos tipos (ninguno = todos):"
+  },
+  "work": {
+    "reload": "Recargar"
+  },
+  "projects": {
+    "title": "Proyectos",
+    "new": "Nuevo proyecto",
+    "searchPlaceholder": "Buscar por nombre o identificador",
+    "identifier": "Identificador",
+    "identifierHelp": "De 2 a 10 mayúsculas o dígitos, empezando por letra (por ejemplo KAI). No se puede cambiar después.",
+    "name": "Nombre",
+    "team": "Equipo",
+    "chooseTeam": "Elige un equipo",
+    "owner": "Responsable",
+    "ownerMe": "Yo",
+    "methodology": "Metodología",
+    "startDate": "Inicio",
+    "endDate": "Fin",
+    "description": "Descripción",
+    "health": "Salud",
+    "healthExplanation": "Explicación de la salud",
+    "lifecycle": "Ciclo de vida",
+    "lifecycleDefault": "Activos y cerrados",
+    "lifecycles": {
+      "activo": "Activo",
+      "cerrado": "Cerrado",
+      "archivado": "Archivado"
+    },
+    "healths": {
+      "en_curso": "En curso",
+      "en_riesgo": "En riesgo",
+      "fuera_de_curso": "Fuera de curso"
+    },
+    "actions": {
+      "close": "Cerrar",
+      "reopen": "Reabrir",
+      "archive": "Archivar",
+      "unarchive": "Desarchivar"
+    },
+    "template": "Plantilla",
+    "blank": "Proyecto en blanco",
+    "includeContent": "Copiar también los hitos y work items de ejemplo",
+    "isTemplate": "Plantilla",
+    "markTemplate": "Marcar como plantilla",
+    "unmarkTemplate": "Dejar de ser plantilla",
+    "enabledTypes": "Tipos de work item activos",
+    "enabledFields": "Campos personalizados activos",
+    "tabs": {
+      "summary": "Resumen",
+      "phases": "Fases",
+      "milestones": "Hitos",
+      "work-items": "Work items"
+    },
+    "noPhases": "El proyecto no tiene metodología con fases.",
+    "phaseStart": "Inicio",
+    "phaseFinish": "Fin"
+  },
+  "milestones": {
+    "name": "Nombre del hito",
+    "due": "Fecha objetivo",
+    "phase": "Fase",
+    "noPhase": "Sin fase",
+    "overdue": "Atrasado",
+    "progress": "Avance",
+    "counts": "{closed} de {total} work items cerrados",
+    "hours": "{estimated} h estimadas, {remaining} h restantes",
+    "completedOn": "Cumplido el",
+    "statuses": {
+      "abierto": "Abierto",
+      "cumplido": "Cumplido",
+      "cancelado": "Cancelado"
+    },
+    "actions": {
+      "complete": "Marcar cumplido",
+      "reopen": "Reabrir",
+      "cancel": "Cancelar hito",
+      "delete": "Borrar"
+    },
+    "workItems": "Work items que cuentan para el hito",
+    "link": "Ligar",
+    "linkPlaceholder": "KAI-42",
+    "inherited": "Heredado"
+  },
+  "workItems": {
+    "title": "Título",
+    "newTitle": "Nuevo work item",
+    "type": "Tipo",
+    "status": "Estado",
+    "priority": "Prioridad",
+    "assignee": "Asignado",
+    "unassigned": "Sin asignar",
+    "author": "Autor",
+    "parent": "Padre",
+    "noParent": "Sin padre",
+    "start": "Inicio",
+    "due": "Fin",
+    "estimated": "Horas estimadas",
+    "remaining": "Horas restantes",
+    "doneRatio": "Avance (%)",
+    "progress": "Avance",
+    "description": "Descripción",
+    "ownProgress": "Avance propio",
+    "derivedProgress": "Avance con sus hijos · {estimated} h estimadas, {remaining} h restantes",
+    "childOf": "Hijo de {key}",
+    "addChild": "Añadir hijo",
+    "expand": "Expandir",
+    "collapse": "Contraer",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "searchPlaceholder": "Buscar por título o número",
+    "allTypes": "Todos los tipos",
+    "state": "Abierto o cerrado",
+    "openAndClosed": "Abiertos y cerrados",
+    "onlyOpen": "Solo abiertos",
+    "onlyClosed": "Solo cerrados",
+    "milestone": "Hito",
+    "anyMilestone": "Cualquier hito",
+    "moveTo": "Pasar a:",
+    "delete": "Borrar",
+    "milestones": "Hitos",
+    "dependencies": "Dependencias",
+    "depType": "Tipo de dependencia",
+    "depTarget": "Work item",
+    "lagDays": "Desfase en días",
+    "lag": "desfase {days} d",
+    "datesViolated": "Fechas incumplidas",
+    "depTypes": {
+      "blocks": {
+        "outgoing": "Bloquea a",
+        "incoming": "Bloqueado por"
+      },
+      "precedes": {
+        "outgoing": "Precede a",
+        "incoming": "Va después de"
+      },
+      "relates": {
+        "outgoing": "Relacionado con",
+        "incoming": "Relacionado con"
+      },
+      "duplicates": {
+        "outgoing": "Duplica a",
+        "incoming": "Duplicado por"
+      }
+    },
+    "filterType": "Filtrar por tipo",
+    "filterText": "Buscar work items"
+  },
+  "objectives": {
+    "title": "Objetivos",
+    "new": "Nuevo objetivo",
+    "titlePlaceholder": "¿Qué queremos lograr?",
+    "scope": "Alcance",
+    "scopes": {
+      "organizacion": "Organización",
+      "equipo": "Equipo",
+      "proyecto": "Proyecto"
+    },
+    "statuses": {
+      "borrador": "Borrador",
+      "activo": "Activo",
+      "cerrado": "Cerrado",
+      "cancelado": "Cancelado"
+    },
+    "status": "Estado",
+    "anyStatus": "Cualquier estado",
+    "anyScope": "Cualquier alcance",
+    "project": "Proyecto",
+    "chooseProject": "Elige un proyecto",
+    "periodStart": "Desde",
+    "periodEnd": "Hasta",
+    "progress": "Avance",
+    "actions": {
+      "activate": "Activar",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "reopen": "Reabrir"
+    },
+    "keyResults": "Resultados clave",
+    "modes": {
+      "manual": "Manual",
+      "derivado": "Derivado"
+    },
+    "mode": "Cálculo",
+    "current": "Actual",
+    "linkedDone": "{done} de {total} elementos cumplidos",
+    "updateCurrent": "Actualizar valor",
+    "krTitle": "Resultado clave",
+    "unit": "Unidad",
+    "startValue": "Valor inicial",
+    "targetValue": "Meta",
+    "addKeyResult": "Añadir resultado clave",
+    "milestones": "Hitos que contribuyen",
+    "projects": "Proyectos",
+    "linkProject": "Ligar proyecto",
+    "linkMilestone": "Ligar hito",
+    "chooseMilestone": "Elige un hito",
+    "linkWorkItem": "Ligar work item"
   }
 }

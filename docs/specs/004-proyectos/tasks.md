@@ -84,17 +84,17 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-136 a RF-138 (catálogo), RF-70
   - Hecho cuando: build y tests en verde (lista blanca compartida, i18n); desde el navegador se gestionan metodologías, fases, tipos, estados, prioridades, transiciones y campos.
 
-- [ ] **T17 — Frontend: proyectos y plantillas** (`/projects`, `/projects/new`, `/projects/:id` resumen y fases)
+- [x] **T17 — Frontend: proyectos y plantillas** (`/projects`, `/projects/new`, `/projects/:id` resumen y fases)
   - Depende de: T16, T13
   - RF: RF-136, RF-137
   - Hecho cuando: build y tests en verde; desde el navegador se crea un proyecto desde plantilla, se filtra el listado, se editan datos, fases y gates.
 
-- [ ] **T18 — Frontend: hitos y work items** (pestañas de hitos y work items, `/milestones/:id`, `/work-items/:key`)
+- [x] **T18 — Frontend: hitos y work items** (pestañas de hitos y work items, `/milestones/:id`, `/work-items/:key`)
   - Depende de: T17, T11, T10
   - RF: RF-136, RF-137
   - Hecho cuando: build y tests en verde (armado del árbol); desde el navegador se crea una épica con subactividades, se liga a un hito y se ven heredadas, se cambia el estado por el flujo, se crea una dependencia y se ve el conflicto de versión.
 
-- [ ] **T19 — Frontend: objetivos** (`/objectives`, `/objectives/:id`)
+- [x] **T19 — Frontend: objetivos** (`/objectives`, `/objectives/:id`)
   - Depende de: T18, T12
   - RF: RF-136, RF-137
   - Hecho cuando: build y tests en verde; desde el navegador se crea un objetivo con resultados clave, se ligan hitos y work items de dos proyectos y se ve el avance.

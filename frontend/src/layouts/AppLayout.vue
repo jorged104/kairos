@@ -15,6 +15,8 @@ const router = useRouter()
 const links = computed(() =>
   [
     { to: '/', label: t('nav.status') },
+    { to: '/projects', label: t('nav.projects'), perm: 'work:read' as Permission },
+    { to: '/objectives', label: t('nav.objectives'), perm: 'work:read' as Permission },
     { to: '/users', label: t('nav.users') },
     { to: '/teams', label: t('nav.teams') },
     { to: '/attributes', label: t('nav.attributes'), perm: 'attributes:manage' as Permission },
