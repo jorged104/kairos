@@ -29,7 +29,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-12 a RF-17
   - Hecho cuando: tests de cada tipo, límite por tipo de work item, activación por proyecto, obligatorios y retirada, reutilizando las reglas de 003.
 
-- [ ] **T6 — Proyectos** (`internal/projects`: alta, edición, jerarquía, ciclo de vida, tipos y campos activos, fases, listado)
+- [x] **T6 — Proyectos** (`internal/projects`: alta, edición, jerarquía, ciclo de vida, tipos y campos activos, fases, listado)
   - Depende de: T5
   - RF: RF-18 a RF-33, RF-40 a RF-43, RF-128
   - Hecho cuando: tests de cada RF, incluidos identificador inmutable y en conflicto con archivados, ciclo y profundidad 5, responsable inválido, proyecto cerrado y archivado de solo lectura, fases instanciadas de la metodología, subárbol en una consulta y filtros del listado (equipo con subequipos).

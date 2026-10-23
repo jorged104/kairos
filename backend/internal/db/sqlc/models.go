@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Attribute struct {
@@ -87,9 +86,9 @@ type KeyResult struct {
 	ObjectiveID  uuid.UUID
 	Title        string
 	Unit         string
-	StartValue   pgtype.Numeric
-	TargetValue  pgtype.Numeric
-	CurrentValue pgtype.Numeric
+	StartValue   float64
+	TargetValue  float64
+	CurrentValue float64
 	CalcMode     string
 	Position     int32
 	Version      int32
@@ -131,8 +130,8 @@ type Milestone struct {
 	Name            string
 	Description     json.RawMessage
 	DescriptionText string
-	DueDate         pgtype.Date
-	CompletedOn     pgtype.Date
+	DueDate         *time.Time
+	CompletedOn     *time.Time
 	Status          string
 	Position        int32
 	Version         int32
@@ -156,8 +155,8 @@ type Objective struct {
 	Scope           string
 	ScopeTeamID     *uuid.UUID
 	ScopeProjectID  *uuid.UUID
-	PeriodStart     pgtype.Date
-	PeriodEnd       pgtype.Date
+	PeriodStart     time.Time
+	PeriodEnd       time.Time
 	Status          string
 	Version         int32
 	CreatedAt       time.Time
@@ -221,8 +220,8 @@ type Project struct {
 	Lifecycle         string
 	Health            string
 	HealthExplanation string
-	StartDate         pgtype.Date
-	EndDate           pgtype.Date
+	StartDate         *time.Time
+	EndDate           *time.Time
 	Depth             int16
 	WiCounter         int32
 	Version           int32
@@ -247,8 +246,8 @@ type ProjectPhase struct {
 	ProjectID          uuid.UUID
 	DefinitionID       uuid.UUID
 	Position           int32
-	StartDate          pgtype.Date
-	FinishDate         pgtype.Date
+	StartDate          *time.Time
+	FinishDate         *time.Time
 	StartGatePassedAt  *time.Time
 	StartGatePassedBy  *uuid.UUID
 	FinishGatePassedAt *time.Time
@@ -342,18 +341,18 @@ type WorkItem struct {
 	DescriptionText  string
 	AuthorID         uuid.UUID
 	AssigneeID       *uuid.UUID
-	StartDate        pgtype.Date
-	DueDate          pgtype.Date
-	EstimatedHours   pgtype.Numeric
-	RemainingHours   pgtype.Numeric
+	StartDate        *time.Time
+	DueDate          *time.Time
+	EstimatedHours   *float64
+	RemainingHours   *float64
 	DoneRatio        int16
 	Position         int32
 	Depth            int16
-	AggEstimated     pgtype.Numeric
-	AggRemaining     pgtype.Numeric
+	AggEstimated     float64
+	AggRemaining     float64
 	AggCount         int32
 	AggRatioSum      int64
-	AggEstRatioSum   pgtype.Numeric
+	AggEstRatioSum   float64
 	DerivedDoneRatio *int16
 	Version          int32
 	ClosedAt         *time.Time

@@ -18,6 +18,7 @@ import (
 	"openscum/internal/events"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
+	"openscum/internal/projects"
 	"openscum/internal/realtime"
 	"openscum/internal/teams"
 	"openscum/internal/users"
@@ -54,6 +55,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	eventsH := events.NewHandler(store, logger)
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
+	projectsH := projects.NewHandler(projects.NewService(store), logger)
 	dispatcher := events.NewDispatcher(store, logger, time.Second)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
@@ -75,6 +77,7 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			usersH.Routes(p)
 			catalogH.Routes(p)
 			fieldsH.Routes(p)
+			projectsH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
