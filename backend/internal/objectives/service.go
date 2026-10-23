@@ -199,7 +199,7 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return fmt.Errorf("actualizar objetivo: %w", err)
 		}
 		after := auditView(updated)
-		after["description_changed"] = string(o.Description) != string(desc)
+		after["description_changed"] = richtext.Changed(o.Description, desc)
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "objective.updated", TargetType: "objective",
 			TargetID: id.String(), Before: auditView(o), After: after}); err != nil {
 			return err

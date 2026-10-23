@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -284,4 +285,17 @@ func safeHref(v json.RawMessage) (bool, bool) {
 		return u.Opaque != "", true
 	}
 	return false, false
+}
+
+// Changed reports whether two stored documents differ in content; the
+// database may return the same JSON with other spacing or key order.
+func Changed(a, b json.RawMessage) bool {
+	var x, y any
+	if len(bytes.TrimSpace(a)) > 0 {
+		_ = json.Unmarshal(a, &x)
+	}
+	if len(bytes.TrimSpace(b)) > 0 {
+		_ = json.Unmarshal(b, &y)
+	}
+	return !reflect.DeepEqual(x, y)
 }

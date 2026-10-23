@@ -69,7 +69,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-34 a RF-39
   - Hecho cuando: tests de plantilla oculta en listados y sin eventos; copia de configuración; copia con contenido (jerarquía, dependencias internas, hitos, estado inicial, sin asignado, fechas desplazadas); cambios en la plantilla que no tocan proyectos ya creados.
 
-- [ ] **T14 — Matriz de permisos y auditoría**
+- [x] **T14 — Matriz de permisos y auditoría**
   - Depende de: T13, T10, T12
   - RF: RF-124, RF-125, RF-127, RF-134, RF-135
   - Hecho cuando: `apitest/matrix_test.go` recorre todas las operaciones nuevas con cada rol y ámbito y obtiene el código de la matriz; un test comprueba que cada mutación deja su entrada de auditoría y que la descripción solo aparece como `description_changed`.

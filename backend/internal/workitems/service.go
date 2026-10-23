@@ -378,7 +378,7 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			}
 		}
 		after := auditView(updated, key)
-		after["description_changed"] = string(row.Description) != string(desc)
+		after["description_changed"] = richtext.Changed(row.Description, desc)
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.updated", TargetType: "work_item",
 			TargetID: id.String(), Before: auditView(row, key), After: after}); err != nil {
 			return err
