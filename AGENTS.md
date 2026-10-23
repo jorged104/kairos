@@ -53,7 +53,8 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── 001-infraestructura-base/      # spec.md, plan.md, task(s).md
 │   │   ├── 002-entorno-previsualizacion/
 │   │   ├── 003-usuarios/                  # auth local/OIDC, roles, permisos, equipos, atributos
-│   │   └── ...                            # jerarquía de trabajo y gamificación: siguientes números libres
+│   │   ├── 004-proyectos/                 # proyectos, metodologías, hitos, work items, objetivos (OKR)
+│   │   └── ...                            # gamificación y siguientes: próximos números libres
 │   └── adr/                   # decisiones de arquitectura
 ├── backend/
 │   ├── cmd/
@@ -71,10 +72,16 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── teams/             # equipos jerárquicos y líderes
 │   │   ├── attributes/        # atributos dinámicos de usuario
 │   │   ├── idpmappings/       # homologación de roles y grupos del IdP
-│   │   ├── objectives/
-│   │   ├── projects/
-│   │   ├── milestones/
-│   │   ├── workitems/         # actividades y subactividades (parent_id)
+│   │   ├── catalog/           # metodologías y fases, tipos, estados, prioridades y flujos
+│   │   ├── customfields/      # campos personalizados de proyectos y work items
+│   │   ├── fields/            # tipos de valor compartidos por atributos y campos personalizados
+│   │   ├── richtext/          # validación con lista blanca de las descripciones (JSON de TipTap)
+│   │   ├── events/            # eventos de dominio: outbox en la transacción + dispatcher
+│   │   ├── workcore/          # piezas comunes de la spec 004 (fechas, responsables)
+│   │   ├── projects/          # proyectos, jerarquía, ciclo de vida, fases y plantillas
+│   │   ├── milestones/        # hitos, work items heredados y avance
+│   │   ├── workitems/         # work items: composición, derivados, flujos, dependencias
+│   │   ├── objectives/        # objetivos y resultados clave
 │   │   ├── gamification/      # ledger, reglas de XP/monedas, niveles
 │   │   ├── realtime/          # hub WebSocket
 │   │   ├── apitest/           # tests HTTP de la API completa contra una BD temporal e IdP simulado
@@ -100,10 +107,11 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   │   ├── ui/            # shadcn-vue generado
 │   │   │   └── ...
 │   │   ├── features/          # un directorio por dominio
-│   │   │   ├── auth/
-│   │   │   ├── objectives/
-│   │   │   ├── projects/
-│   │   │   ├── workitems/
+│   │   │   ├── catalog/       # administración del catálogo de trabajo
+│   │   │   ├── projects/      # pestañas de la ficha de proyecto
+│   │   │   ├── workitems/     # árbol de work items
+│   │   │   ├── richtext/      # editor y visor TipTap
+│   │   │   ├── work/          # composables y piezas comunes de la spec 004
 │   │   │   ├── kanban/
 │   │   │   └── gamification/
 │   │   ├── layouts/
@@ -165,5 +173,8 @@ Cada push a `main` pasa los tests en GitHub y se despliega en un servidor domés
 * i18n: ningún texto visible fijo en componentes; todo sale de `frontend/src/locales/<idioma>.json` con claves jerárquicas por dominio (`health.api.available`). Idioma por defecto: español (`es`). El frontend traduce los errores de la API a partir de `error.code`, no muestra `error.message` al usuario.
 * Nombres de tablas en plural y `snake_case`; claves primarias `uuid`.
 * Ramas: `feat/<spec-id>-<descripcion>`, `fix/<descripcion>`.
-* Autorización: los endpoints comprueban permisos (`authz`), nunca nombres de rol. Un permiso nuevo se añade a la matriz única de `internal/authz` y al test `apitest/matrix_test.go`.
-* Toda mutación de usuarios, roles, equipos, atributos u homologaciones se audita con `audit.Record` dentro de la misma transacción.
+* Autorización: los endpoints comprueban permisos (`authz`), nunca nombres de rol. Un permiso nuevo se añade a la matriz única de `internal/authz` y al test de matriz (`apitest/matrix_test.go` o `apitest/matrix_work_test.go`).
+* Toda mutación de usuarios, roles, equipos, atributos u homologaciones, y de catálogo, proyectos, fases, hitos, work items, dependencias u objetivos, se audita con `audit.Record` dentro de la misma transacción. Las descripciones solo como `description_changed`.
+* Los eventos de dominio (`work_item.closed`, `milestone.completed`…) se emiten con `events.Emit` dentro de la transacción del cambio, nunca después ([ADR 0002](docs/adr/0002-eventos-de-dominio-con-outbox.md)).
+* Las descripciones son documentos JSON de TipTap validados por `richtext.Clean`; nunca se guarda ni se pinta HTML ([ADR 0003](docs/adr/0003-descripciones-json-con-lista-blanca.md)).
+* Las modificaciones de proyectos, hitos, work items, objetivos y resultados clave llevan `version` y responden `version_conflict` si cambió.

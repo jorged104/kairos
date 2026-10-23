@@ -99,7 +99,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-136, RF-137
   - Hecho cuando: build y tests en verde; desde el navegador se crea un objetivo con resultados clave, se ligan hitos y work items de dos proyectos y se ve el avance.
 
-- [ ] **T20 — Documentación**
+- [x] **T20 — Documentación**
   - Depende de: T19
   - RF: —
   - Hecho cuando: `AGENTS.md` refleja los paquetes nuevos y la spec 004; ADR 0002 (eventos de dominio con outbox) y ADR 0003 (descripciones como documento JSON con lista blanca); prueba de humo en navegador de la demo.
@@ -108,3 +108,31 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Depende de: T20
   - RF: todos (verificación)
   - Hecho cuando: se completan los pasos 1 a 14 de los criterios de finalización de la spec.
+
+## Desviaciones respecto al plan
+
+- **Queries por módulo:** las de cada dominio se escribieron con su tarea (`catalog.sql`, `projects.sql`…), no todas en T1.
+- **T7 a T10 y T17 a T19 van en un commit cada grupo:** comparten el mismo `PATCH` de work item (estado, padre y bloqueo se validan juntos) o las mismas rutas y textos.
+- **Rendimiento (T15):** con el tamaño de diseño, las medianas locales quedan muy por debajo de los límites: árbol de 5 000 work items en unos 140 ms (límite 500), cambio de estado a profundidad 9 en unos 40 ms (límite 200) y el resto por debajo de 50 ms. **No hace falta tabla de cierre:** se queda la consulta recursiva. La prueba carga los datos con `COPY` y corre en `make test` (unos 10 s).
+- **Permisos:**
+  - un `lead` también escribe como participante donde es miembro;
+  - para colgar un proyecto de otro hay que gestionar el padre;
+  - un proyecto plantilla devuelve 404 a quien no tiene `templates:use`.
+- **Objetivos:**
+  - el alcance no cambia tras crearlos;
+  - un objetivo activo no puede quedarse sin resultados clave;
+  - la ficha separa `can.manage` (editar y ligar, solo en borrador o activo) de `can.status` (acciones de estado, incluida reabrir).
+- **Work items:** el alta solo admite estados abiertos (cerrar pasa por el flujo y emite el evento).
+- **Plantillas:**
+  - la copia pone horas restantes = estimadas y avance 0;
+  - si la metodología de la plantilla está retirada, la copia queda sin metodología.
+- **API:**
+  - los `PATCH` de proyecto, hito, work item y objetivo reemplazan todos los campos editables;
+  - `GET /api/events` (con `audit:read`) permite consultar los eventos.
+- **Códigos de error añadidos a la lista del plan:** `identifier_immutable`, `invalid_lifecycle`, `custom_field_type_locked`, `custom_field_retired`, `invalid_milestone_status`, `invalid_objective_status`, `objective_closed`, `template_has_objectives`, `not_a_project`.
+- **Frontend:**
+  - Sin componentes shadcn nuevos: pestañas, barras de progreso, casillas y selectores son elementos nativos con los estilos del tema, como en 003.
+  - TipTap se fija en 3.31.4, porque la 3.32.0 tenía menos de dos semanas.
+  - Las listas blancas del editor y del servidor se prueban cada una en su lado, sin fixtures compartidos.
+- **Arreglos encontrados en la prueba de humo:** las listas vacías salían como `null` en vez de `[]` (ahora hay test) y dos selectores compartían la etiqueta «Tipo».
+- **Verificación extra:** prueba de humo en navegador (Playwright, fuera del repo) de los pasos 1 a 14 de la demo, con plantillas, un `member` participante, un `viewer` y dos pestañas. Termina sin errores ni avisos de consola.
