@@ -103,12 +103,16 @@ escriba una línea**. Hallazgos numerados `ING-1`, `ING-2`, …:
 2. **Reglas del proyecto (`AGENTS.md`):** puntos solo vía `point_ledger`; XP
    disparado en backend; sqlc para queries fijas y Squirrel solo para filtros
    dinámicos; nada de SQL en handlers; migraciones nuevas (nunca editar las
-   aplicadas); textos en `locales/`; errores por `error.code`; tablas en
-   plural `snake_case` con PK `uuid`.
+   aplicadas) y **solo aditivas**, para que la versión anterior de la API siga
+   funcionando (borrar o renombrar va en dos despliegues); textos en
+   `locales/`; errores por `error.code`; tablas en plural `snake_case` con PK
+   `uuid`. Si toca previsualización: nada de hostname ni credenciales en el
+   repo, sin disparadores `pull_request` en el runner self-hosted, y
+   `shellcheck`/`actionlint` si cambian `deploy.sh` o el workflow.
 3. **Dependencias nuevas:** cada una justificada y reflejada en la spec, o
    eliminada.
-4. **Datos:** índices, restricciones, borrados en cascada, migración
-   reversible, compatibilidad con datos existentes.
+4. **Datos:** índices, restricciones, borrados en cascada, compatibilidad
+   con datos existentes y con la versión anterior de la API.
 5. **Seguridad:** autenticación, autorización por recurso, validación de
    entrada, fugas de información en errores.
 6. **Simplicidad:** lo que sobra, lo que se puede reutilizar del código ya
