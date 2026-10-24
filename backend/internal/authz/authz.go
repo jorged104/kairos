@@ -64,21 +64,52 @@ const (
 	PasswordsSet      Permission = "passwords:set"
 	AuditRead         Permission = "audit:read"
 	SelfPassword      Permission = "self:password"
+
+	// Spec 004. ":team" = projects or objectives whose team is in the lead
+	// scope; ":owner" = the project or objective owner; ":participant" = see
+	// Principal.IsParticipant.
+	WorkRead                  Permission = "work:read"
+	TemplatesUse              Permission = "templates:use"
+	TemplatesManage           Permission = "templates:manage"
+	CatalogManage             Permission = "catalog:manage"
+	ProjectsCreateAll         Permission = "projects:create:all"
+	ProjectsCreateTeam        Permission = "projects:create:team"
+	ProjectsManageAll         Permission = "projects:manage:all"
+	ProjectsManageTeam        Permission = "projects:manage:team"
+	ProjectsManageOwner       Permission = "projects:manage:owner"
+	WorkItemsWriteAll         Permission = "workitems:write:all"
+	WorkItemsWriteTeam        Permission = "workitems:write:team"
+	WorkItemsWriteParticipant Permission = "workitems:write:participant"
+	WorkItemsDeleteOwn        Permission = "workitems:delete:own"
+	ObjectivesCreateAll       Permission = "objectives:create:all"
+	ObjectivesCreateTeam      Permission = "objectives:create:team"
+	ObjectivesManageAll       Permission = "objectives:manage:all"
+	ObjectivesManageTeam      Permission = "objectives:manage:team"
+	ObjectivesManageOwner     Permission = "objectives:manage:owner"
 )
 
-// rolePermissions is the permission matrix of spec 003.
+// rolePermissions is the permission matrix of specs 003 and 004.
 var rolePermissions = map[Role][]Permission{
 	RoleAdmin: {
 		DirectoryRead, UsersReadFullAll, UsersCreateAll, UsersUpdateAll, UsersStatusAll,
 		UsersOffboard, RolesAssignAll, TeamMembersAll, TeamsManage, AttributesManage,
 		IdpMappingsManage, PasswordsSet, AuditRead, SelfPassword,
+		WorkRead, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
+		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,
 		RolesAssignBasic, TeamMembersTeam, SelfPassword,
+		WorkRead, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner,
+		WorkItemsWriteTeam, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
+		ObjectivesCreateTeam, ObjectivesManageTeam, ObjectivesManageOwner,
 	},
-	RoleMember: {DirectoryRead, SelfPassword},
-	RoleViewer: {DirectoryRead, SelfPassword},
+	RoleMember: {
+		DirectoryRead, SelfPassword,
+		WorkRead, ProjectsManageOwner, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
+		ObjectivesManageOwner,
+	},
+	RoleViewer: {DirectoryRead, SelfPassword, WorkRead},
 }
 
 // PermissionsFor returns the union of the permissions of the roles (RF-58), sorted.
@@ -103,10 +134,16 @@ type Principal struct {
 	Permissions []Permission
 	// ScopeTeams holds the teams the user leads plus all their subteams.
 	ScopeTeams map[uuid.UUID]bool
+	// ParticipantTeams holds the teams the user belongs to plus all their
+	// ancestors: a project of any of them counts the user as participant.
+	ParticipantTeams map[uuid.UUID]bool
 }
 
 func NewPrincipal(id uuid.UUID, status string, roles []Role, scope []uuid.UUID) *Principal {
-	p := &Principal{UserID: id, Status: status, Roles: roles, Permissions: PermissionsFor(roles), ScopeTeams: map[uuid.UUID]bool{}}
+	p := &Principal{
+		UserID: id, Status: status, Roles: roles, Permissions: PermissionsFor(roles),
+		ScopeTeams: map[uuid.UUID]bool{}, ParticipantTeams: map[uuid.UUID]bool{},
+	}
 	for _, t := range scope {
 		p.ScopeTeams[t] = true
 	}

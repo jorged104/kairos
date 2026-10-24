@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -10,13 +11,20 @@ import (
 	"openscum/internal/audit"
 	"openscum/internal/auth"
 	"openscum/internal/authz"
+	"openscum/internal/catalog"
 	"openscum/internal/config"
+	"openscum/internal/customfields"
 	"openscum/internal/db"
+	"openscum/internal/events"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
+	"openscum/internal/milestones"
+	"openscum/internal/objectives"
+	"openscum/internal/projects"
 	"openscum/internal/realtime"
 	"openscum/internal/teams"
 	"openscum/internal/users"
+	"openscum/internal/workitems"
 )
 
 // App wires every module behind one router. main and the integration tests
@@ -27,6 +35,8 @@ type App struct {
 	Loader   *auth.PrincipalLoader
 	// Hub must be started with Hub.Run.
 	Hub *realtime.Hub
+	// Events must be started with Events.Run.
+	Events *events.Dispatcher
 }
 
 func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
@@ -45,6 +55,14 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	}
 	mappingsH := idpmappings.NewHandler(store, cfg.OIDC.Issuer, logger)
 	auditH := audit.NewHandler(store, logger)
+	eventsH := events.NewHandler(store, logger)
+	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
+	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
+	projectsH := projects.NewHandler(projects.NewService(store), logger)
+	workItemsH := workitems.NewHandler(workitems.NewService(store), logger)
+	milestonesH := milestones.NewHandler(milestones.NewService(store), logger)
+	objectivesH := objectives.NewHandler(objectives.NewService(store), logger)
+	dispatcher := events.NewDispatcher(store, logger, time.Second)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
 	usersH := users.NewHandler(users.NewService(cfg, store, authSvc, hasher, loader), logger)
@@ -63,10 +81,17 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			teamsH.Routes(p)
 			attributesH.Routes(p)
 			usersH.Routes(p)
+			catalogH.Routes(p)
+			fieldsH.Routes(p)
+			projectsH.Routes(p)
+			workItemsH.Routes(p)
+			milestonesH.Routes(p)
+			objectivesH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
+			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher}
 }

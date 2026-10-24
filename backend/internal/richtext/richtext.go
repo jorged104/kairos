@@ -1,0 +1,301 @@
+// Package richtext validates the descriptions of spec 004 (RF-70, RF-71). A
+// description is a TipTap/ProseMirror JSON document, never HTML: every node,
+// mark and attribute must be in the allowlist, and the stored copy is rebuilt
+// from the parsed tree so nothing outside it reaches the database.
+package richtext
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"reflect"
+	"regexp"
+	"strings"
+	"unicode/utf8"
+
+	"openscum/internal/apperr"
+)
+
+const (
+	MaxBytes = 256 << 10
+	MaxRunes = 50_000
+	MaxDepth = 20
+)
+
+var ErrInvalid = apperr.New(http.StatusBadRequest, "invalid_rich_text", "La descripción tiene un formato no admitido")
+
+type node struct {
+	Type    string                     `json:"type"`
+	Attrs   map[string]json.RawMessage `json:"attrs,omitempty"`
+	Content []*node                    `json:"content,omitempty"`
+	Marks   []*mark                    `json:"marks,omitempty"`
+	Text    *string                    `json:"text,omitempty"`
+}
+
+type mark struct {
+	Type  string                     `json:"type"`
+	Attrs map[string]json.RawMessage `json:"attrs,omitempty"`
+}
+
+// attrRule validates one attribute value; ok=false rejects the document.
+// keep=false drops the attribute from the stored copy.
+type attrRule func(v json.RawMessage) (ok, keep bool)
+
+var (
+	headingLevel = intRange(1, 3)
+	span         = intRange(1, 20)
+	languageRe   = regexp.MustCompile(`^[a-z0-9+#-]{0,30}$`)
+)
+
+// nodeAttrs lists the allowed nodes and their attributes.
+var nodeAttrs = map[string]map[string]attrRule{
+	"doc":            {},
+	"paragraph":      {},
+	"heading":        {"level": headingLevel},
+	"bulletList":     {},
+	"orderedList":    {"start": intRange(1, 10_000), "type": oneOfOrNull("1", "a", "A", "i", "I")},
+	"listItem":       {},
+	"codeBlock":      {"language": stringMatchOrNull(languageRe)},
+	"blockquote":     {},
+	"hardBreak":      {},
+	"horizontalRule": {},
+	"table":          {},
+	"tableRow":       {},
+	"tableHeader":    {"colspan": span, "rowspan": span, "colwidth": colwidth},
+	"tableCell":      {"colspan": span, "rowspan": span, "colwidth": colwidth},
+	"text":           {},
+}
+
+// markAttrs lists the allowed marks. Link keeps only its href: target and rel
+// are set by the viewer.
+var markAttrs = map[string]map[string]attrRule{
+	"bold":      {},
+	"italic":    {},
+	"strike":    {},
+	"underline": {},
+	"code":      {},
+	"link": {
+		"href":   safeHref,
+		"target": dropString,
+		"rel":    dropString,
+		"class":  dropString,
+		"title":  dropString,
+	},
+}
+
+// Clean validates raw and returns the document to store and its plain text.
+// An empty or null document returns nil and "".
+func Clean(raw json.RawMessage) (json.RawMessage, string, error) {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, "", nil
+	}
+	if len(raw) > MaxBytes {
+		return nil, "", ErrInvalid.WithDetail("reason", "size")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var doc node
+	if err := dec.Decode(&doc); err != nil || doc.Type != "doc" {
+		return nil, "", ErrInvalid.WithDetail("reason", "structure")
+	}
+	var text strings.Builder
+	if err := walk(&doc, 0, &text); err != nil {
+		return nil, "", err
+	}
+	plain := strings.TrimSpace(text.String())
+	if utf8.RuneCountInString(plain) > MaxRunes {
+		return nil, "", ErrInvalid.WithDetail("reason", "length")
+	}
+	if plain == "" && !hasStructure(&doc) {
+		return nil, "", nil
+	}
+	out, err := json.Marshal(&doc)
+	if err != nil {
+		return nil, "", ErrInvalid
+	}
+	return out, plain, nil
+}
+
+func walk(n *node, depth int, text *strings.Builder) error {
+	if n == nil || depth > MaxDepth {
+		return ErrInvalid.WithDetail("reason", "depth")
+	}
+	rules, ok := nodeAttrs[n.Type]
+	if !ok || (depth > 0 && n.Type == "doc") {
+		return ErrInvalid.WithDetail("reason", "node")
+	}
+	var err error
+	if n.Attrs, err = checkAttrs(n.Attrs, rules); err != nil {
+		return err
+	}
+	if n.Type == "text" {
+		if n.Text == nil || *n.Text == "" || len(n.Content) > 0 {
+			return ErrInvalid.WithDetail("reason", "text")
+		}
+		text.WriteString(*n.Text)
+	} else if n.Text != nil || len(n.Marks) > 0 {
+		return ErrInvalid.WithDetail("reason", "node")
+	}
+	for _, m := range n.Marks {
+		if m == nil {
+			return ErrInvalid.WithDetail("reason", "mark")
+		}
+		mr, ok := markAttrs[m.Type]
+		if !ok {
+			return ErrInvalid.WithDetail("reason", "mark")
+		}
+		if m.Attrs, err = checkAttrs(m.Attrs, mr); err != nil {
+			return err
+		}
+		if m.Type == "link" && m.Attrs["href"] == nil {
+			return ErrInvalid.WithDetail("reason", "link")
+		}
+	}
+	for _, c := range n.Content {
+		if err := walk(c, depth+1, text); err != nil {
+			return err
+		}
+	}
+	switch n.Type {
+	case "paragraph", "heading", "codeBlock", "tableCell", "tableHeader", "hardBreak":
+		text.WriteString("\n")
+	}
+	return nil
+}
+
+// checkAttrs keeps the allowed attributes. Unknown attributes are dropped
+// when null (editors send defaults) and reject the document otherwise.
+func checkAttrs(attrs map[string]json.RawMessage, rules map[string]attrRule) (map[string]json.RawMessage, error) {
+	var out map[string]json.RawMessage
+	for k, v := range attrs {
+		rule, ok := rules[k]
+		if !ok {
+			if isNull(v) {
+				continue
+			}
+			return nil, ErrInvalid.WithDetail("reason", "attribute")
+		}
+		valid, keep := rule(v)
+		if !valid {
+			return nil, ErrInvalid.WithDetail("reason", "attribute")
+		}
+		if keep {
+			if out == nil {
+				out = map[string]json.RawMessage{}
+			}
+			out[k] = v
+		}
+	}
+	return out, nil
+}
+
+func hasStructure(doc *node) bool {
+	for _, c := range doc.Content {
+		if c.Type != "paragraph" || len(c.Content) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func isNull(v json.RawMessage) bool { return string(bytes.TrimSpace(v)) == "null" }
+
+func intRange(lo, hi int) attrRule {
+	return func(v json.RawMessage) (bool, bool) {
+		var n int
+		if json.Unmarshal(v, &n) != nil {
+			return false, false
+		}
+		return n >= lo && n <= hi, true
+	}
+}
+
+func oneOfOrNull(values ...string) attrRule {
+	return func(v json.RawMessage) (bool, bool) {
+		if isNull(v) {
+			return true, false
+		}
+		var s string
+		if json.Unmarshal(v, &s) != nil {
+			return false, false
+		}
+		for _, x := range values {
+			if s == x {
+				return true, true
+			}
+		}
+		return false, false
+	}
+}
+
+func stringMatchOrNull(re *regexp.Regexp) attrRule {
+	return func(v json.RawMessage) (bool, bool) {
+		if isNull(v) {
+			return true, false
+		}
+		var s string
+		if json.Unmarshal(v, &s) != nil {
+			return false, false
+		}
+		return re.MatchString(s), true
+	}
+}
+
+func colwidth(v json.RawMessage) (bool, bool) {
+	if isNull(v) {
+		return true, false
+	}
+	var ws []int
+	if json.Unmarshal(v, &ws) != nil || len(ws) > 20 {
+		return false, false
+	}
+	for _, w := range ws {
+		if w < 0 || w > 5000 {
+			return false, false
+		}
+	}
+	return true, true
+}
+
+// dropString accepts a short string or null and never stores it.
+func dropString(v json.RawMessage) (bool, bool) {
+	if isNull(v) {
+		return true, false
+	}
+	var s string
+	return json.Unmarshal(v, &s) == nil && len(s) <= 200, false
+}
+
+// safeHref admits http, https and mailto links only (RF-71).
+func safeHref(v json.RawMessage) (bool, bool) {
+	var s string
+	if json.Unmarshal(v, &s) != nil || s == "" || len(s) > 2000 {
+		return false, false
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return false, false
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https":
+		return u.Host != "", true
+	case "mailto":
+		return u.Opaque != "", true
+	}
+	return false, false
+}
+
+// Changed reports whether two stored documents differ in content; the
+// database may return the same JSON with other spacing or key order.
+func Changed(a, b json.RawMessage) bool {
+	var x, y any
+	if len(bytes.TrimSpace(a)) > 0 {
+		_ = json.Unmarshal(a, &x)
+	}
+	if len(bytes.TrimSpace(b)) > 0 {
+		_ = json.Unmarshal(b, &y)
+	}
+	return !reflect.DeepEqual(x, y)
+}

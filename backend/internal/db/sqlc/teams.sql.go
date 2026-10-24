@@ -371,6 +371,38 @@ func (q *Queries) ListUserTeams(ctx context.Context, userID uuid.UUID) ([]ListUs
 	return items, nil
 }
 
+const participantTeamIDs = `-- name: ParticipantTeamIDs :many
+WITH RECURSIVE tree AS (
+    SELECT t.id, t.parent_id FROM teams t
+    JOIN team_members m ON m.team_id = t.id
+    WHERE m.user_id = $1
+    UNION
+    SELECT p.id, p.parent_id FROM teams p JOIN tree ON p.id = tree.parent_id
+)
+SELECT tree.id FROM tree
+`
+
+// Teams a user belongs to plus all their ancestors (spec 004, participante).
+func (q *Queries) ParticipantTeamIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, participantTeamIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeTeamLeader = `-- name: RemoveTeamLeader :execrows
 DELETE FROM team_leaders WHERE team_id = $1 AND user_id = $2
 `

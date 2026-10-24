@@ -122,3 +122,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Descriptions rendered by TipTap (spec 004). */
+@layer components {
+  .rich-text .ProseMirror {
+    outline: none;
+  }
+  .rich-text h1 { @apply mt-2 text-lg font-semibold; }
+  .rich-text h2 { @apply mt-2 text-base font-semibold; }
+  .rich-text h3 { @apply mt-2 text-sm font-semibold; }
+  .rich-text p { @apply my-1; }
+  .rich-text ul { @apply my-1 list-disc pl-5; }
+  .rich-text ol { @apply my-1 list-decimal pl-5; }
+  .rich-text blockquote { @apply my-1 border-l-2 pl-3 text-muted-foreground; }
+  .rich-text pre { @apply my-1 overflow-x-auto rounded bg-muted p-2 font-mono text-xs; }
+  .rich-text code { @apply rounded bg-muted px-1 font-mono text-xs; }
+  .rich-text a { @apply text-primary underline; }
+  .rich-text table { @apply my-1 w-full border-collapse; }
+  .rich-text th,
+  .rich-text td { @apply border px-2 py-1 align-top; }
+  .rich-text th { @apply bg-muted font-medium; }
+}

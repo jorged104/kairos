@@ -81,3 +81,23 @@ func TestPrincipalScopeIncludesSubteams(t *testing.T) {
 		t.Fatalf("scope = %v", p.ScopeTeams)
 	}
 }
+
+func TestPrincipalParticipantTeamsIncludeAncestors(t *testing.T) {
+	ctx := context.Background()
+	store := db.NewStore(dbtest.New(t))
+	u, _ := store.CreateUser(ctx, sqlc.CreateUserParams{Name: "M", Email: "m@x.com", EmailNormalized: "m@x.com", Status: "active"})
+	parent, _ := store.CreateTeam(ctx, sqlc.CreateTeamParams{Name: "BI", NameNormalized: "bi"})
+	child, _ := store.CreateTeam(ctx, sqlc.CreateTeamParams{Name: "BI Rep", NameNormalized: "bi rep", ParentID: &parent.ID})
+	grandchild, _ := store.CreateTeam(ctx, sqlc.CreateTeamParams{Name: "BI Rep 2", NameNormalized: "bi rep 2", ParentID: &child.ID})
+	if err := store.AddManualTeamMember(ctx, sqlc.AddManualTeamMemberParams{TeamID: child.ID, UserID: u.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := NewPrincipalLoader(store, PrincipalTTL).Load(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.ParticipantTeams[parent.ID] || !p.ParticipantTeams[child.ID] || p.ParticipantTeams[grandchild.ID] {
+		t.Fatalf("participant teams = %v, want the team and its ancestors only", p.ParticipantTeams)
+	}
+}

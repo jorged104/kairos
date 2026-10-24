@@ -86,3 +86,14 @@ ON CONFLICT (team_id, user_id) DO NOTHING;
 
 -- name: DeleteTeamMember :execrows
 DELETE FROM team_members WHERE team_id = $1 AND user_id = $2;
+
+-- name: ParticipantTeamIDs :many
+-- Teams a user belongs to plus all their ancestors (spec 004, participante).
+WITH RECURSIVE tree AS (
+    SELECT t.id, t.parent_id FROM teams t
+    JOIN team_members m ON m.team_id = t.id
+    WHERE m.user_id = $1
+    UNION
+    SELECT p.id, p.parent_id FROM teams p JOIN tree ON p.id = tree.parent_id
+)
+SELECT tree.id FROM tree;

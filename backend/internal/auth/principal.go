@@ -79,7 +79,11 @@ func (l *PrincipalLoader) fetch(ctx context.Context, id uuid.UUID) (*authz.Princ
 	if err != nil {
 		return nil, fmt.Errorf("cargar ámbito: %w", err)
 	}
-	return authz.NewPrincipal(u.ID, u.Status, roles, scope), nil
+	participant, err := l.store.ParticipantTeamIDs(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("cargar equipos: %w", err)
+	}
+	return authz.NewPrincipal(u.ID, u.Status, roles, scope).WithParticipantTeams(participant), nil
 }
 
 // Invalidate drops one user's cached principal after a change made here.
