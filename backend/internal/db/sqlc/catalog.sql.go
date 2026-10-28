@@ -240,7 +240,8 @@ func (q *Queries) CreateTransition(ctx context.Context, arg CreateTransitionPara
 }
 
 const createWorkItemType = `-- name: CreateWorkItemType :one
-INSERT INTO work_item_types (name, name_normalized, color, position) VALUES ($1, $2, $3, $4) RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
+INSERT INTO work_item_types (name, name_normalized, color, position, default_weight)
+VALUES ($1, $2, $3, $4, coalesce($5::smallint, 1)) RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
 `
 
 type CreateWorkItemTypeParams struct {
@@ -248,14 +249,17 @@ type CreateWorkItemTypeParams struct {
 	NameNormalized string
 	Color          string
 	Position       int32
+	DefaultWeight  *int16
 }
 
+// A type without a default weight weighs 1 (RF-150).
 func (q *Queries) CreateWorkItemType(ctx context.Context, arg CreateWorkItemTypeParams) (WorkItemType, error) {
 	row := q.db.QueryRow(ctx, createWorkItemType,
 		arg.Name,
 		arg.NameNormalized,
 		arg.Color,
 		arg.Position,
+		arg.DefaultWeight,
 	)
 	var i WorkItemType
 	err := row.Scan(
@@ -987,7 +991,8 @@ func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) (Sta
 }
 
 const updateWorkItemType = `-- name: UpdateWorkItemType :one
-UPDATE work_item_types SET name = $2, name_normalized = $3, color = $4, position = $5, updated_at = now()
+UPDATE work_item_types SET name = $2, name_normalized = $3, color = $4, position = $5,
+    default_weight = coalesce($6::smallint, default_weight), updated_at = now()
 WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
 `
 
@@ -997,8 +1002,10 @@ type UpdateWorkItemTypeParams struct {
 	NameNormalized string
 	Color          string
 	Position       int32
+	DefaultWeight  *int16
 }
 
+// A client that doesn't send the default weight keeps the current one.
 func (q *Queries) UpdateWorkItemType(ctx context.Context, arg UpdateWorkItemTypeParams) (WorkItemType, error) {
 	row := q.db.QueryRow(ctx, updateWorkItemType,
 		arg.ID,
@@ -1006,6 +1013,7 @@ func (q *Queries) UpdateWorkItemType(ctx context.Context, arg UpdateWorkItemType
 		arg.NameNormalized,
 		arg.Color,
 		arg.Position,
+		arg.DefaultWeight,
 	)
 	var i WorkItemType
 	err := row.Scan(

@@ -31,11 +31,12 @@ type Methodology struct {
 }
 
 type Type struct {
-	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	Color    string    `json:"color"`
-	Position int32     `json:"position"`
-	Retired  bool      `json:"retired"`
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Color         string    `json:"color"`
+	Position      int32     `json:"position"`
+	DefaultWeight int16     `json:"default_weight"`
+	Retired       bool      `json:"retired"`
 }
 
 type Status struct {
@@ -91,6 +92,8 @@ type typeRequest struct {
 	Name     string `json:"name" validate:"required,max=100"`
 	Color    string `json:"color" validate:"required,len=7,hexcolor"`
 	Position int32  `json:"position" validate:"min=0"`
+	// Copied to new work items of the type (RF-150, RF-151); absent keeps it.
+	DefaultWeight *int16 `json:"default_weight" validate:"omitempty,min=0,max=100"`
 }
 
 func (r *typeRequest) Normalize() {

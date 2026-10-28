@@ -63,8 +63,8 @@ func (q *Queries) CreateDependency(ctx context.Context, arg CreateDependencyPara
 const createWorkItem = `-- name: CreateWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, assignee_id, start_date, due_date,
-                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio
 `
 
@@ -88,6 +88,7 @@ type CreateWorkItemParams struct {
 	Position        int32
 	Depth           int16
 	ClosedAt        *time.Time
+	Weight          int16
 }
 
 func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) (WorkItem, error) {
@@ -111,6 +112,7 @@ func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) 
 		arg.Position,
 		arg.Depth,
 		arg.ClosedAt,
+		arg.Weight,
 	)
 	var i WorkItem
 	err := row.Scan(
@@ -449,8 +451,8 @@ func (q *Queries) OpenBlockers(ctx context.Context, toID uuid.UUID) ([]uuid.UUID
 const projectWorkItemTree = `-- name: ProjectWorkItemTree :many
 
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
-       w.assignee_id, u.name AS assignee_name, w.derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date
+       w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
+       w.depth, w.position, w.due_date, w.weight
 FROM work_items w LEFT JOIN users u ON u.id = w.assignee_id
 WHERE w.project_id = $1
 ORDER BY w.depth, w.position, w.sequence_number
@@ -472,10 +474,12 @@ type ProjectWorkItemTreeRow struct {
 	Depth            int16
 	Position         int32
 	DueDate          *time.Time
+	Weight           int16
 }
 
 // Árbol ------------------------------------------------------------------------
-// Every work item of a project as a flat list (RF-130).
+// Every work item of a project as a flat list (RF-130). The derived ratio is
+// the one weighted by weight (RF-153); derived_done_ratio is the previous one.
 func (q *Queries) ProjectWorkItemTree(ctx context.Context, projectID uuid.UUID) ([]ProjectWorkItemTreeRow, error) {
 	rows, err := q.db.Query(ctx, projectWorkItemTree, projectID)
 	if err != nil {
@@ -501,6 +505,7 @@ func (q *Queries) ProjectWorkItemTree(ctx context.Context, projectID uuid.UUID) 
 			&i.Depth,
 			&i.Position,
 			&i.DueDate,
+			&i.Weight,
 		); err != nil {
 			return nil, err
 		}
@@ -555,7 +560,7 @@ const updateWorkItem = `-- name: UpdateWorkItem :one
 UPDATE work_items
 SET type_id = $3, status_id = $4, priority_id = $5, parent_id = $6, title = $7, description = $8,
     description_text = $9, assignee_id = $10, start_date = $11, due_date = $12, estimated_hours = $13,
-    remaining_hours = $14, done_ratio = $15, position = $16, depth = $17, closed_at = $18,
+    remaining_hours = $14, done_ratio = $15, position = $16, depth = $17, closed_at = $18, weight = $19,
     version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
 RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio
@@ -580,6 +585,7 @@ type UpdateWorkItemParams struct {
 	Position        int32
 	Depth           int16
 	ClosedAt        *time.Time
+	Weight          int16
 }
 
 func (q *Queries) UpdateWorkItem(ctx context.Context, arg UpdateWorkItemParams) (WorkItem, error) {
@@ -602,6 +608,7 @@ func (q *Queries) UpdateWorkItem(ctx context.Context, arg UpdateWorkItemParams) 
 		arg.Position,
 		arg.Depth,
 		arg.ClosedAt,
+		arg.Weight,
 	)
 	var i WorkItem
 	err := row.Scan(
@@ -679,8 +686,8 @@ WITH RECURSIVE tree AS (
     SELECT c.id FROM work_items c JOIN tree ON c.parent_id = tree.id
 )
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
-       w.assignee_id, u.name AS assignee_name, w.derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date
+       w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
+       w.depth, w.position, w.due_date, w.weight
 FROM work_items w JOIN tree ON tree.id = w.id LEFT JOIN users u ON u.id = w.assignee_id
 ORDER BY w.depth, w.position, w.sequence_number
 `
@@ -701,6 +708,7 @@ type WorkItemDescendantsRow struct {
 	Depth            int16
 	Position         int32
 	DueDate          *time.Time
+	Weight           int16
 }
 
 // Every descendant of a work item, in one query (RF-79).
@@ -729,6 +737,7 @@ func (q *Queries) WorkItemDescendants(ctx context.Context, parentID *uuid.UUID) 
 			&i.Depth,
 			&i.Position,
 			&i.DueDate,
+			&i.Weight,
 		); err != nil {
 			return nil, err
 		}

@@ -17,7 +17,7 @@ func TestTemplates(t *testing.T) {
 	// Content of the template: an epic with two children, a dependency, a milestone.
 	m := s.milestone(t, tpl.ID, map[string]any{"name": "Entrega", "due_date": "2026-01-31"})
 	epic := s.item(t, s.admin, tpl.ID, map[string]any{"title": "Épica", "estimated_hours": 4, "assignee_id": s.memberID})
-	a := s.item(t, s.admin, tpl.ID, map[string]any{"title": "A", "parent_id": epic.ID, "start_date": "2026-01-05", "estimated_hours": 2})
+	a := s.item(t, s.admin, tpl.ID, map[string]any{"title": "A", "parent_id": epic.ID, "start_date": "2026-01-05", "estimated_hours": 2, "weight": 7})
 	b := s.item(t, s.admin, tpl.ID, map[string]any{"title": "B", "parent_id": epic.ID})
 	s.admin.Post("/api/work-items/"+a.ID.String()+"/dependencies", map[string]any{"to_id": b.ID, "type": "precedes"}).Expect(t, http.StatusCreated)
 	s.link(t, s.admin, m.ID, epic.ID).Expect(t, http.StatusNoContent)
@@ -81,13 +81,14 @@ func TestTemplates(t *testing.T) {
 	s.lead.Get("/api/work-items/by-key/BIR-2").JSON(t, &copiedA)
 	var raw struct {
 		StartDate    string `json:"start_date"`
+		Weight       int    `json:"weight"`
 		Dependencies []struct {
 			Type string `json:"type"`
 		} `json:"dependencies"`
 	}
 	s.lead.Get("/api/work-items/"+copiedA.ID.String()).JSON(t, &raw)
-	if raw.StartDate != "2026-02-05" || len(raw.Dependencies) != 1 {
-		t.Fatalf("copied A = %+v, want dates shifted 31 days and its dependency", raw)
+	if raw.StartDate != "2026-02-05" || len(raw.Dependencies) != 1 || raw.Weight != 7 {
+		t.Fatalf("copied A = %+v, want dates shifted 31 days, its dependency and its weight (RF-157)", raw)
 	}
 	var ms struct {
 		Items []milestoneDTO `json:"items"`

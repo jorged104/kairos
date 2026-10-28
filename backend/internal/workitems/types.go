@@ -54,6 +54,7 @@ type WorkItem struct {
 	EstimatedHours   *float64                      `json:"estimated_hours"`
 	RemainingHours   *float64                      `json:"remaining_hours"`
 	DoneRatio        int16                         `json:"done_ratio"`
+	Weight           int16                         `json:"weight"`
 	Derived          Derived                       `json:"derived"`
 	Position         int32                         `json:"position"`
 	Depth            int16                         `json:"depth"`
@@ -102,6 +103,7 @@ type Node struct {
 	Depth      int16          `json:"depth"`
 	Position   int32          `json:"position"`
 	DueDate    *workcore.Date `json:"due_date"`
+	Weight     int16          `json:"weight"`
 }
 
 type createRequest struct {
@@ -119,6 +121,8 @@ type createRequest struct {
 	DoneRatio      int16               `json:"done_ratio"`
 	Position       int32               `json:"position"`
 	CustomValues   customfields.Values `json:"custom_values" validate:"max=200"`
+	// Absent takes the default weight of the type (create) or keeps it (update), RF-151.
+	Weight *int16 `json:"weight"`
 }
 
 func (r *createRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }
@@ -140,6 +144,8 @@ type updateRequest struct {
 	DoneRatio      int16               `json:"done_ratio"`
 	Position       int32               `json:"position"`
 	CustomValues   customfields.Values `json:"custom_values" validate:"max=200"`
+	// Absent takes the default weight of the type (create) or keeps it (update), RF-151.
+	Weight *int16 `json:"weight"`
 }
 
 func (r *updateRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }

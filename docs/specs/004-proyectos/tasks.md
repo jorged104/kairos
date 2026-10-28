@@ -129,7 +129,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-149, RF-150, RF-153, RF-158
   - Hecho cuando: `make migrate` aplica y deshace la migración sobre una BD con datos; `go test ./internal/db/...` en verde con los agregados de peso tras `work_item_recompute_project`.
 
-- [ ] **T26 — Backend de pesos** (`catalog`, `workitems`, `milestones`, copia de plantillas, evento de cierre, auditoría)
+- [x] **T26 — Backend de pesos** (`catalog`, `workitems`, `milestones`, copia de plantillas, evento de cierre, auditoría)
   - Depende de: T25
   - RF: RF-149 a RF-155, RF-157 a RF-159
   - Hecho cuando: `make test-api` en verde con los tests nuevos de `workitems_test`, `milestones_test`, `templates_test` y `catalog_test`, y `perf_test` dentro de los límites.
@@ -147,6 +147,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
 ## Desviaciones respecto al plan
 
 - **Pesos (T25/T26):** T25 solo trae la migración y el código sqlc regenerado; los cambios de parámetros de las queries (`weight`, `default_weight`, `weighted_done_ratio`) van en T26 junto al código que los usa, para que cada commit compile.
+- **Pesos, errores (T26):** un peso de work item fuera de 0–100 responde `400 field_out_of_range` con `field: weight`, como las horas y el avance (RF-67), en lugar del `422 validation_failed` del plan; el peso por defecto de un tipo fuera de rango sí responde `validation_failed`, como el resto de campos del catálogo.
 - **Queries por módulo:** las de cada dominio se escribieron con su tarea (`catalog.sql`, `projects.sql`…), no todas en T1.
 - **T7 a T10 y T17 a T19 van en un commit cada grupo:** comparten el mismo `PATCH` de work item (estado, padre y bloqueo se validan juntos) o las mismas rutas y textos.
 - **Rendimiento (T15):** con el tamaño de diseño, las medianas locales quedan muy por debajo de los límites: árbol de 5 000 work items en unos 140 ms (límite 500), cambio de estado a profundidad 9 en unos 40 ms (límite 200) y el resto por debajo de 50 ms. **No hace falta tabla de cierre:** se queda la consulta recursiva. La prueba carga los datos con `COPY` y corre en `make test` (unos 10 s).

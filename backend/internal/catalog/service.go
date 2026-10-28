@@ -154,20 +154,20 @@ func (s *Service) SetPhaseRetired(ctx context.Context, p *authz.Principal, id uu
 	})
 }
 
-// Tipos (RF-3) ---------------------------------------------------------------------
+// Tipos (RF-3, RF-150) ---------------------------------------------------------------------
 
 func typeID(t Type) uuid.UUID { return t.ID }
 
 func (s *Service) CreateType(ctx context.Context, p *authz.Principal, req typeRequest) (Type, error) {
 	return mutate(ctx, s, p, "work_item_type", "created", typeID, func(q *sqlc.Queries) (Type, error) {
-		r, err := q.CreateWorkItemType(ctx, sqlc.CreateWorkItemTypeParams{Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position})
+		r, err := q.CreateWorkItemType(ctx, sqlc.CreateWorkItemTypeParams{Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position, DefaultWeight: req.DefaultWeight})
 		return toType(r), err
 	})
 }
 
 func (s *Service) UpdateType(ctx context.Context, p *authz.Principal, id uuid.UUID, req typeRequest) (Type, error) {
 	return mutate(ctx, s, p, "work_item_type", "updated", typeID, func(q *sqlc.Queries) (Type, error) {
-		r, err := q.UpdateWorkItemType(ctx, sqlc.UpdateWorkItemTypeParams{ID: id, Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position})
+		r, err := q.UpdateWorkItemType(ctx, sqlc.UpdateWorkItemTypeParams{ID: id, Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position, DefaultWeight: req.DefaultWeight})
 		return toType(r), err
 	})
 }
@@ -427,7 +427,7 @@ func toPhase(r sqlc.PhaseDefinition) Phase {
 }
 
 func toType(r sqlc.WorkItemType) Type {
-	return Type{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, Retired: r.RetiredAt != nil}
+	return Type{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, DefaultWeight: r.DefaultWeight, Retired: r.RetiredAt != nil}
 }
 
 func toStatus(r sqlc.Status) Status {

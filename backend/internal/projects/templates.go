@@ -262,6 +262,7 @@ func copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from,
 			SequenceNumber: int32(i + 1), Title: w.Title, Description: w.Description, DescriptionText: w.DescriptionText,
 			AuthorID: p.UserID, StartDate: shiftDate(w.StartDate, shift), DueDate: shiftDate(w.DueDate, shift),
 			EstimatedHours: w.EstimatedHours, RemainingHours: w.EstimatedHours, Position: w.Position, Depth: w.Depth,
+			Weight: w.Weight, // RF-157
 		})
 		if err != nil {
 			return fmt.Errorf("copiar work item: %w", err)

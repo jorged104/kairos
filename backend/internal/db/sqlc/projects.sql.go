@@ -98,8 +98,8 @@ func (q *Queries) CopyMilestoneLink(ctx context.Context, arg CopyMilestoneLinkPa
 const copyWorkItem = `-- name: CopyWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, start_date, due_date,
-                        estimated_hours, remaining_hours, position, depth)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                        estimated_hours, remaining_hours, position, depth, weight)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 RETURNING id
 `
 
@@ -120,6 +120,7 @@ type CopyWorkItemParams struct {
 	RemainingHours  *float64
 	Position        int32
 	Depth           int16
+	Weight          int16
 }
 
 func (q *Queries) CopyWorkItem(ctx context.Context, arg CopyWorkItemParams) (uuid.UUID, error) {
@@ -140,6 +141,7 @@ func (q *Queries) CopyWorkItem(ctx context.Context, arg CopyWorkItemParams) (uui
 		arg.RemainingHours,
 		arg.Position,
 		arg.Depth,
+		arg.Weight,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
