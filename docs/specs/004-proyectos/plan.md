@@ -416,10 +416,16 @@ por el slot. Sin backend, API, migraciones ni dependencias nuevas.
   en el `role="alert"` de la fila. Cubre el nombre y los campos `required` del slot
   (identificador del proyecto, email del usuario, equipo de un `lead`). Los errores de la API
   siguen como hoy (`useErrorMessage`, se conserva lo escrito).
-- **Pantallas estrechas (RF-148):** el formulario es `sticky left-0` con
-  `max-w-[calc(100vw-2rem)]` y `flex-wrap`, para que no quede a la derecha de una tabla más ancha
-  que la pantalla.
-- **Texto de ayuda:** `table.quickAddHint` pasa a «Enter o Crear · Esc cierra».
+- **Pantallas estrechas (RF-148):** `GridTable.vue` marca su contenedor con desplazamiento
+  como `@container` (Tailwind v4, sin dependencias) y el formulario es `sticky left-0` con
+  `max-w-[100cqw]` y `flex-wrap`: ocupa como mucho el ancho visible de la tabla, no el de la
+  tabla entera, y no queda a la derecha de una tabla más ancha que la pantalla. `100vw` no sirve
+  porque en escritorio no descuenta la barra lateral.
+- **Aviso de obligatorio:** se guarda en su propio `ref` (`missing`), aparte del error de la API,
+  y se borra al escribir o al crear.
+- **Texto de ayuda:** `table.quickAddHint` pasa a «Enter o Crear · Esc cierra» y se oculta por
+  debajo de `sm` (en el móvil está el botón).
+- **Enter en `input type=color`:** también crea (RF-146); el selector de color se abre con clic.
 
 **Tests (`components/data-table/data-table.spec.ts`):**
 - Enter en un `<select>` del slot crea con el nombre escrito (RF-146).
@@ -427,6 +433,7 @@ por el slot. Sin backend, API, migraciones ni dependencias nuevas.
   botón está deshabilitado mientras tanto (RF-146).
 - Sin nombre, o con un campo `required` del slot vacío: no llama a `submit`, el foco va a ese
   campo y se ve «Este campo es obligatorio.» (RF-147).
+- El botón es un `type="submit"` visible (no `sr-only`) (RF-146, RF-148).
 - Los tests de RF-140 (crea y queda vacía, error de la API conserva el texto) siguen en verde
   como RF-145 y RF-147.
 
@@ -435,7 +442,7 @@ por el slot. Sin backend, API, migraciones ni dependencias nuevas.
 | RF-145 | `QuickAddRow.vue` (sin cambios de comportamiento) | test existente «crea con Enter y queda abierta y vacía» |
 | RF-146 | `@keydown.enter` del formulario, botón «Crear», guard `pending` | tests de Enter en selector, clic en «Crear» y doble envío |
 | RF-147 | `checkValidity()` + foco en `:invalid` + `errors.required`; `useErrorMessage` | tests de obligatorios y de error de la API |
-| RF-148 | `sticky left-0` + ancho máximo de la vista | manual: navegador a 400 px, tabla de proyectos (8 columnas), el botón se ve sin desplazar |
+| RF-148 | `@container` en `GridTable` + `sticky left-0` y `max-w-[100cqw]` | manual: navegador a 400 px, tabla de proyectos (8 columnas), el botón se ve sin desplazar |
 
 ## Tareas
 Ver [tasks.md](tasks.md).
