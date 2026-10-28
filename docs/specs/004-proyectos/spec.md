@@ -3,7 +3,7 @@
 **Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
-**Cambio:** Borrador (2026-10-28) — pendiente de aprobación en la PR · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
+**Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
 
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
