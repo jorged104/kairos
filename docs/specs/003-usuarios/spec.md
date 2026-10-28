@@ -264,7 +264,7 @@ solo actúa sobre usuarios de su equipo cuyo rol de mayor prioridad sea `member`
 ### Interfaz
 - RF-124: EL SISTEMA obtendrá todos los textos visibles de las pantallas de esta spec del catálogo de traducciones, con español como idioma por defecto.
 - RF-125: CUANDO la API devuelva un error, EL SISTEMA mostrará al usuario el texto del catálogo asociado a su código de error, no el mensaje técnico de la API.
-- RF-128: EL SISTEMA aplicará al directorio de usuarios y a la pantalla de equipos la edición en tabla de la spec 004 (RF-139 a RF-143): nombre y email del usuario; nombre, equipo padre y grupo del IdP del equipo, y alta rápida de usuarios (nombre, email y equipo) y de equipos (nombre y equipo padre) desde la última fila. Cada fila del directorio indicará si quien consulta puede editarla. El alta completa (contraseña inicial, rol y atributos) sigue en su pantalla.
+- RF-128: EL SISTEMA aplicará al directorio de usuarios y a la pantalla de equipos la edición en tabla de la spec 004 (RF-139, RF-141 a RF-143 y RF-145 a RF-148): nombre y email del usuario; nombre, equipo padre y grupo del IdP del equipo, y alta rápida de usuarios (nombre, email y equipo) y de equipos (nombre y equipo padre) desde la última fila. Cada fila del directorio indicará si quien consulta puede editarla. El alta completa (contraseña inicial, rol y atributos) sigue en su pantalla.
 
 ### Entorno de desarrollo con IdP
 - RF-126: CUANDO el desarrollador arranque el entorno con el profile de SSO, EL SISTEMA levantará un IdP de prueba con un realm importado que incluye el cliente de Kairos, usuarios de ejemplo, roles y grupos de las cuatro áreas con algún subgrupo.
