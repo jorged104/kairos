@@ -393,6 +393,50 @@ el flujo (RF-86 a RF-88), el bloqueo (RF-95), RF-84 y los eventos.
 - **Fusión:** esta rama depende de la PR #7. Se abre su PR después de fusionar la 003, o con
   base `feat/003-usuarios`.
 
+## Alta rápida en móvil (Issue #10, RF-145 a RF-148)
+
+**Punto de partida.** `components/data-table/QuickAddRow.vue` crea con el `submit` nativo del
+formulario y un botón `sr-only`. El Enter de un `<select>` no envía el formulario, así que tras
+elegir equipo, tipo o fase hay que volver al nombre; en el móvil no hay botón visible.
+
+**Alcance.** Solo `QuickAddRow.vue`, sus textos y sus tests. Las seis pantallas que la usan
+(proyectos, hitos, work items, catálogo, usuarios y equipos) no cambian: los campos extra llegan
+por el slot. Sin backend, API, migraciones ni dependencias nuevas.
+
+**Cambios en `QuickAddRow.vue`:**
+- **Enter en cualquier campo (RF-146):** `@keydown.enter` en el `<form>`; si el destino no es un
+  botón, `preventDefault()` y `create()`. El `preventDefault` evita además el envío implícito del
+  nombre, así que no hay dos envíos.
+- **Botón «Crear» visible (RF-146):** `Button` de `components/ui/button` (`size="sm"`,
+  `type="submit"`, texto `common.create`) al final de la fila en lugar del `sr-only`; con
+  `pending` queda deshabilitado y muestra `Loader2` girando. El guard de `pending` que ya existe en
+  `create()` evita la segunda alta.
+- **Obligatorios (RF-147):** el formulario pasa a `novalidate`; `create()` llama a
+  `form.checkValidity()` y, si falla, enfoca el primer `:invalid` y muestra `errors.required`
+  en el `role="alert"` de la fila. Cubre el nombre y los campos `required` del slot
+  (identificador del proyecto, email del usuario, equipo de un `lead`). Los errores de la API
+  siguen como hoy (`useErrorMessage`, se conserva lo escrito).
+- **Pantallas estrechas (RF-148):** el formulario es `sticky left-0` con
+  `max-w-[calc(100vw-2rem)]` y `flex-wrap`, para que no quede a la derecha de una tabla más ancha
+  que la pantalla.
+- **Texto de ayuda:** `table.quickAddHint` pasa a «Enter o Crear · Esc cierra».
+
+**Tests (`components/data-table/data-table.spec.ts`):**
+- Enter en un `<select>` del slot crea con el nombre escrito (RF-146).
+- Clic en el botón «Crear» crea; dos Enter seguidos con `submit` pendiente crean una vez y el
+  botón está deshabilitado mientras tanto (RF-146).
+- Sin nombre, o con un campo `required` del slot vacío: no llama a `submit`, el foco va a ese
+  campo y se ve «Este campo es obligatorio.» (RF-147).
+- Los tests de RF-140 (crea y queda vacía, error de la API conserva el texto) siguen en verde
+  como RF-145 y RF-147.
+
+| RF | Dónde | Cómo se prueba |
+|---|---|---|
+| RF-145 | `QuickAddRow.vue` (sin cambios de comportamiento) | test existente «crea con Enter y queda abierta y vacía» |
+| RF-146 | `@keydown.enter` del formulario, botón «Crear», guard `pending` | tests de Enter en selector, clic en «Crear» y doble envío |
+| RF-147 | `checkValidity()` + foco en `:invalid` + `errors.required`; `useErrorMessage` | tests de obligatorios y de error de la API |
+| RF-148 | `sticky left-0` + ancho máximo de la vista | manual: navegador a 400 px, tabla de proyectos (8 columnas), el botón se ve sin desplazar |
+
 ## Tareas
 Ver [tasks.md](tasks.md).
 
