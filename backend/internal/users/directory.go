@@ -305,9 +305,25 @@ func (s *Service) enrich(ctx context.Context, p *authz.Principal, items []User, 
 	if err != nil {
 		return fmt.Errorf("leer roles: %w", err)
 	}
+	targets := make([]authz.Target, len(items))
+	for i, u := range items {
+		targets[i].UserID = u.ID
+	}
+	for _, t := range teams {
+		i := index[t.UserID]
+		targets[i].TeamIDs = append(targets[i].TeamIDs, t.ID)
+	}
 	for _, r := range roles {
-		if i := index[r.UserID]; items[i].FullProfile {
+		i := index[r.UserID]
+		targets[i].Roles = append(targets[i].Roles, authz.Role(r.Role))
+		if items[i].FullProfile {
 			items[i].Roles = append(items[i].Roles, RoleRef{Role: r.Role, Source: r.Source})
+		}
+	}
+	// Rows say whether the viewer may edit them, for the table edited in place (RF-128).
+	for i := range items {
+		if items[i].FullProfile {
+			items[i].Can = &Abilities{Edit: p.CanActOn(authz.UsersUpdateAll, authz.UsersUpdateTeam, targets[i])}
 		}
 	}
 	defs, err := attributes.Load(ctx, s.store.Queries)

@@ -90,7 +90,7 @@ func (h *Handler) reply(w http.ResponseWriter, status int, v any, err error) {
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	page, err := h.svc.List(r.Context(), r.URL.Query())
+	page, err := h.svc.List(r.Context(), authz.FromContext(r.Context()), r.URL.Query())
 	h.reply(w, http.StatusOK, page, err)
 }
 
