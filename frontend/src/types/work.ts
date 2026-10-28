@@ -34,6 +34,8 @@ export interface WorkItemType {
   name: string
   color: string
   position: number
+  /** Copied to new work items of the type (RF-150, RF-151). */
+  default_weight: number
   retired: boolean
 }
 
@@ -174,6 +176,8 @@ export interface Milestone {
     percent: number
     estimated_hours: number
     remaining_hours: number
+    weight: number
+    weight_closed: number
   }
   can: { manage: boolean }
 }
@@ -194,6 +198,7 @@ export interface WorkNode {
   depth: number
   position: number
   due_date: string | null
+  weight: number
 }
 
 export interface MilestoneItem extends WorkNode {
@@ -244,6 +249,8 @@ export interface WorkItem {
   estimated_hours: number | null
   remaining_hours: number | null
   done_ratio: number
+  /** 0 to 100; 0 is a tracking work item that moves no progress (RF-149). */
+  weight: number
   derived: { estimated_hours: number; remaining_hours: number; done_ratio: number }
   position: number
   depth: number

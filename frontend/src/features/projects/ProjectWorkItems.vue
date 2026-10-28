@@ -81,10 +81,11 @@ function addChild(id: string) {
 }
 
 // Cells save one field; the rest of the work item is read fresh (patchWorkItem).
-type Field = 'title' | 'type_id' | 'status_id' | 'priority_id' | 'assignee_id' | 'due_date'
+type Field = 'title' | 'type_id' | 'status_id' | 'priority_id' | 'assignee_id' | 'due_date' | 'weight'
+const cellValue = (field: Field, value: string) => (field === 'weight' ? Number(value) : field === 'title' ? value : value || null)
 function saver(n: WorkNode, field: Field) {
   return async (value: string) => {
-    await patchWorkItem(n.id, { [field]: field === 'title' ? value : value || null })
+    await patchWorkItem(n.id, { [field]: cellValue(field, value) })
     qc.invalidateQueries({ queryKey: ['work-item', n.key] })
     await refresh()
   }
@@ -108,7 +109,7 @@ const typeOf = (n: WorkNode) => types.value.get(n.type_id)
 const statusOf = (n: WorkNode) => statuses.value.get(n.status_id)
 const priorityName = (n: WorkNode) => priorities.value.get(n.priority_id)?.name ?? ''
 const indent = (level: number) => `${level * 1.25 + 0.5}rem`
-const columns = computed(() => (writable.value && !filtering.value ? 9 : 8))
+const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
 </script>
 
 <template>
@@ -144,9 +145,10 @@ const columns = computed(() => (writable.value && !filtering.value ? 9 : 8))
           <th class="w-36">{{ t('workItems.status') }}</th>
           <th class="w-28">{{ t('workItems.priority') }}</th>
           <th class="w-44">{{ t('workItems.assignee') }}</th>
+          <th class="w-20" :title="t('workItems.weightHint')">{{ t('workItems.weight') }}</th>
           <th class="w-36">{{ t('workItems.progress') }}</th>
           <th class="w-36">{{ t('workItems.due') }}</th>
-          <th v-if="columns === 9" class="w-10" />
+          <th v-if="columns === 10" class="w-10" />
         </tr>
       </thead>
       <tbody>
@@ -224,9 +226,18 @@ const columns = computed(() => (writable.value && !filtering.value ? 9 : 8))
             >
               <span :class="!r.node.assignee && 'text-muted-foreground'">{{ r.node.assignee?.name ?? t('workItems.unassigned') }}</span>
             </EditableCell>
+            <EditableCell
+              kind="number"
+              :value="String(r.node.weight)"
+              :label="t('workItems.weight')"
+              :save="saver(r.node, 'weight')"
+              :editable="writable"
+              :class="r.node.weight === 0 ? 'text-muted-foreground' : undefined"
+              required
+            />
             <td class="bg-muted/20 px-2"><ProgressBar :value="r.node.derived_done_ratio" /></td>
             <EditableCell kind="date" :value="r.node.due_date ?? ''" :label="t('workItems.due')" :save="saver(r.node, 'due_date')" :editable="writable" />
-            <td v-if="columns === 9" class="px-1 text-center">
+            <td v-if="columns === 10" class="px-1 text-center">
               <button
                 type="button"
                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -239,7 +250,7 @@ const columns = computed(() => (writable.value && !filtering.value ? 9 : 8))
             </td>
           </tr>
           <QuickAddRow
-            v-if="columns === 9 && addingChild === r.node.id"
+            v-if="columns === 10 && addingChild === r.node.id"
             open
             :colspan="columns"
             :indent="indent(r.level + 1)"
@@ -254,7 +265,7 @@ const columns = computed(() => (writable.value && !filtering.value ? 9 : 8))
           </QuickAddRow>
         </template>
         <QuickAddRow
-          v-if="columns === 9"
+          v-if="columns === 10"
           :colspan="columns"
           :label="t('workItems.newTitle')"
           :placeholder="t('workItems.newPlaceholder')"

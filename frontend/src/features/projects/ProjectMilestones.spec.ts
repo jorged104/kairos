@@ -12,7 +12,8 @@ const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body
 const milestone: Milestone = {
   id: 'm1', project: { id: 'p1', identifier: 'KAI', name: 'Kairos' }, phase: null, name: 'Entrega', description: null,
   due_date: '2020-01-01', completed_on: null, status: 'abierto', overdue: true, position: 0, version: 1,
-  progress: { total: 4, closed: 1, open: 3, percent: 25, estimated_hours: 0, remaining_hours: 0 }, can: { manage: false },
+  progress: { total: 4, closed: 1, open: 3, percent: 25, estimated_hours: 0, remaining_hours: 0, weight: 4, weight_closed: 1 },
+  can: { manage: false },
 }
 
 function project(manage: boolean, lifecycle: Project['lifecycle'] = 'activo'): Project {

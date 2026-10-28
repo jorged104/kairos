@@ -134,7 +134,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-149 a RF-155, RF-157 a RF-159
   - Hecho cuando: `make test-api` en verde con los tests nuevos de `workitems_test`, `milestones_test`, `templates_test` y `catalog_test`, y `perf_test` dentro de los límites.
 
-- [ ] **T27 — Frontend de pesos** (árbol, ficha, catálogo, `es.json`)
+- [x] **T27 — Frontend de pesos** (árbol, ficha, catálogo, `es.json`)
   - Depende de: T26
   - RF: RF-156
   - Hecho cuando: `make test-web` en verde con los tests de las celdas de peso y `npm run build` sin errores.

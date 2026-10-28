@@ -100,6 +100,7 @@ const save = useMutation({
       estimated_hours: input.estimated_hours === null || String(input.estimated_hours) === '' ? null : Number(input.estimated_hours),
       remaining_hours: input.remaining_hours === null || String(input.remaining_hours) === '' ? null : Number(input.remaining_hours),
       done_ratio: Number(input.done_ratio),
+      weight: Number(input.weight),
     }),
   onSuccess: (w) => {
     editing.value = false
@@ -218,6 +219,11 @@ const priorities = computed(() => catalog.value.priorities.filter((p) => !p.reti
             <Input id="w-ratio" v-model="form.done_ratio" type="number" min="0" max="100" />
           </div>
           <div class="flex flex-col gap-1.5">
+            <Label for="w-weight">{{ t('workItems.weight') }}</Label>
+            <Input id="w-weight" v-model="form.weight" type="number" min="0" max="100" required aria-describedby="w-weight-hint" />
+            <p id="w-weight-hint" class="text-xs text-muted-foreground">{{ t('workItems.weightHint') }}</p>
+          </div>
+          <div class="flex flex-col gap-1.5">
             <Label for="w-est">{{ t('workItems.estimated') }}</Label>
             <Input id="w-est" :model-value="form.estimated_hours ?? ''" type="number" min="0" max="10000" step="0.25" @update:model-value="form.estimated_hours = $event === '' ? null : Number($event)" />
           </div>
@@ -250,6 +256,10 @@ const priorities = computed(() => catalog.value.priorities.filter((p) => !p.reti
             <div><dt class="text-muted-foreground">{{ t('workItems.due') }}</dt><dd>{{ wi.due_date ?? t('common.none') }}</dd></div>
             <div><dt class="text-muted-foreground">{{ t('workItems.estimated') }}</dt><dd>{{ wi.estimated_hours ?? t('common.none') }}</dd></div>
             <div><dt class="text-muted-foreground">{{ t('workItems.remaining') }}</dt><dd>{{ wi.remaining_hours ?? t('common.none') }}</dd></div>
+            <div>
+              <dt class="text-muted-foreground">{{ t('workItems.weight') }}</dt>
+              <dd>{{ wi.weight }}<span v-if="wi.weight === 0" class="text-muted-foreground"> · {{ t('workItems.tracking') }}</span></dd>
+            </div>
             <div v-for="f in itemFields" :key="f.id"><dt class="text-muted-foreground">{{ f.name }}</dt><dd>{{ wi.custom_values[f.id] ?? t('common.none') }}</dd></div>
           </dl>
           <div class="grid gap-2 sm:grid-cols-2">

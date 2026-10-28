@@ -323,7 +323,7 @@
     "objective_closed": "El objetivo está cerrado o cancelado.",
     "version_conflict": "Otra persona cambió este elemento mientras lo editabas. Recarga para ver la versión actual.",
     "invalid_rich_text": "La descripción tiene un formato no admitido.",
-    "field_out_of_range": "Hay un valor fuera de rango (horas entre 0 y 10 000, avance entre 0 y 100).",
+    "field_out_of_range": "Hay un valor fuera de rango (horas entre 0 y 10 000, avance y peso entre 0 y 100).",
     "required": "Este campo es obligatorio."
   },
   "richtext": {
@@ -349,6 +349,7 @@
     "position": "Orden",
     "closed": "Cerrado",
     "default": "Por defecto",
+    "defaultWeight": "Peso por defecto",
     "retire": "Retirar",
     "restore": "Restaurar",
     "newPhase": "Nueva fase",
@@ -479,6 +480,9 @@
     "remaining": "Horas restantes",
     "doneRatio": "Avance (%)",
     "progress": "Avance",
+    "weight": "Peso",
+    "weightHint": "De 0 a 100. Con 0 es de seguimiento: no cuenta en el avance.",
+    "tracking": "seguimiento",
     "description": "Descripción",
     "ownProgress": "Avance propio",
     "derivedProgress": "Avance con sus hijos · {estimated} h estimadas, {remaining} h restantes",
