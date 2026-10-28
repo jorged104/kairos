@@ -124,6 +124,26 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-146, RF-148
   - Hecho cuando: con el navegador a 400 px de ancho (o en un móvil), en proyectos, hitos, work items, catálogo, usuarios y equipos se rellena la fila rápida, se ve el botón «Crear» sin desplazar la tabla y se crea con él; en escritorio, Enter tras elegir un selector crea el elemento.
 
+- [ ] **T25 — Esquema de pesos** (`00004_pesos.sql`, queries de work items, hitos, plantillas y catálogo, `make sqlc`; rama `feat/004-pesos-work-items`)
+  - Depende de: T22
+  - RF: RF-149, RF-150, RF-153, RF-158
+  - Hecho cuando: `make migrate` aplica y deshace la migración sobre una BD con datos; `go test ./internal/db/...` en verde con los agregados de peso tras `work_item_recompute_project`.
+
+- [ ] **T26 — Backend de pesos** (`catalog`, `workitems`, `milestones`, copia de plantillas, evento de cierre, auditoría)
+  - Depende de: T25
+  - RF: RF-149 a RF-155, RF-157, RF-158
+  - Hecho cuando: `make test-api` en verde con los tests nuevos de `workitems_test`, `milestones_test`, `templates_test` y `catalog_test`, y `perf_test` dentro de los límites.
+
+- [ ] **T27 — Frontend de pesos** (árbol, ficha, catálogo, `es.json`)
+  - Depende de: T26
+  - RF: RF-156
+  - Hecho cuando: `make test-web` en verde con los tests de las celdas de peso y `npm run build` sin errores.
+
+- [ ] **T28 — Comprobación de pesos (tú, con apoyo)**
+  - Depende de: T27
+  - RF: RF-149 a RF-158 (verificación)
+  - Hecho cuando: con peso por defecto 3 en «Bug», un bug creado con la fila rápida tiene peso 3; con una subtarea abierta a peso 0, el avance del padre y del hito no la cuenta; al cerrar un work item, `work_item.closed` lleva su peso.
+
 ## Desviaciones respecto al plan
 
 - **Queries por módulo:** las de cada dominio se escribieron con su tarea (`catalog.sql`, `projects.sql`…), no todas en T1.
