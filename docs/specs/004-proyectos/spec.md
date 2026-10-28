@@ -3,6 +3,8 @@
 **Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
+**Cambio:** Borrador (2026-10-28) — pendiente de aprobación en la PR · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 y RF-146.
+
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
 sin un modelo distinto por metodología. Como OpenProject, se usan piezas genéricas
@@ -265,11 +267,13 @@ responsable del proyecto. «Participante» según Conceptos.
 
 #### Edición en tabla
 - RF-139: EL SISTEMA permitirá editar en la propia tabla, celda a celda y sin botón de guardar, los campos simples de los listados de proyectos (nombre, responsable, salud, inicio y fin), hitos (nombre, fase y fecha objetivo), work items (título, tipo, estado, prioridad, asignado y fin) y del catálogo (nombre, color, orden, cerrado y por defecto). Cada celda se guarda al confirmarla y solo cambia ese campo.
-- RF-140: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre, se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items) y se crea con Enter. La fila queda abierta y vacía para el siguiente. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.
+- ~~RF-140: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre, se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items) y se crea con Enter. La fila queda abierta y vacía para el siguiente. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.~~ Sustituida por RF-145 y RF-146 (Issue #10).
 - RF-141: EL SISTEMA solo dejará editar las celdas que el usuario puede cambiar según lo que indique la API para cada fila (RF-137). Las columnas calculadas (avance, conteos, ciclo de vida) no se editan, y la celda de estado solo ofrece las transiciones permitidas por el flujo (RF-87).
 - RF-142: CUANDO una celda no se pueda guardar, EL SISTEMA mostrará junto a ella el texto del error por su código, conservará el valor escrito y permitirá restaurar el anterior con Esc. SI el error es un conflicto de versión, ENTONCES ofrecerá recargar.
 - RF-143: EL SISTEMA permitirá moverse entre celdas editables con las flechas, empezar a editar con Enter o escribiendo, confirmar con Enter o Tab y cancelar con Esc.
 - RF-144: EL SISTEMA mantendrá el alta de proyectos desde plantilla en su propia pantalla (RF-36 a RF-38); la fila rápida crea proyectos en blanco.
+- RF-145: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre y se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items). Tras crear, la fila queda abierta y vacía para el siguiente. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.
+- RF-146: CUANDO el usuario pulse Enter en cualquier campo de la fila de alta rápida, o pulse el botón «Crear» que la fila muestra al final, EL SISTEMA creará el elemento.
 
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
