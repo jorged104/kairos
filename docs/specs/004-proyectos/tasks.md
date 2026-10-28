@@ -131,7 +131,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
 
 - [ ] **T26 — Backend de pesos** (`catalog`, `workitems`, `milestones`, copia de plantillas, evento de cierre, auditoría)
   - Depende de: T25
-  - RF: RF-149 a RF-155, RF-157, RF-158
+  - RF: RF-149 a RF-155, RF-157 a RF-159
   - Hecho cuando: `make test-api` en verde con los tests nuevos de `workitems_test`, `milestones_test`, `templates_test` y `catalog_test`, y `perf_test` dentro de los límites.
 
 - [ ] **T27 — Frontend de pesos** (árbol, ficha, catálogo, `es.json`)

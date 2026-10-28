@@ -5,7 +5,7 @@ del borrador original quedan tomadas en «Decisiones de la revisión».
 
 **Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
 
-**Cambio:** Borrador (2026-10-28) — pendiente de aprobación en la PR. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-158.
+**Cambio:** Aprobado (2026-10-28) · PR #12. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-159.
 
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
@@ -290,7 +290,7 @@ responsable del proyecto. «Participante» según Conceptos.
 - RF-156: EL SISTEMA permitirá editar el peso de un work item en el árbol (RF-139) y en su ficha, y el peso por defecto de un tipo en la tabla de tipos del catálogo, e indicará junto al campo que el peso 0 es de seguimiento.
 - RF-157: CUANDO se copie el contenido de ejemplo de una plantilla (RF-37), EL SISTEMA conservará el peso de cada work item copiado.
 - RF-158: CUANDO cambie el peso de un work item, EL SISTEMA dejará actualizados los valores derivados de todos sus ancestros al confirmar el cambio, como en RF-83.
-- RF-159: [NECESITA ACLARACIÓN: ¿las horas estimadas y restantes de un work item de peso 0 se suman a las de su hito (RF-55) y a las derivadas de su padre (RF-80)? Recomendado: sí, porque el peso solo afecta al avance y las horas son esfuerzo real.]
+- RF-159: EL SISTEMA seguirá sumando las horas estimadas y restantes de los work items de peso 0 a las de su hito (RF-55) y a las derivadas de sus ancestros (RF-80): el peso solo afecta al avance.
 
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
@@ -330,7 +330,7 @@ responsable del proyecto. «Participante» según Conceptos.
 - **Subárbol con todo a peso 0:** avance derivado como media simple (RF-153).
 - **Hijo de peso 0 cerrado bajo un padre abierto:** el avance del padre no cambia (RF-153).
 - **Cambio de tipo de un work item:** conserva su peso (RF-151).
-- **Datos existentes al aplicar el cambio:** todos los work items y tipos quedan con peso 1. El avance derivado de los padres con hijos de horas distintas puede cambiar, porque deja de ponderarse por horas (RF-153).
+- **Datos existentes al aplicar el cambio:** todos los work items y tipos quedan con peso 1. El avance derivado de los padres con hijos de horas distintas puede cambiar, porque deja de ponderarse por horas (RF-153); aceptado al aprobar el cambio.
 - **Enter mantenido o doble pulsación de «Crear» en la fila rápida:** se crea un solo elemento (RF-146).
 - **Enter con un selector desplegado:** el navegador lo usa para elegir la opción; el siguiente Enter crea (RF-146).
 
@@ -353,7 +353,7 @@ responsable del proyecto. «Participante» según Conceptos.
 - Un Enter en cualquier parte de la pantalla que cree el elemento de la fila rápida: en la tabla, Enter empieza a editar la celda enfocada (RF-143); el alta se hace desde la fila (RF-146).
 
 ## Criterios de finalización
-- RF-1 a RF-135 y RF-149 a RF-158 (sin las sustituidas RF-54, RF-81 y RF-82) cubiertos por tests automáticos del backend en verde, incluida la matriz de permisos (RF-125) y pruebas de concurrencia para RF-63, RF-73 y la ausencia de ciclos.
+- RF-1 a RF-135 y RF-149 a RF-159 (sin las sustituidas RF-54, RF-81 y RF-82) cubiertos por tests automáticos del backend en verde, incluida la matriz de permisos (RF-125) y pruebas de concurrencia para RF-63, RF-73 y la ausencia de ciclos.
 - Prueba de rendimiento con datos del tamaño de diseño que cumple los umbrales de los requisitos no funcionales.
 - RF-136 a RF-139, RF-141 a RF-148 y RF-156 con tests del frontend en verde.
 - Demo manual:

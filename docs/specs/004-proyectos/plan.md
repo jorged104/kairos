@@ -526,9 +526,9 @@ rango: `422 validation_failed`.
   columnas más.
 - `matrix_work_test.go` sin cambios: no hay permisos nuevos.
 
-**Horas de work items de peso 0 (RF-159, pendiente de aclaración):** el plan sigue la opción
-recomendada (se siguen sumando); si se decide lo contrario, cambian `MilestoneProgress` y
-`work_item_refresh_one`.
+**Horas de work items de peso 0 (RF-159):** se siguen sumando; `MilestoneProgress` y los
+agregados de horas de `work_item_refresh_one` no cambian. Se prueba en `workitems_test` y
+`milestones_test`.
 
 | RF | Dónde | Cómo se prueba |
 |---|---|---|
