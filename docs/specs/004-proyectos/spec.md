@@ -5,6 +5,8 @@ del borrador original quedan tomadas en «Decisiones de la revisión».
 
 **Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
 
+**Cambio:** Borrador (2026-10-28) — pendiente de aprobación en la PR. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-156.
+
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
 sin un modelo distinto por metodología. Como OpenProject, se usan piezas genéricas
@@ -137,7 +139,7 @@ Vienen del borrador del responsable de producto y **no se reabren**:
 - RF-51: SI el hito y el work item son de proyectos distintos, ENTONCES EL SISTEMA rechazará la vinculación.
 - RF-52: CUANDO se consulte un hito, EL SISTEMA devolverá sus work items efectivos (los ligados directamente y todos sus descendientes), cada uno una sola vez e indicando si es directo o heredado.
 - RF-53: CUANDO se consulten los hitos de un work item, EL SISTEMA devolverá sus hitos efectivos (directos y de sus ancestros) sin repetir, indicando cuáles son heredados.
-- RF-54: EL SISTEMA calculará el avance de un hito como el porcentaje de sus work items efectivos en un estado cerrado.
+- ~~RF-54: EL SISTEMA calculará el avance de un hito como el porcentaje de sus work items efectivos en un estado cerrado.~~ Sustituida por RF-154 (pesos).
 - RF-55: EL SISTEMA calculará las horas estimadas y restantes de un hito sumando las horas propias (no derivadas) de sus work items efectivos, contando cada uno una sola vez.
 - RF-56: EL SISTEMA contará un work item ligado a dos hitos en el avance de ambos.
 - RF-57: CUANDO se mueva un work item a otro padre, EL SISTEMA reflejará en la siguiente consulta los hitos que hereda del nuevo padre y dejará de reflejar los del anterior.
@@ -168,8 +170,8 @@ Vienen del borrador del responsable de producto y **no se reabren**:
 - RF-78: SI asignar un padre dejaría algún work item a más de 10 niveles de profundidad, ENTONCES EL SISTEMA rechazará el cambio.
 - RF-79: CUANDO se pidan los descendientes o los ancestros de un work item, EL SISTEMA los devolverá en una sola petición.
 - RF-80: EL SISTEMA calculará las horas estimadas y restantes derivadas de un work item como sus horas propias más las de todos sus descendientes.
-- RF-81: EL SISTEMA calculará el avance derivado de un work item con descendientes como la media de su avance y el de sus descendientes ponderada por horas estimadas, contando como 100 % los cerrados.
-- RF-82: SI ningún work item del subárbol tiene horas estimadas, ENTONCES EL SISTEMA calculará el avance derivado como la media simple de sus avances.
+- ~~RF-81: EL SISTEMA calculará el avance derivado de un work item con descendientes como la media de su avance y el de sus descendientes ponderada por horas estimadas, contando como 100 % los cerrados.~~ Sustituida por RF-153 (pesos).
+- ~~RF-82: SI ningún work item del subárbol tiene horas estimadas, ENTONCES EL SISTEMA calculará el avance derivado como la media simple de sus avances.~~ Sustituida por RF-153 (pesos).
 - RF-83: CUANDO cambien las horas, el avance, el estado o el padre de un work item, EL SISTEMA dejará actualizados los valores derivados de todos sus ancestros (y de los antiguos, si cambió de padre) al confirmar el cambio.
 - RF-84: CUANDO un work item pase a un estado cerrado, EL SISTEMA pondrá su avance en 100 % y sus horas restantes en 0.
 - RF-85: SI se intenta borrar un work item que tiene hijos, ENTONCES EL SISTEMA rechazará el borrado.
@@ -277,6 +279,16 @@ responsable del proyecto. «Participante» según Conceptos.
 - RF-147: SI falta el nombre u otro dato obligatorio de la fila, ENTONCES EL SISTEMA no creará el elemento, llevará el foco al primer campo que falte y mostrará en la fila el aviso de campo obligatorio. SI la API rechaza el alta, ENTONCES mostrará en la fila el texto del error por su código y conservará lo escrito.
 - RF-148: EL SISTEMA mostrará el botón «Crear» y los campos de la fila de alta rápida sin desplazar la tabla en horizontal, también en pantallas de 400 px de ancho.
 
+### Pesos
+- RF-149: EL SISTEMA guardará de cada work item un peso entero de 0 a 100. Un work item de peso 0 es de seguimiento: se muestra, se asigna y se cierra como los demás, pero no cuenta en ningún avance.
+- RF-150: EL SISTEMA permitirá a un administrador fijar en cada tipo de work item un peso por defecto entero de 0 a 100. Los tipos que no lo tengan fijado tendrán 1.
+- RF-151: CUANDO se cree un work item sin indicar peso, EL SISTEMA le pondrá el peso por defecto de su tipo. CUANDO cambie el peso por defecto de un tipo, o el tipo de un work item, EL SISTEMA no cambiará el peso de los work items existentes.
+- RF-152: SI el peso de un work item o el peso por defecto de un tipo no es un entero de 0 a 100, ENTONCES EL SISTEMA rechazará el cambio.
+- RF-153: EL SISTEMA calculará el avance derivado de un work item con descendientes como la media de su avance y el de sus descendientes ponderada por su peso, contando como 100 % los cerrados. SI todo el subárbol tiene peso 0, ENTONCES lo calculará como la media simple de sus avances.
+- RF-154: EL SISTEMA calculará el avance de un hito como la suma de los pesos de sus work items efectivos en un estado cerrado entre la suma de los pesos de todos sus work items efectivos, en porcentaje.
+- RF-155: CUANDO se emita `work_item.closed`, EL SISTEMA incluirá en él el peso del work item en ese momento, para que la gamificación lo use como base.
+- RF-156: EL SISTEMA permitirá editar el peso de un work item en el árbol (RF-139) y en su ficha, y el peso por defecto de un tipo en la tabla de tipos del catálogo, e indicará junto al campo que el peso 0 es de seguimiento.
+
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
 - **Gamificación (spec futura):** consume `work_item.closed`, `work_item.reopened`, `milestone.completed` y `milestone.reopened` (RF-116 a RF-122). Decide cuántos XP o monedas da cada evento, a quién y cómo se compensa una reapertura. Esta spec no toca XP ni monedas.
@@ -326,7 +338,7 @@ responsable del proyecto. «Participante» según Conceptos.
 - XP, monedas y niveles (spec de gamificación).
 - Permisos por proyecto distintos de la matriz (roles por proyecto, miembros de proyecto aparte del equipo).
 - Proyectos o work items privados: todo lo que no es plantilla es visible para cualquier usuario activo.
-- Pesos de hitos y work items en los resultados clave.
+- Pesos en los resultados clave: los work items tienen peso (RF-149), pero los resultados clave derivados siguen contando todos sus elementos por igual (RF-110). Los hitos no tienen peso.
 - Aprobaciones formales de gates.
 - Importación y exportación (CSV, MS Project, Jira).
 - Borrado físico de proyectos.
@@ -383,6 +395,13 @@ A petición del responsable de producto, con el diseño «Tablas editables» com
 
 ## Alta rápida en móvil (2026-10-28, Issue #10)
 La fila rápida solo creaba al pulsar Enter en el nombre: tras elegir equipo, tipo o fase había que volver al nombre, y en el móvil no había forma de crear. Se crea con Enter desde cualquier campo de la fila o con un botón «Crear» visible (RF-146), que se ve también en pantallas estrechas (RF-148). De las dos opciones del issue (botón o Enter global) se toman el botón y el Enter dentro de la fila, porque un Enter global chocaría con el de las celdas (RF-143).
+
+## Pesos (2026-10-28)
+A petición del responsable de producto:
+- **Peso por work item, con valor por defecto en el tipo** (RF-149 a RF-151). El valor del tipo se copia al crear, así un cambio en el catálogo no altera el avance de lo que ya existe.
+- **El peso sustituye a las horas como ponderación del avance** (RF-153, RF-154). Las horas quedan como información y siguen sumándose (RF-55, RF-80).
+- **Peso 0 para tareas de seguimiento:** se registran sin mover el avance del proyecto.
+- **XP:** el peso viaja en `work_item.closed` (RF-155); cómo se convierte en XP lo decide la spec de gamificación.
 
 ## Dudas abiertas
 - Ninguna bloqueante. El tamaño de diseño (500 proyectos, 50 000 work items) es una estimación del agente; confírmalo o corrígelo al aprobar.
