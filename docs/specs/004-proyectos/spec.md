@@ -5,7 +5,7 @@ del borrador original quedan tomadas en «Decisiones de la revisión».
 
 **Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
 
-**Cambio:** Borrador (2026-10-28) — pendiente de aprobación en la PR. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-156.
+**Cambio:** Borrador (2026-10-28) — pendiente de aprobación en la PR. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-158.
 
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
@@ -280,14 +280,17 @@ responsable del proyecto. «Participante» según Conceptos.
 - RF-148: EL SISTEMA mostrará el botón «Crear» y los campos de la fila de alta rápida sin desplazar la tabla en horizontal, también en pantallas de 400 px de ancho.
 
 ### Pesos
-- RF-149: EL SISTEMA guardará de cada work item un peso entero de 0 a 100. Un work item de peso 0 es de seguimiento: se muestra, se asigna y se cierra como los demás, pero no cuenta en ningún avance.
+- RF-149: EL SISTEMA guardará de cada work item un peso entero de 0 a 100. Un work item de peso 0 es de seguimiento: se muestra, se asigna y se cierra como los demás, pero no cuenta en ningún avance. Puede cambiar el peso quien puede modificar el work item (RF-123 a RF-127).
 - RF-150: EL SISTEMA permitirá a un administrador fijar en cada tipo de work item un peso por defecto entero de 0 a 100. Los tipos que no lo tengan fijado tendrán 1.
 - RF-151: CUANDO se cree un work item sin indicar peso, EL SISTEMA le pondrá el peso por defecto de su tipo. CUANDO cambie el peso por defecto de un tipo, o el tipo de un work item, EL SISTEMA no cambiará el peso de los work items existentes.
 - RF-152: SI el peso de un work item o el peso por defecto de un tipo no es un entero de 0 a 100, ENTONCES EL SISTEMA rechazará el cambio.
 - RF-153: EL SISTEMA calculará el avance derivado de un work item con descendientes como la media de su avance y el de sus descendientes ponderada por su peso, contando como 100 % los cerrados. SI todo el subárbol tiene peso 0, ENTONCES lo calculará como la media simple de sus avances.
-- RF-154: EL SISTEMA calculará el avance de un hito como la suma de los pesos de sus work items efectivos en un estado cerrado entre la suma de los pesos de todos sus work items efectivos, en porcentaje.
+- RF-154: EL SISTEMA calculará el avance de un hito como la suma de los pesos de sus work items efectivos en un estado cerrado entre la suma de los pesos de todos sus work items efectivos, en porcentaje. SI esa suma es 0, ENTONCES el avance será 0 %. Los conteos de work items cerrados y totales del hito siguen contando todos, también los de peso 0.
 - RF-155: CUANDO se emita `work_item.closed`, EL SISTEMA incluirá en él el peso del work item en ese momento, para que la gamificación lo use como base.
 - RF-156: EL SISTEMA permitirá editar el peso de un work item en el árbol (RF-139) y en su ficha, y el peso por defecto de un tipo en la tabla de tipos del catálogo, e indicará junto al campo que el peso 0 es de seguimiento.
+- RF-157: CUANDO se copie el contenido de ejemplo de una plantilla (RF-37), EL SISTEMA conservará el peso de cada work item copiado.
+- RF-158: CUANDO cambie el peso de un work item, EL SISTEMA dejará actualizados los valores derivados de todos sus ancestros al confirmar el cambio, como en RF-83.
+- RF-159: [NECESITA ACLARACIÓN: ¿las horas estimadas y restantes de un work item de peso 0 se suman a las de su hito (RF-55) y a las derivadas de su padre (RF-80)? Recomendado: sí, porque el peso solo afecta al avance y las horas son esfuerzo real.]
 
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
@@ -323,6 +326,11 @@ responsable del proyecto. «Participante» según Conceptos.
 - **Dependencia entre proyectos donde el usuario solo gestiona uno:** necesita poder editar el work item de origen; el de destino solo debe ser visible.
 - **Plantilla con contenido de ejemplo y fechas:** las fechas se desplazan respecto a la nueva fecha de inicio (RF-37).
 - **Dos usuarios editan el mismo work item:** el segundo recibe conflicto de versión (RF-73).
+- **Hito cuyos work items efectivos tienen todos peso 0:** avance 0 %; los conteos siguen mostrándolos (RF-154).
+- **Subárbol con todo a peso 0:** avance derivado como media simple (RF-153).
+- **Hijo de peso 0 cerrado bajo un padre abierto:** el avance del padre no cambia (RF-153).
+- **Cambio de tipo de un work item:** conserva su peso (RF-151).
+- **Datos existentes al aplicar el cambio:** todos los work items y tipos quedan con peso 1. El avance derivado de los padres con hijos de horas distintas puede cambiar, porque deja de ponderarse por horas (RF-153).
 - **Enter mantenido o doble pulsación de «Crear» en la fila rápida:** se crea un solo elemento (RF-146).
 - **Enter con un selector desplegado:** el navegador lo usa para elegir la opción; el siguiente Enter crea (RF-146).
 
@@ -345,9 +353,9 @@ responsable del proyecto. «Participante» según Conceptos.
 - Un Enter en cualquier parte de la pantalla que cree el elemento de la fila rápida: en la tabla, Enter empieza a editar la celda enfocada (RF-143); el alta se hace desde la fila (RF-146).
 
 ## Criterios de finalización
-- RF-1 a RF-135 cubiertos por tests automáticos del backend en verde, incluida la matriz de permisos (RF-125) y pruebas de concurrencia para RF-63, RF-73 y la ausencia de ciclos.
+- RF-1 a RF-135 y RF-149 a RF-158 (sin las sustituidas RF-54, RF-81 y RF-82) cubiertos por tests automáticos del backend en verde, incluida la matriz de permisos (RF-125) y pruebas de concurrencia para RF-63, RF-73 y la ausencia de ciclos.
 - Prueba de rendimiento con datos del tamaño de diseño que cumple los umbrales de los requisitos no funcionales.
-- RF-136 a RF-139 y RF-141 a RF-148 con tests del frontend en verde.
+- RF-136 a RF-139, RF-141 a RF-148 y RF-156 con tests del frontend en verde.
 - Demo manual:
   1. Como admin, revisar las metodologías Scrum y PRINCE2 precargadas con sus fases, y definir un flujo para el tipo «Bug» que impida pasar de «Nuevo» a «Cerrado» directamente.
   2. Crear las plantillas «Scrum» y «PRINCE2», esta con hitos y work items de ejemplo.
