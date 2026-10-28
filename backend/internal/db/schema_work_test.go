@@ -141,6 +141,9 @@ func TestWorkChecks(t *testing.T) {
 	f.mustFail(t, "ratio over 100 (RF-67)", "UPDATE work_items SET done_ratio = 101 WHERE id = $1", wi)
 	f.mustFail(t, "empty title (RF-72)", "UPDATE work_items SET title = '  ' WHERE id = $1", wi)
 	f.mustFail(t, "depth 10 (RF-78)", "UPDATE work_items SET depth = 10 WHERE id = $1", wi)
+	f.mustFail(t, "weight over 100 (RF-152)", "UPDATE work_items SET weight = 101 WHERE id = $1", wi)
+	f.mustFail(t, "negative weight (RF-152)", "UPDATE work_items SET weight = -1 WHERE id = $1", wi)
+	f.mustFail(t, "type default weight over 100 (RF-152)", "UPDATE work_item_types SET default_weight = 101 WHERE id = $1", f.typ)
 	f.mustFail(t, "duplicate sequence (RF-63)",
 		`INSERT INTO work_items (project_id, type_id, status_id, priority_id, sequence_number, title, author_id)
 		 VALUES ($1, $2, $3, $4, 1, 'x', $5)`, f.projectA, f.typ, f.status, f.priority, f.user)
@@ -238,4 +241,57 @@ func TestWorkItemAggregates(t *testing.T) {
 	exec("SELECT work_item_recompute_project($1)", f.projectA)
 	check(root, 40, 5, 88)
 	check(b, 0, 0, 20)
+}
+
+func TestWorkItemWeightedAggregates(t *testing.T) {
+	f := newWorkFixture(t)
+	ctx := context.Background()
+	root := f.workItem(t, f.projectA, 1, nil, 0)
+	a := f.workItem(t, f.projectA, 2, &root, 1)
+	b := f.workItem(t, f.projectA, 3, &root, 1)
+	leaf := f.workItem(t, f.projectA, 4, &a, 2)
+
+	exec := func(sql string, args ...any) {
+		t.Helper()
+		if _, err := f.pool.Exec(ctx, sql, args...); err != nil {
+			t.Fatalf("%s: %v", sql, err)
+		}
+	}
+	// a: weight 3 at 50 %, leaf: weight 1 closed, b: tracking (weight 0) at 20 % with 8 h.
+	exec("UPDATE work_items SET weight = 3, done_ratio = 50 WHERE id = $1", a)
+	exec("UPDATE work_items SET status_id = $2 WHERE id = $1", leaf, f.closed)
+	exec("UPDATE work_items SET weight = 0, done_ratio = 20, estimated_hours = 8 WHERE id = $1", b)
+	for _, id := range []uuid.UUID{leaf, b} {
+		exec("SELECT work_item_refresh_up($1)", id)
+	}
+
+	check := func(id uuid.UUID, weight int64, ratio, legacy int, est float64) {
+		t.Helper()
+		var gotWeight int64
+		var gotRatio, gotLegacy int
+		var gotEst float64
+		if err := f.pool.QueryRow(ctx,
+			"SELECT agg_weight, weighted_done_ratio, derived_done_ratio, agg_estimated::float8 FROM work_items WHERE id = $1",
+			id).Scan(&gotWeight, &gotRatio, &gotLegacy, &gotEst); err != nil {
+			t.Fatal(err)
+		}
+		if gotWeight != weight || gotRatio != ratio || gotLegacy != legacy || gotEst != est {
+			t.Fatalf("weight %d, ratio %d %%, legacy %d %%, %v h; want %d, %d %%, %d %%, %v h",
+				gotWeight, gotRatio, gotLegacy, gotEst, weight, ratio, legacy, est)
+		}
+	}
+	// a: (3*50 + 1*100) / 4 = 62.5 → 63 (RF-153).
+	check(a, 4, 63, 75, 0)
+	// root: (1*0 + 250) / 5 = 50; b weighs 0 and doesn't count, but its hours do (RF-159).
+	// The previous formula is still kept up to date for the previous API: b has the only
+	// estimate, so it is b's 20 %.
+	check(root, 5, 50, 20, 8)
+	// b alone weighs 0: simple mean of its own ratio (RF-153).
+	check(b, 0, 20, 20, 8)
+
+	// A full rebuild gives the same values.
+	exec("UPDATE work_items SET agg_weight = 1, agg_weight_ratio_sum = 0")
+	exec("SELECT work_item_recompute_project($1)", f.projectA)
+	check(root, 5, 50, 20, 8)
+	check(a, 4, 63, 75, 0)
 }

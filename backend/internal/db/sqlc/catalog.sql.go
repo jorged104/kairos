@@ -240,7 +240,7 @@ func (q *Queries) CreateTransition(ctx context.Context, arg CreateTransitionPara
 }
 
 const createWorkItemType = `-- name: CreateWorkItemType :one
-INSERT INTO work_item_types (name, name_normalized, color, position) VALUES ($1, $2, $3, $4) RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at
+INSERT INTO work_item_types (name, name_normalized, color, position) VALUES ($1, $2, $3, $4) RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
 `
 
 type CreateWorkItemTypeParams struct {
@@ -267,6 +267,7 @@ func (q *Queries) CreateWorkItemType(ctx context.Context, arg CreateWorkItemType
 		&i.RetiredAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultWeight,
 	)
 	return i, err
 }
@@ -429,7 +430,7 @@ func (q *Queries) GetStatusForUpdate(ctx context.Context, id uuid.UUID) (Status,
 }
 
 const getWorkItemType = `-- name: GetWorkItemType :one
-SELECT id, name, name_normalized, color, position, retired_at, created_at, updated_at FROM work_item_types WHERE id = $1
+SELECT id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight FROM work_item_types WHERE id = $1
 `
 
 func (q *Queries) GetWorkItemType(ctx context.Context, id uuid.UUID) (WorkItemType, error) {
@@ -444,6 +445,7 @@ func (q *Queries) GetWorkItemType(ctx context.Context, id uuid.UUID) (WorkItemTy
 		&i.RetiredAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultWeight,
 	)
 	return i, err
 }
@@ -623,7 +625,7 @@ func (q *Queries) ListTransitions(ctx context.Context, typeID uuid.UUID) ([]Work
 
 const listWorkItemTypes = `-- name: ListWorkItemTypes :many
 
-SELECT id, name, name_normalized, color, position, retired_at, created_at, updated_at FROM work_item_types ORDER BY position, name
+SELECT id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight FROM work_item_types ORDER BY position, name
 `
 
 // Tipos ----------------------------------------------------------------------
@@ -645,6 +647,7 @@ func (q *Queries) ListWorkItemTypes(ctx context.Context) ([]WorkItemType, error)
 			&i.RetiredAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DefaultWeight,
 		); err != nil {
 			return nil, err
 		}
@@ -770,7 +773,7 @@ func (q *Queries) SetStatusRetired(ctx context.Context, arg SetStatusRetiredPara
 const setWorkItemTypeRetired = `-- name: SetWorkItemTypeRetired :one
 UPDATE work_item_types
 SET retired_at = CASE WHEN $2::boolean THEN now() ELSE NULL END, updated_at = now()
-WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at
+WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
 `
 
 type SetWorkItemTypeRetiredParams struct {
@@ -790,6 +793,7 @@ func (q *Queries) SetWorkItemTypeRetired(ctx context.Context, arg SetWorkItemTyp
 		&i.RetiredAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultWeight,
 	)
 	return i, err
 }
@@ -984,7 +988,7 @@ func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) (Sta
 
 const updateWorkItemType = `-- name: UpdateWorkItemType :one
 UPDATE work_item_types SET name = $2, name_normalized = $3, color = $4, position = $5, updated_at = now()
-WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at
+WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
 `
 
 type UpdateWorkItemTypeParams struct {
@@ -1013,6 +1017,7 @@ func (q *Queries) UpdateWorkItemType(ctx context.Context, arg UpdateWorkItemType
 		&i.RetiredAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultWeight,
 	)
 	return i, err
 }

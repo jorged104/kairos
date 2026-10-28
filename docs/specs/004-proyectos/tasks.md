@@ -124,7 +124,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-146, RF-148
   - Hecho cuando: con el navegador a 400 px de ancho (o en un móvil), en proyectos, hitos, work items, catálogo, usuarios y equipos se rellena la fila rápida, se ve el botón «Crear» sin desplazar la tabla y se crea con él; en escritorio, Enter tras elegir un selector crea el elemento.
 
-- [ ] **T25 — Esquema de pesos** (`00004_pesos.sql`, queries de work items, hitos, plantillas y catálogo, `make sqlc`; rama `feat/004-pesos-work-items`)
+- [x] **T25 — Esquema de pesos** (`00004_pesos.sql`, queries de work items, hitos, plantillas y catálogo, `make sqlc`; rama `feat/004-pesos-work-items`)
   - Depende de: T22
   - RF: RF-149, RF-150, RF-153, RF-158
   - Hecho cuando: `make migrate` aplica y deshace la migración sobre una BD con datos; `go test ./internal/db/...` en verde con los agregados de peso tras `work_item_recompute_project`.
@@ -146,6 +146,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
 
 ## Desviaciones respecto al plan
 
+- **Pesos (T25/T26):** T25 solo trae la migración y el código sqlc regenerado; los cambios de parámetros de las queries (`weight`, `default_weight`, `weighted_done_ratio`) van en T26 junto al código que los usa, para que cada commit compile.
 - **Queries por módulo:** las de cada dominio se escribieron con su tarea (`catalog.sql`, `projects.sql`…), no todas en T1.
 - **T7 a T10 y T17 a T19 van en un commit cada grupo:** comparten el mismo `PATCH` de work item (estado, padre y bloqueo se validan juntos) o las mismas rutas y textos.
 - **Rendimiento (T15):** con el tamaño de diseño, las medianas locales quedan muy por debajo de los límites: árbol de 5 000 work items en unos 140 ms (límite 500), cambio de estado a profundidad 9 en unos 40 ms (límite 200) y el resto por debajo de 50 ms. **No hace falta tabla de cierre:** se queda la consulta recursiva. La prueba carga los datos con `COPY` y corre en `make test` (unos 10 s).
