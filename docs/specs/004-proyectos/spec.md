@@ -3,6 +3,8 @@
 **Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
+**Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
+
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
 sin un modelo distinto por metodología. Como OpenProject, se usan piezas genéricas
@@ -265,11 +267,15 @@ responsable del proyecto. «Participante» según Conceptos.
 
 #### Edición en tabla
 - RF-139: EL SISTEMA permitirá editar en la propia tabla, celda a celda y sin botón de guardar, los campos simples de los listados de proyectos (nombre, responsable, salud, inicio y fin), hitos (nombre, fase y fecha objetivo), work items (título, tipo, estado, prioridad, asignado y fin) y del catálogo (nombre, color, orden, cerrado y por defecto). Cada celda se guarda al confirmarla y solo cambia ese campo.
-- RF-140: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre, se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items) y se crea con Enter. La fila queda abierta y vacía para el siguiente. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.
+- ~~RF-140: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre, se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items) y se crea con Enter. La fila queda abierta y vacía para el siguiente. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.~~ Sustituida por RF-145 a RF-148 (Issue #10).
 - RF-141: EL SISTEMA solo dejará editar las celdas que el usuario puede cambiar según lo que indique la API para cada fila (RF-137). Las columnas calculadas (avance, conteos, ciclo de vida) no se editan, y la celda de estado solo ofrece las transiciones permitidas por el flujo (RF-87).
 - RF-142: CUANDO una celda no se pueda guardar, EL SISTEMA mostrará junto a ella el texto del error por su código, conservará el valor escrito y permitirá restaurar el anterior con Esc. SI el error es un conflicto de versión, ENTONCES ofrecerá recargar.
 - RF-143: EL SISTEMA permitirá moverse entre celdas editables con las flechas, empezar a editar con Enter o escribiendo, confirmar con Enter o Tab y cancelar con Esc.
 - RF-144: EL SISTEMA mantendrá el alta de proyectos desde plantilla en su propia pantalla (RF-36 a RF-38); la fila rápida crea proyectos en blanco.
+- RF-145: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre y se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items). Tras crear, la fila queda abierta y vacía para el siguiente, con el foco en el nombre; Esc la cierra sin crear. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.
+- RF-146: CUANDO el usuario pulse Enter en cualquier campo de la fila de alta rápida (nombre, textos, selectores, fechas, color y casillas), o pulse el botón «Crear» que la fila muestra al final, EL SISTEMA creará el elemento. Mientras se crea, el botón queda deshabilitado y un segundo Enter o pulsación no crea otro.
+- RF-147: SI falta el nombre u otro dato obligatorio de la fila, ENTONCES EL SISTEMA no creará el elemento, llevará el foco al primer campo que falte y mostrará en la fila el aviso de campo obligatorio. SI la API rechaza el alta, ENTONCES mostrará en la fila el texto del error por su código y conservará lo escrito.
+- RF-148: EL SISTEMA mostrará el botón «Crear» y los campos de la fila de alta rápida sin desplazar la tabla en horizontal, también en pantallas de 400 px de ancho.
 
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
@@ -305,6 +311,8 @@ responsable del proyecto. «Participante» según Conceptos.
 - **Dependencia entre proyectos donde el usuario solo gestiona uno:** necesita poder editar el work item de origen; el de destino solo debe ser visible.
 - **Plantilla con contenido de ejemplo y fechas:** las fechas se desplazan respecto a la nueva fecha de inicio (RF-37).
 - **Dos usuarios editan el mismo work item:** el segundo recibe conflicto de versión (RF-73).
+- **Enter mantenido o doble pulsación de «Crear» en la fila rápida:** se crea un solo elemento (RF-146).
+- **Enter con un selector desplegado:** el navegador lo usa para elegir la opción; el siguiente Enter crea (RF-146).
 
 ## Fuera de alcance
 - Tablero kanban, diagrama de Gantt y vistas de calendario.
@@ -322,11 +330,12 @@ responsable del proyecto. «Participante» según Conceptos.
 - Aprobaciones formales de gates.
 - Importación y exportación (CSV, MS Project, Jira).
 - Borrado físico de proyectos.
+- Un Enter en cualquier parte de la pantalla que cree el elemento de la fila rápida: en la tabla, Enter empieza a editar la celda enfocada (RF-143); el alta se hace desde la fila (RF-146).
 
 ## Criterios de finalización
 - RF-1 a RF-135 cubiertos por tests automáticos del backend en verde, incluida la matriz de permisos (RF-125) y pruebas de concurrencia para RF-63, RF-73 y la ausencia de ciclos.
 - Prueba de rendimiento con datos del tamaño de diseño que cumple los umbrales de los requisitos no funcionales.
-- RF-136 a RF-144 con tests del frontend en verde.
+- RF-136 a RF-139 y RF-141 a RF-148 con tests del frontend en verde.
 - Demo manual:
   1. Como admin, revisar las metodologías Scrum y PRINCE2 precargadas con sus fases, y definir un flujo para el tipo «Bug» que impida pasar de «Nuevo» a «Cerrado» directamente.
   2. Crear las plantillas «Scrum» y «PRINCE2», esta con hitos y work items de ejemplo.
@@ -371,6 +380,9 @@ A petición del responsable de producto, con el diseño «Tablas editables» com
 - **Sin dependencias nuevas:** la paginación, el orden y los filtros ya los hace la API, así que no hace falta TanStack Table; las celdas, la fila rápida y la navegación con teclado son componentes propios sobre la tabla del tema.
 - **Guardado por celda:** los `PATCH` reemplazan todos los campos editables, así que la celda lee el elemento antes de guardar y solo cambia su campo; el control de versión sigue protegiendo contra escrituras simultáneas (RF-73, RF-142).
 - **Permisos por fila:** el listado de proyectos devuelve en cada fila el mismo `can` que la ficha (cambio aditivo de la API), para no ofrecer celdas que la API rechazaría (RF-141).
+
+## Alta rápida en móvil (2026-10-28, Issue #10)
+La fila rápida solo creaba al pulsar Enter en el nombre: tras elegir equipo, tipo o fase había que volver al nombre, y en el móvil no había forma de crear. Se crea con Enter desde cualquier campo de la fila o con un botón «Crear» visible (RF-146), que se ve también en pantallas estrechas (RF-148). De las dos opciones del issue (botón o Enter global) se toman el botón y el Enter dentro de la fila, porque un Enter global chocaría con el de las celdas (RF-143).
 
 ## Dudas abiertas
 - Ninguna bloqueante. El tamaño de diseño (500 proyectos, 50 000 work items) es una estimación del agente; confírmalo o corrígelo al aprobar.

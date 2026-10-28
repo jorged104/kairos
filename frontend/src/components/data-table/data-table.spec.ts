@@ -83,12 +83,29 @@ describe('celda editable (RF-139)', () => {
   })
 })
 
-describe('fila rápida (RF-140)', () => {
+describe('fila rápida (RF-145 a RF-147)', () => {
+  // The slot holds a required phase select, like the extra fields of the screens.
   const row = (submit: (title: string) => Promise<unknown>) =>
     mount(
-      { render: () => h('table', h('tbody', h(QuickAddRow, { colspan: 3, label: 'Nuevo hito', placeholder: 'Nombre', submit }))) },
+      {
+        render: () =>
+          h(
+            'table',
+            h(
+              'tbody',
+              h(QuickAddRow, { colspan: 3, label: 'Nuevo hito', placeholder: 'Nombre', submit }, () =>
+                h('select', { 'aria-label': 'Fase', required: true }, [h('option', { value: '' }, '—'), h('option', { value: 'f1', selected: true }, 'Inicio')]),
+              ),
+            ),
+          ),
+      },
       { global, attachTo: document.body },
     )
+  const open = async (w: ReturnType<typeof row>) => {
+    await w.find('button').trigger('click')
+    await flushPromises()
+  }
+  const submitButton = (w: ReturnType<typeof row>) => w.find('button[type=submit]')
 
   it('crea con Enter y queda abierta y vacía para el siguiente', async () => {
     const submit = vi.fn(() => Promise.resolve())
@@ -110,6 +127,56 @@ describe('fila rápida (RF-140)', () => {
     await flushPromises()
     expect(w.find('[role=alert]').exists()).toBe(true)
     expect((w.find('input').element as HTMLInputElement).value).toBe('Beta')
+    w.unmount()
+  })
+
+  it('crea con Enter desde un selector de la fila (RF-146)', async () => {
+    const submit = vi.fn(() => Promise.resolve())
+    const w = row(submit)
+    await open(w)
+    await w.find('input').setValue('Beta')
+    await w.find('select').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(submit).toHaveBeenCalledWith('Beta')
+    w.unmount()
+  })
+
+  it('crea con el botón «Crear» visible y no crea dos veces mientras guarda (RF-146)', async () => {
+    let done = () => {}
+    const submit = vi.fn(() => new Promise<void>((resolve) => (done = resolve)))
+    const w = row(submit)
+    await open(w)
+    expect(submitButton(w).text()).toBe('Crear')
+    expect(submitButton(w).classes()).not.toContain('sr-only')
+    await w.find('input').setValue('Beta')
+    await submitButton(w).trigger('click')
+    await w.find('select').trigger('keydown', { key: 'Enter' })
+    await w.find('input').trigger('keydown', { key: 'Enter' })
+    expect(submit).toHaveBeenCalledOnce()
+    expect(submitButton(w).attributes('disabled')).toBeDefined()
+    done()
+    await flushPromises()
+    expect(submitButton(w).attributes('disabled')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('sin nombre u otro obligatorio no crea y enfoca el campo que falta (RF-147)', async () => {
+    const submit = vi.fn(() => Promise.resolve())
+    const w = row(submit)
+    await open(w)
+    await w.find('input').setValue('   ')
+    await submitButton(w).trigger('click')
+    expect(submit).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(w.find('input').element)
+    expect(w.find('[role=alert]').text()).toBe('Este campo es obligatorio.')
+
+    await w.find('input').setValue('Beta')
+    expect(w.find('[role=alert]').exists()).toBe(false)
+    await w.find('select').setValue('')
+    await w.find('input').trigger('keydown', { key: 'Enter' })
+    expect(submit).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(w.find('select').element)
+    expect(w.find('[role=alert]').exists()).toBe(true)
     w.unmount()
   })
 })
