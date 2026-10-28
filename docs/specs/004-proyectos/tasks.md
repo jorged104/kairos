@@ -109,6 +109,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: todos (verificación)
   - Hecho cuando: se completan los pasos 1 a 14 de los criterios de finalización de la spec.
 
+- [x] **T22 — Frontend: edición en tabla y alta rápida** (`components/data-table/`, proyectos, hitos, work items, catálogo, usuarios y equipos)
+  - Depende de: T19
+  - RF: RF-139 a RF-144; RF-128 de la spec 003
+  - Hecho cuando: build y tests en verde (celda editable, fila rápida, flechas); tests de API de `can` en el listado de proyectos y en el directorio; desde el navegador se edita una celda de cada tabla, se crea con la fila rápida y se ve el error junto a la celda.
+
 ## Desviaciones respecto al plan
 
 - **Queries por módulo:** las de cada dominio se escribieron con su tarea (`catalog.sql`, `projects.sql`…), no todas en T1.

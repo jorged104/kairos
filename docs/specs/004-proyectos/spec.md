@@ -263,6 +263,14 @@ responsable del proyecto. «Participante» según Conceptos.
 - RF-137: EL SISTEMA solo mostrará en la interfaz las acciones que el usuario puede hacer, según lo que indique la API para cada elemento.
 - RF-138: EL SISTEMA mostrará todos los textos desde el catálogo de traducciones y traducirá los errores por código (spec 001 y 003).
 
+#### Edición en tabla
+- RF-139: EL SISTEMA permitirá editar en la propia tabla, celda a celda y sin botón de guardar, los campos simples de los listados de proyectos (nombre, responsable, salud, inicio y fin), hitos (nombre, fase y fecha objetivo), work items (título, tipo, estado, prioridad, asignado y fin) y del catálogo (nombre, color, orden, cerrado y por defecto). Cada celda se guarda al confirmarla y solo cambia ese campo.
+- RF-140: EL SISTEMA ofrecerá al final de esas tablas una fila de alta rápida: se escribe el nombre, se completan en la misma fila los datos obligatorios mínimos (identificador y equipo en proyectos, tipo en work items) y se crea con Enter. La fila queda abierta y vacía para el siguiente. En el árbol de work items, cada fila ofrece la misma alta rápida para un hijo.
+- RF-141: EL SISTEMA solo dejará editar las celdas que el usuario puede cambiar según lo que indique la API para cada fila (RF-137). Las columnas calculadas (avance, conteos, ciclo de vida) no se editan, y la celda de estado solo ofrece las transiciones permitidas por el flujo (RF-87).
+- RF-142: CUANDO una celda no se pueda guardar, EL SISTEMA mostrará junto a ella el texto del error por su código, conservará el valor escrito y permitirá restaurar el anterior con Esc. SI el error es un conflicto de versión, ENTONCES ofrecerá recargar.
+- RF-143: EL SISTEMA permitirá moverse entre celdas editables con las flechas, empezar a editar con Enter o escribiendo, confirmar con Enter o Tab y cancelar con Esc.
+- RF-144: EL SISTEMA mantendrá el alta de proyectos desde plantilla en su propia pantalla (RF-36 a RF-38); la fila rápida crea proyectos en blanco.
+
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
 - **Gamificación (spec futura):** consume `work_item.closed`, `work_item.reopened`, `milestone.completed` y `milestone.reopened` (RF-116 a RF-122). Decide cuántos XP o monedas da cada evento, a quién y cómo se compensa una reapertura. Esta spec no toca XP ni monedas.
@@ -318,7 +326,7 @@ responsable del proyecto. «Participante» según Conceptos.
 ## Criterios de finalización
 - RF-1 a RF-135 cubiertos por tests automáticos del backend en verde, incluida la matriz de permisos (RF-125) y pruebas de concurrencia para RF-63, RF-73 y la ausencia de ciclos.
 - Prueba de rendimiento con datos del tamaño de diseño que cumple los umbrales de los requisitos no funcionales.
-- RF-136 a RF-138 con tests del frontend en verde.
+- RF-136 a RF-144 con tests del frontend en verde.
 - Demo manual:
   1. Como admin, revisar las metodologías Scrum y PRINCE2 precargadas con sus fases, y definir un flujo para el tipo «Bug» que impida pasar de «Nuevo» a «Cerrado» directamente.
   2. Crear las plantillas «Scrum» y «PRINCE2», esta con hitos y work items de ejemplo.
@@ -356,6 +364,13 @@ Tomadas por el agente a petición del responsable de producto, priorizando rendi
 - **Asignaciones:** no se asigna trabajo nuevo a usuarios inactivos, dados de baja o `viewer`; las existentes se conservan (RF-25, RF-68, RF-69). Esto resuelve lo que la spec 003 dejaba a esta.
 - **Metodología:** pasa a ser un catálogo propio en lugar de un texto libre, para poder colgar de ella las fases.
 - **Resultados clave y work items:** un work item ligado cuenta por sí mismo (cerrado o no), sin heredar a sus descendientes, para que el avance de un resultado clave no cambie al reorganizar el árbol.
+
+## Edición en tabla (2026-10-28)
+A petición del responsable de producto, con el diseño «Tablas editables» como referencia:
+- **Una sola forma de editar y crear:** las tablas sustituyen a las listas con formulario por fila y a los formularios de alta encima de la lista (RF-139, RF-140). Las fichas siguen existiendo para la descripción, las relaciones y los campos que no caben en una celda.
+- **Sin dependencias nuevas:** la paginación, el orden y los filtros ya los hace la API, así que no hace falta TanStack Table; las celdas, la fila rápida y la navegación con teclado son componentes propios sobre la tabla del tema.
+- **Guardado por celda:** los `PATCH` reemplazan todos los campos editables, así que la celda lee el elemento antes de guardar y solo cambia su campo; el control de versión sigue protegiendo contra escrituras simultáneas (RF-73, RF-142).
+- **Permisos por fila:** el listado de proyectos devuelve en cada fila el mismo `can` que la ficha (cambio aditivo de la API), para no ofrecer celdas que la API rechazaría (RF-141).
 
 ## Dudas abiertas
 - Ninguna bloqueante. El tamaño de diseño (500 proyectos, 50 000 work items) es una estimación del agente; confírmalo o corrígelo al aprobar.

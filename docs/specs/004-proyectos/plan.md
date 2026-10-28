@@ -289,7 +289,7 @@ consulta (RF-137) y `version`.
 | `POST/PATCH /api/work-item-types|statuses|priorities[/{id}]` · `/retire` · `/restore` | `catalog:manage` | RF-3 a RF-10 |
 | `GET/PUT /api/work-item-types/{id}/transitions` | `catalog:manage` (GET: `work:read`) | RF-6 |
 | `GET/POST /api/custom-fields` · `PATCH /api/custom-fields/{id}` · `/retire` · `/restore` | `catalog:manage` (GET: `work:read`) | RF-12 a RF-17 |
-| `GET /api/projects` · `POST /api/projects` | `work:read` · `projects:create:*` | RF-18 a RF-28, RF-128 |
+| `GET /api/projects` (cada fila con `can`) · `POST /api/projects` | `work:read` · `projects:create:*` | RF-18 a RF-28, RF-128, RF-141 |
 | `GET/PATCH /api/projects/{id}` · `POST /api/projects/{id}/close|reopen|archive|unarchive` | `work:read` · gestor | RF-21 a RF-31 |
 | `GET /api/projects/{id}/subtree` | `work:read` | RF-28 |
 | `PUT /api/projects/{id}/types` · `PUT /api/projects/{id}/custom-fields` | gestor | RF-15, RF-32, RF-33 |
@@ -335,6 +335,12 @@ el flujo (RF-86 a RF-88), el bloqueo (RF-95), RF-84 y los eventos.
   padre y solo pinta los nodos expandidos (por defecto, el primer nivel). Sin virtualización
   ni dependencias extra; si el árbol expandido pesa, se añade `@tanstack/vue-virtual`.
 - Acciones visibles según `can` (RF-137); errores por código (RF-138); textos en `es.json`.
+- **Edición en tabla (RF-139 a RF-144):** `components/data-table/` con `GridTable` (marco y
+  flechas entre celdas), `EditableCell` (texto, número, fecha, selector, casilla y color; las
+  opciones de un selector pueden cargarse al editar, como los estados permitidos) y
+  `QuickAddRow` (alta con Enter). Cada pantalla pasa a la celda una función que lee el
+  elemento, cambia el campo y hace el `PATCH` (`features/workitems/patch.ts` para work items).
+  Se usan en proyectos, hitos, árbol de work items, catálogo, directorio y equipos.
 - Conflicto de versión: aviso con opción de recargar el elemento.
 - Rutas:
   - `/projects`, `/projects/new`, `/projects/:id`
