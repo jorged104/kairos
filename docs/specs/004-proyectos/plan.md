@@ -467,6 +467,11 @@ dependencias nuevos.
   agregados de peso. La API anterior la sigue llamando y deja los nuevos también al día.
 - Relleno: `PERFORM work_item_recompute_project(id) FROM projects` al final de la migración.
 - `Down`: restaura la función anterior y borra las columnas nuevas.
+- **Compatibilidad con la API anterior:** sqlc expande los `*` al generar, así que el binario
+  anterior no ve las columnas nuevas. Si se vuelve a él, sus altas toman peso 1 y no el del tipo;
+  se acepta porque la vuelta atrás es temporal y los avances siguen siendo coherentes.
+- **Coste del relleno:** `work_item_recompute_project` recorre 10 niveles por proyecto; con el
+  tamaño de diseño (500 proyectos, 50 000 work items) son segundos. Se mide en `schema_work_test`.
 
 **Queries sqlc (`make sqlc`):**
 - `workitems.sql`: `CreateWorkItem` y `UpdateWorkItem` con `weight`; `GetWorkItemType` ya
@@ -488,6 +493,9 @@ dependencias nuevos.
   - Modificar: sin `weight`, se conserva el actual; el cambio de tipo no lo toca (RF-151).
   - Si cambia el peso, `work_item_refresh_up` como con horas o avance (RF-158).
   - `emitStatusEvent`: `"weight": row.Weight` en el payload (RF-155).
+  - `auditView`: añade `weight`, así el cambio de peso queda en la auditoría (RF-134).
+- `milestones/milestones.go`: la lista de work items del hito también lee `weighted_done_ratio`
+  (`milestones.sql`, la query de la línea 73).
 - `milestones/milestones.go` `progress()`: `Percent = weight_closed * 100 / weight` redondeado, 0 si
   `weight = 0`; `Total` y `Closed` sin cambios; `Progress` añade `weight` y `weight_closed` (RF-154).
 
@@ -514,6 +522,13 @@ rango: `422 validation_failed`.
 - `apitest/catalog_test.go`: `default_weight` al crear (1 sin valor), al modificar y fuera de rango.
 - `db/schema_work_test.go`: los agregados de peso tras `work_item_recompute_project`.
 - Vitest: celda de peso en el árbol y de peso por defecto en el catálogo.
+- `apitest/perf_test.go` (T15) sin cambios y dentro de los límites: `work_item_refresh_one` suma dos
+  columnas más.
+- `matrix_work_test.go` sin cambios: no hay permisos nuevos.
+
+**Horas de work items de peso 0 (RF-159, pendiente de aclaración):** el plan sigue la opción
+recomendada (se siguen sumando); si se decide lo contrario, cambian `MilestoneProgress` y
+`work_item_refresh_one`.
 
 | RF | Dónde | Cómo se prueba |
 |---|---|---|
