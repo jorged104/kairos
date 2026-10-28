@@ -114,7 +114,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-139 a RF-144; RF-128 de la spec 003
   - Hecho cuando: build y tests en verde (celda editable, fila rápida, flechas); tests de API de `can` en el listado de proyectos y en el directorio; desde el navegador se edita una celda de cada tabla, se crea con la fila rápida y se ve el error junto a la celda.
 
-- [ ] **T23 — Frontend: alta rápida desde cualquier campo y con botón** (`QuickAddRow.vue`, `GridTable.vue`, `es.json`, `data-table.spec.ts`; Issue #10, rama `feat/004-alta-rapida-movil`)
+- [x] **T23 — Frontend: alta rápida desde cualquier campo y con botón** (`QuickAddRow.vue`, `GridTable.vue`, `es.json`, `data-table.spec.ts`; Issue #10, rama `feat/004-alta-rapida-movil`)
   - Depende de: T22
   - RF: RF-145, RF-146, RF-147
   - Hecho cuando: `make test-web` en verde con los tests nuevos (Enter en un selector crea, clic en «Crear» crea, doble envío crea uno, obligatorio vacío no crea y enfoca el campo con «Este campo es obligatorio.») y `npm run build` sin errores.
