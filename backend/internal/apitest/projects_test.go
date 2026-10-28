@@ -294,6 +294,40 @@ func TestProjectListFilters(t *testing.T) {
 	}
 }
 
+// Each row of the list says what the caller may do with it, for the table edited in place (RF-137, RF-139).
+func TestProjectListAbilities(t *testing.T) {
+	s := newWorkSetup(t)
+	s.project(t, s.lead, map[string]any{"identifier": "KAI", "name": "Kairós"})
+	s.project(t, s.admin, map[string]any{"identifier": "EXT", "name": "Externo", "team_id": s.other, "owner_id": s.outsiderID})
+
+	manage := func(c *Client) map[string]bool {
+		t.Helper()
+		var list struct {
+			Items []projectDTO `json:"items"`
+		}
+		c.Get("/api/projects").Expect(t, http.StatusOK).JSON(t, &list)
+		out := map[string]bool{}
+		for _, p := range list.Items {
+			out[p.Identifier] = p.Can.Manage
+		}
+		return out
+	}
+	cases := map[string]struct {
+		c    *Client
+		want map[string]bool
+	}{
+		"admin":  {s.admin, map[string]bool{"KAI": true, "EXT": true}},
+		"lead":   {s.lead, map[string]bool{"KAI": true, "EXT": false}},
+		"owner":  {s.outsider, map[string]bool{"KAI": false, "EXT": true}},
+		"viewer": {s.viewer, map[string]bool{"KAI": false, "EXT": false}},
+	}
+	for name, tc := range cases {
+		if got := manage(tc.c); fmt.Sprint(got) != fmt.Sprint(tc.want) {
+			t.Errorf("%s: can.manage = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
 func TestPhasesAndGates(t *testing.T) {
 	s := newWorkSetup(t)
 	p := s.project(t, s.lead, map[string]any{"identifier": "KAI", "name": "Kairos",

@@ -42,9 +42,10 @@ describe('hitos del proyecto', () => {
     const viewer = await render(project(false))
     expect(viewer.find('[data-testid=milestone-row]').text()).toContain('Atrasado')
     expect(viewer.find('[data-testid=milestone-row]').text()).toContain('1 de 4 work items cerrados')
-    expect(viewer.find('form').exists()).toBe(false)
+    expect(viewer.find('[data-testid=quick-add]').exists()).toBe(false)
+    expect(viewer.find('[data-grid-cell]').exists()).toBe(false)
 
-    expect((await render(project(true))).find('form').exists()).toBe(true)
-    expect((await render(project(true, 'cerrado'))).find('form').exists()).toBe(false)
+    expect((await render(project(true))).find('[data-testid=quick-add]').exists()).toBe(true)
+    expect((await render(project(true, 'cerrado'))).find('[data-testid=quick-add]').exists()).toBe(false)
   })
 })

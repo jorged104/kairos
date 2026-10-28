@@ -80,6 +80,7 @@ type Summary struct {
 	EndDate     *workcore.Date `json:"end_date"`
 	Depth       int16          `json:"depth"`
 	UpdatedAt   time.Time      `json:"updated_at"`
+	Can         Can            `json:"can"`
 }
 
 type SubtreeNode struct {

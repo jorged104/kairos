@@ -150,6 +150,13 @@ func TestDirectoryFieldsByViewer(t *testing.T) {
 	if len(lead["Outsider"].Teams) != 1 {
 		t.Fatalf("basic team field missing: %+v", lead["Outsider"])
 	}
+	// Each row says whether the viewer may edit it, for the table edited in place (RF-128).
+	if lead["Member"].Can == nil || !lead["Member"].Can.Edit || lead["Outsider"].Can != nil {
+		t.Fatalf("lead abilities: member %+v, outsider %+v", lead["Member"].Can, lead["Outsider"].Can)
+	}
+	if all := byName(dir(t, admin, nil)); all["Outsider"].Can == nil || !all["Outsider"].Can.Edit {
+		t.Fatalf("admin abilities: %+v", all["Outsider"].Can)
+	}
 	// The lead can't filter by attributes or roles of users outside its scope.
 	if got := names(dir(t, f.env.As(f.lead), url.Values{"attr." + attr.ID.String(): {"Norte"}})); len(got) != 0 {
 		t.Fatalf("lead filtered outside its scope: %v", got)

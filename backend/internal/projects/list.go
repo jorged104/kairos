@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"openscum/internal/apperr"
+	"openscum/internal/authz"
 	"openscum/internal/workcore"
 	"openscum/pkg/httpx"
 )
@@ -32,8 +33,9 @@ var psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 // List returns projects sorted by name (RF-128). Query parameters: q,
 // team_id (subteams included), owner_id, lifecycle, health, methodology_id,
 // page, page_size. Archived projects only show with lifecycle=archivado (RF-30);
-// templates never show here (RF-35).
-func (s *Service) List(ctx context.Context, query url.Values) (Page, error) {
+// templates never show here (RF-35). Each row says what the caller may do
+// with it, so the list can be edited in place (RF-137, RF-139).
+func (s *Service) List(ctx context.Context, p *authz.Principal, query url.Values) (Page, error) {
 	page, ok := httpx.ParsePage(query, DefaultPageSize, MaxPageSize)
 	if !ok {
 		return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "page")
@@ -130,6 +132,8 @@ func (s *Service) List(ctx context.Context, query url.Values) (Page, error) {
 			sm.Methodology = &workcore.Ref{ID: *methodologyID, Name: *methodologyName}
 		}
 		sm.StartDate, sm.EndDate = workcore.FromTime(start), workcore.FromTime(end)
+		ref := authz.ProjectRef{TeamID: sm.Team.ID, OwnerID: sm.Owner.ID}
+		sm.Can = Can{Manage: p.CanManageProject(ref), WriteWorkItems: p.CanWriteWorkItems(ref), ManageTemplate: p.Has(authz.TemplatesManage)}
 		out.Items = append(out.Items, sm)
 	}
 	return out, rows.Err()

@@ -264,6 +264,7 @@ solo actúa sobre usuarios de su equipo cuyo rol de mayor prioridad sea `member`
 ### Interfaz
 - RF-124: EL SISTEMA obtendrá todos los textos visibles de las pantallas de esta spec del catálogo de traducciones, con español como idioma por defecto.
 - RF-125: CUANDO la API devuelva un error, EL SISTEMA mostrará al usuario el texto del catálogo asociado a su código de error, no el mensaje técnico de la API.
+- RF-128: EL SISTEMA aplicará al directorio de usuarios y a la pantalla de equipos la edición en tabla de la spec 004 (RF-139 a RF-143): nombre y email del usuario; nombre, equipo padre y grupo del IdP del equipo, y alta rápida de usuarios (nombre, email y equipo) y de equipos (nombre y equipo padre) desde la última fila. Cada fila del directorio indicará si quien consulta puede editarla. El alta completa (contraseña inicial, rol y atributos) sigue en su pantalla.
 
 ### Entorno de desarrollo con IdP
 - RF-126: CUANDO el desarrollador arranque el entorno con el profile de SSO, EL SISTEMA levantará un IdP de prueba con un realm importado que incluye el cliente de Kairos, usuarios de ejemplo, roles y grupos de las cuatro áreas con algún subgrupo.
@@ -325,7 +326,7 @@ solo actúa sobre usuarios de su equipo cuyo rol de mayor prioridad sea `member`
 
 ## Criterios de finalización
 - RF-1 a RF-120 cubiertos por tests automáticos del backend en verde. Incluyen la matriz de permisos completa (RF-62) y un IdP simulado para RF-15 a RF-39.
-- RF-121, RF-122, RF-124 y RF-125 cubiertos por tests automáticos del frontend en verde.
+- RF-121, RF-122, RF-124, RF-125 y RF-128 cubiertos por tests automáticos del frontend en verde.
 - Demo manual desde un clon limpio:
   1. Configurar `AUTH_MODE=local`, `BOOTSTRAP_ADMIN_EMAIL` y el registro abierto. Arrancar el entorno sin profile SSO y aplicar migraciones.
   2. Abrir la pantalla de estado sin sesión y comprobar la redirección al login (RF-121). Comprobar que el endpoint de vida responde sin sesión (RF-123).

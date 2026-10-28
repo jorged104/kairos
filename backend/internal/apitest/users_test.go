@@ -28,6 +28,9 @@ type userDTO struct {
 	Attributes        map[uuid.UUID]json.RawMessage `json:"attributes"`
 	RetiredAttributes map[uuid.UUID]json.RawMessage `json:"retired_attributes"`
 	HasPassword       *bool                         `json:"has_password"`
+	Can               *struct {
+		Edit bool `json:"edit"`
+	} `json:"can"`
 }
 
 func (u userDTO) role(name string) string {

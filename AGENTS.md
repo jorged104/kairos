@@ -105,6 +105,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── api/               # clientes HTTP + hooks de TanStack Query
 │   │   ├── components/
 │   │   │   ├── ui/            # shadcn-vue generado
+│   │   │   ├── data-table/    # tablas editables: celda, fila de alta rápida y teclado
 │   │   │   └── ...
 │   │   ├── features/          # un directorio por dominio
 │   │   │   ├── catalog/       # administración del catálogo de trabajo

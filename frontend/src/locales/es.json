@@ -165,7 +165,8 @@
       "reactivate": "Reactivar",
       "offboard": "Dar de baja",
       "restore": "Revertir la baja"
-    }
+    },
+    "fullForm": "Alta completa"
   },
   "teams": {
     "title": "Equipos",
@@ -181,7 +182,9 @@
     "unarchive": "Desarchivar",
     "addLeader": "Nombrar líder",
     "leaderPlaceholder": "Elige una persona con rol de líder",
-    "showArchived": "Mostrar archivados"
+    "showArchived": "Mostrar archivados",
+    "membersColumn": "Miembros",
+    "removeLeader": "Quitar a {name} como líder"
   },
   "attributes": {
     "title": "Atributos de usuario",
@@ -320,7 +323,8 @@
     "objective_closed": "El objetivo está cerrado o cancelado.",
     "version_conflict": "Otra persona cambió este elemento mientras lo editabas. Recarga para ver la versión actual.",
     "invalid_rich_text": "La descripción tiene un formato no admitido.",
-    "field_out_of_range": "Hay un valor fuera de rango (horas entre 0 y 10 000, avance entre 0 y 100)."
+    "field_out_of_range": "Hay un valor fuera de rango (horas entre 0 y 10 000, avance entre 0 y 100).",
+    "required": "Este campo es obligatorio."
   },
   "richtext": {
     "bold": "Negrita",
@@ -363,7 +367,13 @@
     "fieldType": "Tipo de dato",
     "required": "Obligatorio",
     "optionsHelp": "Opciones separadas por comas",
-    "limitTypes": "Solo para estos tipos (ninguno = todos):"
+    "limitTypes": "Solo para estos tipos (ninguno = todos):",
+    "new": {
+      "methodologies": "Nueva metodología",
+      "work-item-types": "Nuevo tipo",
+      "statuses": "Nuevo estado",
+      "priorities": "Nueva prioridad"
+    }
   },
   "work": {
     "reload": "Recargar"
@@ -419,7 +429,10 @@
     },
     "noPhases": "El proyecto no tiene metodología con fases.",
     "phaseStart": "Inicio",
-    "phaseFinish": "Fin"
+    "phaseFinish": "Fin",
+    "fromTemplate": "Desde plantilla",
+    "newPlaceholder": "Nombre del proyecto",
+    "noMethodology": "Sin metodología"
   },
   "milestones": {
     "name": "Nombre del hito",
@@ -445,7 +458,9 @@
     "workItems": "Work items que cuentan para el hito",
     "link": "Ligar",
     "linkPlaceholder": "KAI-42",
-    "inherited": "Heredado"
+    "inherited": "Heredado",
+    "status": "Estado",
+    "new": "Nuevo hito"
   },
   "workItems": {
     "title": "Título",
@@ -509,7 +524,11 @@
       }
     },
     "filterType": "Filtrar por tipo",
-    "filterText": "Buscar work items"
+    "filterText": "Buscar work items",
+    "key": "Clave",
+    "newChild": "Nuevo hijo de {key}",
+    "newChildPlaceholder": "Título del hijo de {key} y Enter",
+    "newPlaceholder": "Escribe un título y pulsa Enter"
   },
   "objectives": {
     "title": "Objetivos",
@@ -561,5 +580,9 @@
     "linkMilestone": "Ligar hito",
     "chooseMilestone": "Elige un hito",
     "linkWorkItem": "Ligar work item"
+  },
+  "table": {
+    "reload": "Recargar",
+    "quickAddHint": "Enter crea · Esc cierra"
   }
 }

@@ -83,8 +83,8 @@ function reload() {
 
       <ProjectSummary v-if="tab === 'summary'" :project="project" @error="error = $event" />
       <ProjectPhases v-else-if="tab === 'phases'" :project="project" @error="error = $event" />
-      <ProjectMilestones v-else-if="tab === 'milestones'" :project="project" @error="error = $event" />
-      <ProjectWorkItems v-else :project="project" @error="error = $event" />
+      <ProjectMilestones v-else-if="tab === 'milestones'" :project="project" />
+      <ProjectWorkItems v-else :project="project" />
     </template>
   </div>
 </template>

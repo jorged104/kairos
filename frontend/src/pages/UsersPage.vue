@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { listAttributes, listTeams, listUsers } from '@/api/admin'
+import { createUser, listAttributes, listTeams, listUsers, updateUser } from '@/api/admin'
+import { EditableCell, GridTable, QuickAddRow } from '@/components/data-table'
 import NativeSelect from '@/components/NativeSelect.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import AssignmentBadge from '@/features/users/AssignmentBadge.vue'
-import { flatten } from '@/features/teams/tree'
+import { flatten, ledScope } from '@/features/teams/tree'
 import { useAuthStore } from '@/stores/auth'
-import { ROLES } from '@/types/api'
+import { ROLES, type User } from '@/types/api'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -66,6 +66,30 @@ const { data, error, isFetching } = useQuery({
 })
 const pages = computed(() => (data.value ? Math.max(1, Math.ceil(data.value.total / data.value.page_size)) : 1))
 
+// Name and email are edited in the table; new people come from its last row (RF-128 de la spec 003).
+const qc = useQueryClient()
+const canCreate = computed(() => auth.can('users:create:all', 'users:create:team'))
+// A lead creates users only in the teams it leads (RF-67).
+const teamOptions = computed(() => {
+  const all = flatten((teams.value ?? []).filter((tm) => !tm.archived_at))
+  if (auth.can('users:create:all') || !auth.me) return all
+  const scope = ledScope(teams.value ?? [], auth.me.id)
+  return all.filter(({ team }) => scope.has(team.id))
+})
+const draft = ref({ email: '', teamId: '' })
+async function create(name: string) {
+  await createUser({ name, email: draft.value.email, team_id: draft.value.teamId || undefined })
+  draft.value = { ...draft.value, email: '' }
+  await qc.invalidateQueries({ queryKey: ['users'] })
+}
+function saver(u: User, field: 'name' | 'email') {
+  return async (value: string) => {
+    await updateUser(u.id, { [field]: value })
+    qc.invalidateQueries({ queryKey: ['user', u.id] })
+    await qc.invalidateQueries({ queryKey: ['users'] })
+  }
+}
+
 function clear() {
   search.value = teamId.value = role.value = status.value = attrId.value = ''
   attrValue.value = attrFrom.value = attrTo.value = ''
@@ -76,8 +100,8 @@ function clear() {
   <div class="flex flex-col gap-4">
     <div class="flex items-center justify-between gap-2">
       <h1 class="font-heading text-xl font-semibold">{{ t('users.title') }}</h1>
-      <Button v-if="auth.can('users:create:all', 'users:create:team')" as-child>
-        <RouterLink to="/users/new">{{ t('users.new') }}</RouterLink>
+      <Button v-if="canCreate" variant="outline" as-child>
+        <RouterLink to="/users/new">{{ t('users.fullForm') }}</RouterLink>
       </Button>
     </div>
 
@@ -152,40 +176,53 @@ function clear() {
       <AlertDescription>{{ errorMessage(error) }}</AlertDescription>
     </Alert>
 
-    <div class="rounded-lg border bg-background" :aria-busy="isFetching">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{{ t('users.columns.name') }}</TableHead>
-            <TableHead>{{ t('users.columns.email') }}</TableHead>
-            <TableHead>{{ t('users.columns.teams') }}</TableHead>
-            <TableHead>{{ t('users.columns.roles') }}</TableHead>
-            <TableHead>{{ t('users.columns.status') }}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-for="u in data?.items ?? []" :key="u.id" data-testid="user-row">
-            <TableCell>
-              <RouterLink :to="`/users/${u.id}`" class="font-medium hover:underline">{{ u.name }}</RouterLink>
-            </TableCell>
-            <TableCell class="text-muted-foreground">{{ u.email ?? t('common.none') }}</TableCell>
-            <TableCell>
+    <div :aria-busy="isFetching">
+      <GridTable :empty="!canCreate && data?.items.length === 0">
+        <thead>
+          <tr>
+            <th>{{ t('users.columns.name') }}</th>
+            <th class="w-64">{{ t('users.columns.email') }}</th>
+            <th>{{ t('users.columns.teams') }}</th>
+            <th>{{ t('users.columns.roles') }}</th>
+            <th class="w-28">{{ t('users.columns.status') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="u in data?.items ?? []" :key="u.id" class="hover:bg-muted/30" data-testid="user-row">
+            <EditableCell :value="u.name" :label="t('users.columns.name')" :save="saver(u, 'name')" :editable="!!u.can?.edit" required>
+              <RouterLink :to="`/users/${u.id}`" class="font-medium hover:underline" @click.stop>{{ u.name }}</RouterLink>
+            </EditableCell>
+            <EditableCell
+              :value="u.email ?? ''"
+              :label="t('users.columns.email')"
+              :save="saver(u, 'email')"
+              :editable="!!u.can?.edit"
+              class="text-muted-foreground"
+              required
+            />
+            <td class="px-2 py-1">
               <div class="flex flex-wrap gap-1">
                 <AssignmentBadge v-for="tm in u.teams" :key="tm.id" :label="tm.name" />
               </div>
-            </TableCell>
-            <TableCell>
+            </td>
+            <td class="px-2 py-1">
               <div class="flex flex-wrap gap-1">
                 <AssignmentBadge v-for="r in u.roles ?? []" :key="r.role" :label="t(`roles.${r.role}`)" />
               </div>
-            </TableCell>
-            <TableCell>
+            </td>
+            <td class="px-2">
               <Badge :variant="u.status === 'active' ? 'outline' : 'secondary'">{{ t(`status.${u.status}`) }}</Badge>
-            </TableCell>
-          </TableRow>
-          <TableEmpty v-if="data && data.items.length === 0" :colspan="5">{{ t('common.empty') }}</TableEmpty>
-        </TableBody>
-      </Table>
+            </td>
+          </tr>
+          <QuickAddRow v-if="canCreate" :colspan="5" :label="t('users.new')" :placeholder="t('users.columns.name')" :submit="create">
+            <Input v-model="draft.email" type="email" class="h-8 w-56" :placeholder="t('users.columns.email')" :aria-label="t('users.columns.email')" required />
+            <NativeSelect v-model="draft.teamId" class="w-44" :aria-label="t('users.form.team')" :required="!auth.can('users:create:all')">
+              <option value="">{{ t('users.form.noTeam') }}</option>
+              <option v-for="{ team, depth } in teamOptions" :key="team.id" :value="team.id">{{ '  '.repeat(depth) + team.name }}</option>
+            </NativeSelect>
+          </QuickAddRow>
+        </tbody>
+      </GridTable>
     </div>
 
     <div v-if="data" class="flex items-center justify-between text-sm text-muted-foreground">
