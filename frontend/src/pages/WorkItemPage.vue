@@ -29,6 +29,7 @@ import AttributeField from '@/features/users/AttributeField.vue'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
+import { toUpdateInput } from '@/features/workitems/patch'
 import { childrenOf } from '@/features/workitems/tree'
 import { DEPENDENCY_TYPES, type DependencyType, type WorkItem } from '@/types/work'
 
@@ -73,14 +74,7 @@ const parentOptions = computed(() => {
   return tree.value.filter((n) => !excluded.has(n.id))
 })
 
-function toForm(w: WorkItem): WorkItemUpdateInput {
-  return {
-    version: w.version, type_id: w.type_id, status_id: w.status_id, priority_id: w.priority_id, title: w.title,
-    description: w.description, parent_id: w.parent?.id ?? null, assignee_id: w.assignee?.id ?? null,
-    start_date: w.start_date, due_date: w.due_date, estimated_hours: w.estimated_hours,
-    remaining_hours: w.remaining_hours, done_ratio: w.done_ratio, position: w.position, custom_values: { ...w.custom_values },
-  }
-}
+const toForm = toUpdateInput
 const editing = ref(false)
 const form = ref<WorkItemUpdateInput>({} as WorkItemUpdateInput)
 watch(wi, (w) => {

@@ -127,6 +127,7 @@ export interface ProjectSummary {
   start_date: string | null
   end_date: string | null
   depth: number
+  can: Project['can']
 }
 
 export interface Template {

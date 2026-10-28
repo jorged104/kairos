@@ -13,13 +13,11 @@ import {
   updateTeam,
   type TeamInput,
 } from '@/api/admin'
+import { EditableCell, GridTable, QuickAddRow, type CellOption } from '@/components/data-table'
 import NativeSelect from '@/components/NativeSelect.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import { descendants, flatten } from '@/features/teams/tree'
 import { useAuthStore } from '@/stores/auth'
@@ -53,44 +51,37 @@ function mutation<A>(fn: (arg: A) => Promise<unknown>) {
   })
 }
 
-// Forms keep strings; empty parent or IdP reference means none.
-interface TeamForm {
-  name: string
-  parent: string
-  ref: string
-}
-const blank = (): TeamForm => ({ name: '', parent: '', ref: '' })
-const toInput = (f: TeamForm): TeamInput => ({ name: f.name, parent_id: f.parent || null, external_ref: f.ref || null })
-
-const form = ref<TeamForm>(blank())
-const create = mutation(() => createTeam(toInput(form.value)))
-async function submitNew() {
-  await create.mutateAsync(undefined).catch(() => undefined)
-  if (!error.value) form.value = blank()
-}
-
-const editing = ref<string | null>(null)
-const edit = ref<TeamForm>(blank())
-function startEdit(team: Team) {
-  editing.value = team.id
-  edit.value = { name: team.name, parent: team.parent_id ?? '', ref: team.external_ref ?? '' }
-}
-const update = mutation(() => updateTeam(editing.value as string, toInput(edit.value)))
-async function submitEdit() {
-  await update.mutateAsync(undefined).catch(() => undefined)
-  if (!error.value) editing.value = null
+// Cells save one field of the team; empty parent or IdP reference means none (RF-128 de la spec 003).
+const input = (team: Team): TeamInput => ({ name: team.name, parent_id: team.parent_id, external_ref: team.external_ref })
+function saver(team: Team, field: keyof TeamInput) {
+  return async (value: string) => {
+    await updateTeam(team.id, { ...input(team), [field]: field === 'name' ? value : value || null })
+    await qc.invalidateQueries({ queryKey: ['teams'] })
+  }
 }
 // A team can't hang from itself or one of its subteams (RF-90a).
-const parentOptions = computed(() => {
-  if (!editing.value) return activeTeams.value
-  const excluded = descendants(teams.value ?? [], editing.value)
-  return activeTeams.value.filter(({ team }) => !excluded.has(team.id))
-})
+const parentOptions = (team: Team): CellOption[] => {
+  const excluded = descendants(teams.value ?? [], team.id)
+  return activeTeams.value
+    .filter(({ team: o }) => !excluded.has(o.id))
+    .map(({ team: o, depth }) => ({ value: o.id, label: '\u00a0\u00a0'.repeat(depth) + o.name }))
+}
+const parentName = (team: Team) => teams.value?.find((o) => o.id === team.parent_id)?.name
+
+const newParent = ref('')
+async function create(name: string) {
+  await createTeam({ name, parent_id: newParent.value || null, external_ref: null })
+  await qc.invalidateQueries({ queryKey: ['teams'] })
+}
 
 const archive = mutation((team: Team) => setTeamArchived(team.id, !team.archived_at))
 const leaderAdd = mutation(({ team, user }: { team: string; user: string }) => addLeader(team, user))
 const leaderRemove = mutation(({ team, user }: { team: string; user: string }) => removeLeader(team, user))
-const newLeader = ref<Record<string, string>>({})
+function pickLeader(team: string, event: Event) {
+  const select = event.target as HTMLSelectElement
+  if (select.value) leaderAdd.mutate({ team, user: select.value })
+  select.value = ''
+}
 
 </script>
 
@@ -108,98 +99,87 @@ const newLeader = ref<Record<string, string>>({})
       <AlertDescription>{{ errorMessage(error) }}</AlertDescription>
     </Alert>
 
-    <Card v-if="canManage">
-      <CardHeader>
-        <CardTitle>{{ t('teams.new') }}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form class="grid gap-3 sm:grid-cols-4" @submit.prevent="submitNew">
-          <div class="flex flex-col gap-1.5">
-            <Label for="team-name">{{ t('teams.name') }}</Label>
-            <Input id="team-name" v-model="form.name" required />
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="team-parent">{{ t('teams.parent') }}</Label>
-            <NativeSelect id="team-parent" v-model="form.parent">
-              <option value="">{{ t('teams.noParent') }}</option>
-              <option v-for="{ team, depth } in activeTeams" :key="team.id" :value="team.id">
-                {{ '  '.repeat(depth) + team.name }}
-              </option>
-            </NativeSelect>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <Label for="team-ref">{{ t('teams.externalRef') }}</Label>
-            <Input id="team-ref" v-model="form.ref" placeholder="/Areas/BI" />
-          </div>
-          <div class="flex items-end">
-            <Button type="submit" :disabled="create.isPending.value">{{ t('common.create') }}</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-
-    <ul class="flex flex-col gap-2">
-      <li
-        v-for="{ team, depth } in rows"
-        :key="team.id"
-        class="rounded-lg border bg-background p-3"
-        :style="{ marginLeft: `${depth * 1.5}rem` }"
-        data-testid="team-row"
-      >
-        <form v-if="editing === team.id" class="grid gap-2 sm:grid-cols-4" @submit.prevent="submitEdit">
-          <Input v-model="edit.name" :aria-label="t('teams.name')" required />
-          <NativeSelect v-model="edit.parent" :aria-label="t('teams.parent')">
-            <option value="">{{ t('teams.noParent') }}</option>
-            <option v-for="o in parentOptions" :key="o.team.id" :value="o.team.id">
-              {{ '  '.repeat(o.depth) + o.team.name }}
-            </option>
-          </NativeSelect>
-          <Input v-model="edit.ref" :aria-label="t('teams.externalRef')" />
-          <div class="flex gap-2">
-            <Button type="submit" size="sm">{{ t('common.save') }}</Button>
-            <Button type="button" size="sm" variant="ghost" @click="editing = null">{{ t('common.cancel') }}</Button>
-          </div>
-        </form>
-        <div v-else class="flex flex-wrap items-center gap-2">
-          <span class="font-medium">{{ team.name }}</span>
-          <Badge v-if="team.archived_at" variant="secondary">{{ t('teams.archived') }}</Badge>
-          <span class="text-xs text-muted-foreground">{{ t('teams.members', { count: team.member_count }) }}</span>
-          <span v-if="team.external_ref" class="font-mono text-xs text-muted-foreground">{{ team.external_ref }}</span>
-          <div v-if="canManage" class="ml-auto flex gap-1">
-            <Button size="sm" variant="ghost" @click="startEdit(team)">{{ t('common.edit') }}</Button>
+    <GridTable :empty="!canManage && rows.length === 0">
+      <thead>
+        <tr>
+          <th>{{ t('teams.name') }}</th>
+          <th class="w-48">{{ t('teams.parent') }}</th>
+          <th class="w-44">{{ t('teams.externalRef') }}</th>
+          <th class="w-28">{{ t('teams.membersColumn') }}</th>
+          <th>{{ t('teams.leaders') }}</th>
+          <th v-if="canManage" class="w-28" />
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="{ team, depth } in rows" :key="team.id" class="hover:bg-muted/30" data-testid="team-row">
+          <EditableCell
+            :value="team.name"
+            :label="t('teams.name')"
+            :save="saver(team, 'name')"
+            :editable="canManage && !team.archived_at"
+            :style="{ paddingLeft: `${depth * 1.25 + 0.5}rem` }"
+            required
+          >
+            <span class="font-medium">{{ team.name }}</span>
+            <Badge v-if="team.archived_at" variant="secondary">{{ t('teams.archived') }}</Badge>
+          </EditableCell>
+          <EditableCell
+            kind="select"
+            :value="team.parent_id ?? ''"
+            :label="t('teams.parent')"
+            :options="parentOptions(team)"
+            :save="saver(team, 'parent_id')"
+            :editable="canManage && !team.archived_at"
+          >
+            <span :class="!team.parent_id && 'text-muted-foreground'">{{ parentName(team) ?? t('teams.noParent') }}</span>
+          </EditableCell>
+          <EditableCell
+            :value="team.external_ref ?? ''"
+            :label="t('teams.externalRef')"
+            :save="saver(team, 'external_ref')"
+            :editable="canManage && !team.archived_at"
+            class="font-mono text-xs"
+          />
+          <td class="bg-muted/20 px-2 text-muted-foreground">{{ team.member_count }}</td>
+          <td class="px-2 py-1">
+            <div class="flex flex-wrap items-center gap-1">
+              <span v-for="l in team.leaders" :key="l.user_id" class="inline-flex items-center gap-0.5 rounded-md bg-muted px-2 py-0.5 text-xs">
+                {{ l.name }}
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="text-muted-foreground hover:text-foreground"
+                  :aria-label="t('teams.removeLeader', { name: l.name })"
+                  @click="leaderRemove.mutate({ team: team.id, user: l.user_id })"
+                >
+                  <X class="size-3" />
+                </button>
+              </span>
+              <select
+                v-if="canManage && !team.archived_at"
+                class="h-7 rounded-md border border-dashed bg-transparent px-1 text-xs text-muted-foreground"
+                :aria-label="t('teams.addLeader')"
+                @change="pickLeader(team.id, $event)"
+              >
+                <option value="">{{ t('teams.addLeader') }}</option>
+                <option v-for="u in leads?.items ?? []" :key="u.id" :value="u.id">{{ u.name }}</option>
+              </select>
+              <span v-else-if="team.leaders.length === 0" class="text-muted-foreground">{{ t('common.none') }}</span>
+            </div>
+          </td>
+          <td v-if="canManage" class="px-2 text-right">
             <Button size="sm" variant="ghost" @click="archive.mutate(team)">
               {{ team.archived_at ? t('teams.unarchive') : t('teams.archive') }}
             </Button>
-          </div>
-        </div>
-        <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
-          <span class="text-muted-foreground">{{ t('teams.leaders') }}:</span>
-          <span v-for="l in team.leaders" :key="l.user_id" class="inline-flex items-center gap-1">
-            <Badge variant="outline">{{ l.name }}</Badge>
-            <Button
-              v-if="canManage"
-              size="icon-xs"
-              variant="ghost"
-              :aria-label="t('common.remove')"
-              @click="leaderRemove.mutate({ team: team.id, user: l.user_id })"
-            >
-              <X />
-            </Button>
-          </span>
-          <span v-if="team.leaders.length === 0">{{ t('common.none') }}</span>
-          <form
-            v-if="canManage && !team.archived_at"
-            class="ml-auto flex gap-2"
-            @submit.prevent="newLeader[team.id] && leaderAdd.mutate({ team: team.id, user: newLeader[team.id] })"
-          >
-            <NativeSelect v-model="newLeader[team.id]" class="w-56" :aria-label="t('teams.addLeader')">
-              <option value="">{{ t('teams.leaderPlaceholder') }}</option>
-              <option v-for="u in leads?.items ?? []" :key="u.id" :value="u.id">{{ u.name }}</option>
-            </NativeSelect>
-            <Button type="submit" size="sm" variant="outline">{{ t('teams.addLeader') }}</Button>
-          </form>
-        </div>
-      </li>
-    </ul>
+          </td>
+        </tr>
+        <QuickAddRow v-if="canManage" :colspan="6" :label="t('teams.new')" :placeholder="t('teams.name')" :submit="create">
+          <NativeSelect v-model="newParent" class="w-48" :aria-label="t('teams.parent')">
+            <option value="">{{ t('teams.noParent') }}</option>
+            <option v-for="{ team, depth } in activeTeams" :key="team.id" :value="team.id">{{ '  '.repeat(depth) + team.name }}</option>
+          </NativeSelect>
+        </QuickAddRow>
+      </tbody>
+    </GridTable>
   </div>
 </template>
