@@ -38,7 +38,7 @@ function onSaved() {
     <div class="grid gap-4 lg:grid-cols-2">
       <MethodologiesAdmin :items="catalog.methodologies" @error="onError" />
       <div class="flex flex-col gap-4">
-        <NamedCatalog kind="work-item-types" :title="t('catalog.types')" :items="catalog.work_item_types" @error="onError" />
+        <NamedCatalog kind="work-item-types" :title="t('catalog.types')" :items="catalog.work_item_types" weighted @error="onError" />
         <NamedCatalog kind="statuses" :title="t('catalog.statuses')" :items="catalog.statuses" closable defaultable @error="onError" />
         <NamedCatalog kind="priorities" :title="t('catalog.priorities')" :items="catalog.priorities" defaultable @error="onError" />
       </div>

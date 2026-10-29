@@ -98,8 +98,8 @@ func (q *Queries) CopyMilestoneLink(ctx context.Context, arg CopyMilestoneLinkPa
 const copyWorkItem = `-- name: CopyWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, start_date, due_date,
-                        estimated_hours, remaining_hours, position, depth)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                        estimated_hours, remaining_hours, position, depth, weight)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 RETURNING id
 `
 
@@ -120,6 +120,7 @@ type CopyWorkItemParams struct {
 	RemainingHours  *float64
 	Position        int32
 	Depth           int16
+	Weight          int16
 }
 
 func (q *Queries) CopyWorkItem(ctx context.Context, arg CopyWorkItemParams) (uuid.UUID, error) {
@@ -140,6 +141,7 @@ func (q *Queries) CopyWorkItem(ctx context.Context, arg CopyWorkItemParams) (uui
 		arg.RemainingHours,
 		arg.Position,
 		arg.Depth,
+		arg.Weight,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -622,7 +624,7 @@ func (q *Queries) ListProjectWorkItemValuesForCopy(ctx context.Context, projectI
 }
 
 const listProjectWorkItemsForCopy = `-- name: ListProjectWorkItemsForCopy :many
-SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at FROM work_items WHERE project_id = $1 ORDER BY depth, sequence_number
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio FROM work_items WHERE project_id = $1 ORDER BY depth, sequence_number
 `
 
 func (q *Queries) ListProjectWorkItemsForCopy(ctx context.Context, projectID uuid.UUID) ([]WorkItem, error) {
@@ -664,6 +666,10 @@ func (q *Queries) ListProjectWorkItemsForCopy(ctx context.Context, projectID uui
 			&i.ClosedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Weight,
+			&i.AggWeight,
+			&i.AggWeightRatioSum,
+			&i.WeightedDoneRatio,
 		); err != nil {
 			return nil, err
 		}

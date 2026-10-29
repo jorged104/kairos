@@ -195,8 +195,8 @@ func TestCompositionAndDerivedValues(t *testing.T) {
 	if a.Parent == nil || a.Parent.Key != epic.Key || a.Depth != 1 {
 		t.Fatalf("child = %+v", a)
 	}
-	// epic: 40 h, remaining 25; ratio (10*0 + 20*50 + 10*0) / 40 = 25 (RF-80, RF-81).
-	if got := s.get(t, epic.ID).Derived; got.EstimatedHours != 40 || got.RemainingHours != 25 || got.DoneRatio != 25 {
+	// epic: 40 h, remaining 25; ratio by weight, all 1: (0 + 50 + 0) / 3 = 17 (RF-80, RF-153).
+	if got := s.get(t, epic.ID).Derived; got.EstimatedHours != 40 || got.RemainingHours != 25 || got.DoneRatio != 17 {
 		t.Fatalf("derived = %+v", got)
 	}
 
@@ -208,7 +208,7 @@ func TestCompositionAndDerivedValues(t *testing.T) {
 		t.Fatalf("closed = %+v", bClosed)
 	}
 	if got := s.get(t, epic.ID).Derived; got.RemainingHours != 15 || got.DoneRatio != 50 {
-		t.Fatalf("derived after close = %+v, want 15 h and (1000+1000)/40 = 50", got)
+		t.Fatalf("derived after close = %+v, want 15 h and (0+50+100)/3 = 50", got)
 	}
 
 	// Moving A out of the epic updates both sides (RF-57, RF-83).
@@ -279,7 +279,7 @@ func verifyAggregates(t *testing.T, env *Env, project uuid.UUID) {
 	t.Helper()
 	ctx := context.Background()
 	snapshot := func() map[uuid.UUID][3]float64 {
-		rows, err := env.Store.Pool.Query(ctx, "SELECT id, agg_estimated::float8, agg_remaining::float8, derived_done_ratio FROM work_items WHERE project_id = $1", project)
+		rows, err := env.Store.Pool.Query(ctx, "SELECT id, agg_estimated::float8, agg_remaining::float8, weighted_done_ratio FROM work_items WHERE project_id = $1", project)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -71,7 +71,7 @@ func NodeFrom(identifier string, r sqlc.WorkItemDescendantsRow) Node {
 	n := Node{
 		ID: r.ID, ParentID: r.ParentID, Key: Key(identifier, r.SequenceNumber), Title: r.Title, TypeID: r.TypeID,
 		StatusID: r.StatusID, PriorityID: r.PriorityID, Estimated: r.AggEstimated, Remaining: r.AggRemaining,
-		Depth: r.Depth, Position: r.Position, DueDate: workcore.FromTime(r.DueDate),
+		Depth: r.Depth, Position: r.Position, DueDate: workcore.FromTime(r.DueDate), Weight: r.Weight,
 	}
 	if r.DerivedDoneRatio != nil {
 		n.DoneRatio = *r.DerivedDoneRatio
@@ -157,8 +157,8 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 	}
 	listSQL, args, err := base.Columns(
 		"w.id", "w.parent_id", "w.sequence_number", "w.title", "w.type_id", "w.status_id", "w.priority_id",
-		"w.assignee_id", "u.name", "w.derived_done_ratio", "w.agg_estimated", "w.agg_remaining",
-		"w.depth", "w.position", "w.due_date",
+		"w.assignee_id", "u.name", "w.weighted_done_ratio", "w.agg_estimated", "w.agg_remaining",
+		"w.depth", "w.position", "w.due_date", "w.weight",
 	).LeftJoin("users u ON u.id = w.assignee_id").OrderBy("w.sequence_number").
 		Limit(uint64(page.Size)).Offset(uint64(page.Offset())).ToSql()
 	if err != nil {
@@ -174,7 +174,7 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 		var r sqlc.WorkItemDescendantsRow
 		var due *time.Time
 		if err := rows.Scan(&r.ID, &r.ParentID, &r.SequenceNumber, &r.Title, &r.TypeID, &r.StatusID, &r.PriorityID,
-			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position, &due); err != nil {
+			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position, &due, &r.Weight); err != nil {
 			return Page{}, fmt.Errorf("leer work item: %w", err)
 		}
 		r.DueDate = due

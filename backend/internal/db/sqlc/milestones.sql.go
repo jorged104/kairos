@@ -202,8 +202,8 @@ WITH RECURSIVE eff AS (
     SELECT c.id, false FROM work_items c JOIN eff ON c.parent_id = eff.id
 )
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
-       w.assignee_id, u.name AS assignee_name, w.derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date, bool_or(eff.direct)::boolean AS direct
+       w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
+       w.depth, w.position, w.due_date, w.weight, bool_or(eff.direct)::boolean AS direct
 FROM eff JOIN work_items w ON w.id = eff.id LEFT JOIN users u ON u.id = w.assignee_id
 GROUP BY w.id, u.name
 ORDER BY w.depth, w.position, w.sequence_number
@@ -225,6 +225,7 @@ type MilestoneEffectiveWorkItemsRow struct {
 	Depth            int16
 	Position         int32
 	DueDate          *time.Time
+	Weight           int16
 	Direct           bool
 }
 
@@ -254,6 +255,7 @@ func (q *Queries) MilestoneEffectiveWorkItems(ctx context.Context, milestoneID u
 			&i.Depth,
 			&i.Position,
 			&i.DueDate,
+			&i.Weight,
 			&i.Direct,
 		); err != nil {
 			return nil, err
@@ -291,7 +293,9 @@ SELECT eff.milestone_id,
        count(*)::int AS total,
        (count(*) FILTER (WHERE s.is_closed))::int AS closed,
        coalesce(sum(w.estimated_hours), 0)::float8 AS estimated_hours,
-       coalesce(sum(w.remaining_hours), 0)::float8 AS remaining_hours
+       coalesce(sum(w.remaining_hours), 0)::float8 AS remaining_hours,
+       coalesce(sum(w.weight), 0)::bigint AS weight,
+       coalesce(sum(w.weight) FILTER (WHERE s.is_closed), 0)::bigint AS weight_closed
 FROM eff
 JOIN work_items w ON w.id = eff.id
 JOIN statuses s ON s.id = w.status_id
@@ -309,11 +313,14 @@ type MilestoneProgressRow struct {
 	Closed         int32
 	EstimatedHours float64
 	RemainingHours float64
+	Weight         int64
+	WeightClosed   int64
 }
 
 // Progress of the milestones of a project, or of one milestone, over their
 // effective work items: linked ones plus all their descendants, each once
-// (RF-52, RF-54, RF-55). Hours are the items' own, never derived.
+// (RF-52, RF-55, RF-154). Hours are the items' own, never derived; weight 0
+// adds hours but no progress (RF-159).
 func (q *Queries) MilestoneProgress(ctx context.Context, arg MilestoneProgressParams) ([]MilestoneProgressRow, error) {
 	rows, err := q.db.Query(ctx, milestoneProgress, arg.ProjectID, arg.MilestoneID)
 	if err != nil {
@@ -329,6 +336,8 @@ func (q *Queries) MilestoneProgress(ctx context.Context, arg MilestoneProgressPa
 			&i.Closed,
 			&i.EstimatedHours,
 			&i.RemainingHours,
+			&i.Weight,
+			&i.WeightClosed,
 		); err != nil {
 			return nil, err
 		}

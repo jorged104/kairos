@@ -329,35 +329,39 @@ type UserRole struct {
 }
 
 type WorkItem struct {
-	ID               uuid.UUID
-	ProjectID        uuid.UUID
-	TypeID           uuid.UUID
-	StatusID         uuid.UUID
-	PriorityID       uuid.UUID
-	ParentID         *uuid.UUID
-	SequenceNumber   int32
-	Title            string
-	Description      json.RawMessage
-	DescriptionText  string
-	AuthorID         uuid.UUID
-	AssigneeID       *uuid.UUID
-	StartDate        *time.Time
-	DueDate          *time.Time
-	EstimatedHours   *float64
-	RemainingHours   *float64
-	DoneRatio        int16
-	Position         int32
-	Depth            int16
-	AggEstimated     float64
-	AggRemaining     float64
-	AggCount         int32
-	AggRatioSum      int64
-	AggEstRatioSum   float64
-	DerivedDoneRatio *int16
-	Version          int32
-	ClosedAt         *time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                uuid.UUID
+	ProjectID         uuid.UUID
+	TypeID            uuid.UUID
+	StatusID          uuid.UUID
+	PriorityID        uuid.UUID
+	ParentID          *uuid.UUID
+	SequenceNumber    int32
+	Title             string
+	Description       json.RawMessage
+	DescriptionText   string
+	AuthorID          uuid.UUID
+	AssigneeID        *uuid.UUID
+	StartDate         *time.Time
+	DueDate           *time.Time
+	EstimatedHours    *float64
+	RemainingHours    *float64
+	DoneRatio         int16
+	Position          int32
+	Depth             int16
+	AggEstimated      float64
+	AggRemaining      float64
+	AggCount          int32
+	AggRatioSum       int64
+	AggEstRatioSum    float64
+	DerivedDoneRatio  *int16
+	Version           int32
+	ClosedAt          *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Weight            int16
+	AggWeight         int64
+	AggWeightRatioSum int64
+	WeightedDoneRatio *int16
 }
 
 type WorkItemCustomValue struct {
@@ -386,6 +390,7 @@ type WorkItemType struct {
 	RetiredAt      *time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	DefaultWeight  int16
 }
 
 type WorkflowTransition struct {

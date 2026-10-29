@@ -77,6 +77,14 @@ func (s *Service) GetByKey(ctx context.Context, p *authz.Principal, key string) 
 	return s.Get(ctx, p, row.ID)
 }
 
+// checkWeight bounds a weight, 0 meaning a tracking work item (RF-149, RF-152).
+func checkWeight(w *int16) error {
+	if w != nil && (*w < 0 || *w > 100) {
+		return errOutOfRange.WithDetail("field", "weight")
+	}
+	return nil
+}
+
 func checkNumbers(est, rem *float64, ratio int16) error {
 	for name, v := range map[string]*float64{"estimated_hours": est, "remaining_hours": rem} {
 		if v != nil && (*v < 0 || *v > 10000) {
@@ -89,22 +97,23 @@ func checkNumbers(est, rem *float64, ratio int16) error {
 	return nil
 }
 
-func checkType(ctx context.Context, q *sqlc.Queries, project, typeID uuid.UUID) error {
+// checkType returns the type when it is active and enabled in the project.
+func checkType(ctx context.Context, q *sqlc.Queries, project, typeID uuid.UUID) (sqlc.WorkItemType, error) {
 	t, err := q.GetWorkItemType(ctx, typeID)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && t.RetiredAt != nil) {
-		return errTypeNotEnabled
+		return t, errTypeNotEnabled
 	}
 	if err != nil {
-		return fmt.Errorf("leer tipo: %w", err)
+		return t, fmt.Errorf("leer tipo: %w", err)
 	}
 	enabled, err := q.ProjectTypeEnabled(ctx, sqlc.ProjectTypeEnabledParams{ProjectID: project, TypeID: typeID})
 	if err != nil {
-		return fmt.Errorf("comprobar tipo: %w", err)
+		return t, fmt.Errorf("comprobar tipo: %w", err)
 	}
 	if !enabled {
-		return errTypeNotEnabled
+		return t, errTypeNotEnabled
 	}
-	return nil
+	return t, nil
 }
 
 func checkPriority(ctx context.Context, q *sqlc.Queries, id uuid.UUID) error {
@@ -173,6 +182,9 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 	if err := checkNumbers(req.EstimatedHours, req.RemainingHours, req.DoneRatio); err != nil {
 		return WorkItem{}, err
 	}
+	if err := checkWeight(req.Weight); err != nil {
+		return WorkItem{}, err
+	}
 	var out WorkItem
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
 		project, err := projects.Get(ctx, q, p, projectID, false)
@@ -185,8 +197,14 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err := projects.Writable(project); err != nil {
 			return err
 		}
-		if err := checkType(ctx, q, projectID, req.TypeID); err != nil {
+		typ, err := checkType(ctx, q, projectID, req.TypeID)
+		if err != nil {
 			return err
+		}
+		// The type's default weight is copied, not referenced (RF-151).
+		weight := typ.DefaultWeight
+		if req.Weight != nil {
+			weight = *req.Weight
 		}
 		status, err := initialStatus(ctx, q, req.StatusID)
 		if err != nil {
@@ -229,7 +247,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 			SequenceNumber: n, Title: req.Title, Description: desc, DescriptionText: text, AuthorID: p.UserID,
 			AssigneeID: req.AssigneeID, StartDate: workcore.ToTime(req.StartDate), DueDate: workcore.ToTime(req.DueDate),
 			EstimatedHours: req.EstimatedHours, RemainingHours: req.RemainingHours, DoneRatio: req.DoneRatio,
-			Position: req.Position, Depth: depth,
+			Position: req.Position, Depth: depth, Weight: weight,
 		})
 		if err != nil {
 			return fmt.Errorf("crear work item: %w", err)
@@ -281,6 +299,9 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 	if err := checkNumbers(req.EstimatedHours, req.RemainingHours, req.DoneRatio); err != nil {
 		return WorkItem{}, err
 	}
+	if err := checkWeight(req.Weight); err != nil {
+		return WorkItem{}, err
+	}
 	var out WorkItem
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
 		row, project, err := Load(ctx, q, p, id, true)
@@ -297,7 +318,7 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return apperr.VersionConflict(row.Version)
 		}
 		if req.TypeID != row.TypeID {
-			if err := checkType(ctx, q, project.ID, req.TypeID); err != nil {
+			if _, err := checkType(ctx, q, project.ID, req.TypeID); err != nil {
 				return err
 			}
 		}
@@ -318,6 +339,11 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return err
 		}
 		ratio, remaining, closedAt := req.DoneRatio, req.RemainingHours, row.ClosedAt
+		// A client that doesn't send the weight keeps it; a new type doesn't change it (RF-151).
+		weight := row.Weight
+		if req.Weight != nil {
+			weight = *req.Weight
+		}
 		switch change {
 		case closing:
 			// Closing finishes the work item (RF-84).
@@ -353,7 +379,7 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			ParentID: req.ParentID, Title: req.Title, Description: desc, DescriptionText: text, AssigneeID: req.AssigneeID,
 			StartDate: workcore.ToTime(req.StartDate), DueDate: workcore.ToTime(req.DueDate),
 			EstimatedHours: req.EstimatedHours, RemainingHours: remaining, DoneRatio: ratio, Position: req.Position,
-			Depth: row.Depth, ClosedAt: closedAt,
+			Depth: row.Depth, ClosedAt: closedAt, Weight: weight,
 		})
 		if err != nil {
 			return fmt.Errorf("actualizar work item: %w", err)
@@ -363,7 +389,7 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return fmt.Errorf("actualizar profundidad: %w", err)
 			}
 		}
-		// Derived values of the work item, its ancestors and its old ancestors (RF-83).
+		// Derived values of the work item, its ancestors and its old ancestors (RF-83, RF-158).
 		if err := q.RefreshWorkItemUp(ctx, id); err != nil {
 			return fmt.Errorf("recalcular derivados: %w", err)
 		}
@@ -457,7 +483,7 @@ func statusChange(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row 
 }
 
 // emitStatusEvent records work_item.closed or work_item.reopened (RF-116,
-// RF-117, RF-122) with the assignee at that moment.
+// RF-117, RF-122) with the assignee and the weight at that moment (RF-155).
 func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem, key string, change closeChange) error {
 	var typ string
 	switch change {
@@ -471,7 +497,7 @@ func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, r
 	actor := p.UserID
 	return events.Emit(ctx, q, events.New{
 		Type: typ, ActorID: &actor, ProjectID: row.ProjectID, SubjectType: "work_item", SubjectID: row.ID,
-		Payload: map[string]any{"key": key, "status_id": row.StatusID, "assignee_id": row.AssigneeID, "type_id": row.TypeID},
+		Payload: map[string]any{"key": key, "status_id": row.StatusID, "assignee_id": row.AssigneeID, "type_id": row.TypeID, "weight": row.Weight},
 	})
 }
 
@@ -557,14 +583,15 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		TypeID:  row.TypeID, StatusID: row.StatusID, PriorityID: row.PriorityID, Title: row.Title,
 		Description: row.Description, Author: workcore.Ref{ID: row.AuthorID},
 		StartDate: workcore.FromTime(row.StartDate), DueDate: workcore.FromTime(row.DueDate),
-		EstimatedHours: row.EstimatedHours, RemainingHours: row.RemainingHours, DoneRatio: row.DoneRatio,
+		EstimatedHours: row.EstimatedHours, RemainingHours: row.RemainingHours, DoneRatio: row.DoneRatio, Weight: row.Weight,
 		Derived:  Derived{EstimatedHours: row.AggEstimated, RemainingHours: row.AggRemaining},
 		Position: row.Position, Depth: row.Depth, Version: row.Version, ClosedAt: row.ClosedAt,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, AllowedStatusIDs: []uuid.UUID{},
 		Can: Can{Write: p.CanWriteWorkItems(ref), Delete: p.CanDeleteWorkItem(ref, row.AuthorID)},
 	}
-	if row.DerivedDoneRatio != nil {
-		out.Derived.DoneRatio = *row.DerivedDoneRatio
+	// Weighted by weight (RF-153); derived_done_ratio is the previous formula.
+	if row.WeightedDoneRatio != nil {
+		out.Derived.DoneRatio = *row.WeightedDoneRatio
 	}
 	people := []uuid.UUID{row.AuthorID}
 	if row.AssigneeID != nil {
@@ -617,6 +644,6 @@ func auditView(r sqlc.WorkItem, key string) map[string]any {
 		"key": key, "title": r.Title, "type_id": r.TypeID, "status_id": r.StatusID, "priority_id": r.PriorityID,
 		"parent_id": r.ParentID, "assignee_id": r.AssigneeID, "start_date": workcore.FromTime(r.StartDate),
 		"due_date": workcore.FromTime(r.DueDate), "estimated_hours": r.EstimatedHours,
-		"remaining_hours": r.RemainingHours, "done_ratio": r.DoneRatio,
+		"remaining_hours": r.RemainingHours, "done_ratio": r.DoneRatio, "weight": r.Weight,
 	}
 }

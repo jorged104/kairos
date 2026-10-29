@@ -7,7 +7,8 @@ export function toUpdateInput(w: WorkItem): WorkItemUpdateInput {
     version: w.version, type_id: w.type_id, status_id: w.status_id, priority_id: w.priority_id, title: w.title,
     description: w.description, parent_id: w.parent?.id ?? null, assignee_id: w.assignee?.id ?? null,
     start_date: w.start_date, due_date: w.due_date, estimated_hours: w.estimated_hours,
-    remaining_hours: w.remaining_hours, done_ratio: w.done_ratio, position: w.position, custom_values: { ...w.custom_values },
+    remaining_hours: w.remaining_hours, done_ratio: w.done_ratio, position: w.position, weight: w.weight,
+    custom_values: { ...w.custom_values },
   }
 }
 

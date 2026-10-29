@@ -40,6 +40,9 @@ type Progress struct {
 	Percent        int     `json:"percent"`
 	EstimatedHours float64 `json:"estimated_hours"`
 	RemainingHours float64 `json:"remaining_hours"`
+	// Sum of the weights of the effective work items, and of the closed ones (RF-154).
+	Weight       int64 `json:"weight"`
+	WeightClosed int64 `json:"weight_closed"`
 }
 
 type Milestone struct {
@@ -395,7 +398,7 @@ func (s *Service) WorkItems(ctx context.Context, p *authz.Principal, id uuid.UUI
 				ID: r.ID, ParentID: r.ParentID, SequenceNumber: r.SequenceNumber, Title: r.Title, TypeID: r.TypeID,
 				StatusID: r.StatusID, PriorityID: r.PriorityID, AssigneeID: r.AssigneeID, AssigneeName: r.AssigneeName,
 				DerivedDoneRatio: r.DerivedDoneRatio, AggEstimated: r.AggEstimated, AggRemaining: r.AggRemaining,
-				Depth: r.Depth, Position: r.Position, DueDate: r.DueDate,
+				Depth: r.Depth, Position: r.Position, DueDate: r.DueDate, Weight: r.Weight,
 			}),
 			Inherited: !r.Direct,
 		})
@@ -426,9 +429,11 @@ func (s *Service) progress(ctx context.Context, q *sqlc.Queries, arg sqlc.Milest
 	}
 	out := make(map[uuid.UUID]Progress, len(rows))
 	for _, r := range rows {
-		pr := Progress{Total: r.Total, Closed: r.Closed, Open: r.Total - r.Closed, EstimatedHours: r.EstimatedHours, RemainingHours: r.RemainingHours}
-		if r.Total > 0 {
-			pr.Percent = int(float64(r.Closed) * 100 / float64(r.Total))
+		pr := Progress{Total: r.Total, Closed: r.Closed, Open: r.Total - r.Closed, EstimatedHours: r.EstimatedHours,
+			RemainingHours: r.RemainingHours, Weight: r.Weight, WeightClosed: r.WeightClosed}
+		// Weighted by weight; tracking work items (weight 0) count but don't move it (RF-154).
+		if r.Weight > 0 {
+			pr.Percent = int(float64(r.WeightClosed) * 100 / float64(r.Weight))
 		}
 		out[r.MilestoneID] = pr
 	}

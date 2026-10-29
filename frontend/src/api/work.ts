@@ -40,6 +40,7 @@ export interface CatalogInput {
   color?: string
   is_closed?: boolean
   is_default?: boolean
+  default_weight?: number
 }
 
 export const createCatalogItem = (kind: CatalogKind, input: CatalogInput) =>
@@ -241,6 +242,7 @@ export interface WorkItemUpdateInput {
   remaining_hours: number | null
   done_ratio: number
   position: number
+  weight: number
   custom_values?: CustomValues
 }
 

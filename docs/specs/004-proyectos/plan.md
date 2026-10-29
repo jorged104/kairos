@@ -444,6 +444,105 @@ por el slot. Sin backend, API, migraciones ni dependencias nuevas.
 | RF-147 | `checkValidity()` + foco en `:invalid` + `errors.required`; `useErrorMessage` | tests de obligatorios y de error de la API |
 | RF-148 | `@container` en `GridTable` + `sticky left-0` y `max-w-[100cqw]` | manual: navegador a 400 px, tabla de proyectos (8 columnas), el botón se ve sin desplazar |
 
+## Pesos (RF-149 a RF-158)
+
+**Punto de partida.** El avance derivado sale de la columna generada `derived_done_ratio`
+(ponderada por horas, con media simple si no hay horas), alimentada por
+`work_item_refresh_one`. El avance del hito lo calcula `MilestoneProgress` contando cerrados.
+
+**Alcance.** Migración nueva, queries de work items, hitos, plantillas y catálogo; módulos
+`catalog`, `workitems`, `milestones`; árbol, ficha y catálogo en el frontend. Sin permisos ni
+dependencias nuevos.
+
+**Migración `00004_pesos.sql` (solo aditiva):**
+- `work_item_types.default_weight smallint NOT NULL DEFAULT 1 CHECK (default_weight BETWEEN 0 AND 100)` (RF-150).
+- `work_items.weight smallint NOT NULL DEFAULT 1 CHECK (weight BETWEEN 0 AND 100)` (RF-149).
+- Agregados del subárbol con el nodo incluido: `agg_weight bigint NOT NULL DEFAULT 1` (suma de
+  pesos) y `agg_weight_ratio_sum bigint NOT NULL DEFAULT 0` (suma de peso × avance, cerrados a 100).
+- Columna generada nueva `weighted_done_ratio smallint`: `round(agg_weight_ratio_sum / agg_weight)`
+  si `agg_weight > 0`; si no, `round(agg_ratio_sum / agg_count)` (RF-153). La fórmula de una
+  columna generada no se puede cambiar sin recrearla, y la API anterior lee `derived_done_ratio`:
+  esa columna se queda tal cual y se borra en un segundo despliegue.
+- `CREATE OR REPLACE FUNCTION work_item_refresh_one`: misma firma; calcula además los dos
+  agregados de peso. La API anterior la sigue llamando y deja los nuevos también al día.
+- Relleno: `PERFORM work_item_recompute_project(id) FROM projects` al final de la migración.
+- `Down`: restaura la función anterior y borra las columnas nuevas.
+- **Compatibilidad con la API anterior:** sqlc expande los `*` al generar, así que el binario
+  anterior no ve las columnas nuevas. Si se vuelve a él, sus altas toman peso 1 y no el del tipo;
+  se acepta porque la vuelta atrás es temporal y los avances siguen siendo coherentes.
+- **Coste del relleno:** `work_item_recompute_project` recorre 10 niveles por proyecto; con el
+  tamaño de diseño (500 proyectos, 50 000 work items) son segundos. Se mide en `schema_work_test`.
+
+**Queries sqlc (`make sqlc`):**
+- `workitems.sql`: `CreateWorkItem` y `UpdateWorkItem` con `weight`; `GetWorkItemType` ya
+  devuelve `default_weight` al leer el tipo. Listados y árbol leen `weighted_done_ratio`.
+- `tree.go` (Squirrel): columna `w.weighted_done_ratio` en lugar de `w.derived_done_ratio`.
+- `milestones.sql` `MilestoneProgress`: `coalesce(sum(w.weight), 0)::bigint AS weight` y
+  `coalesce(sum(w.weight) FILTER (WHERE s.is_closed), 0)::bigint AS weight_closed` (RF-154).
+- `projects.sql` `CopyWorkItem`: copia `weight` (RF-157).
+- `catalog.sql`: `CreateWorkItemType` y `UpdateWorkItemType` con `default_weight`.
+
+**Backend:**
+- `catalog/types.go`: `Type.DefaultWeight int16 json:"default_weight"`; `typeRequest.DefaultWeight
+  *int16 validate:"omitempty,min=0,max=100"`. Al crear, si no llega, 1; al modificar, si no llega, se
+  conserva (RF-150, RF-152).
+- `workitems/types.go`: `Weight int16 json:"weight"` en el work item y en el nodo del árbol;
+  `createRequest.Weight` y `updateRequest.Weight` como `*int16 validate:"omitempty,min=0,max=100"`.
+- `workitems/service.go`:
+  - Crear: sin `weight`, se usa `default_weight` del tipo leído en `checkType` (RF-151).
+  - Modificar: sin `weight`, se conserva el actual; el cambio de tipo no lo toca (RF-151).
+  - Si cambia el peso, `work_item_refresh_up` como con horas o avance (RF-158).
+  - `emitStatusEvent`: `"weight": row.Weight` en el payload (RF-155).
+  - `auditView`: añade `weight`, así el cambio de peso queda en la auditoría (RF-134).
+- `milestones/milestones.go`: la lista de work items del hito también lee `weighted_done_ratio`
+  (`milestones.sql`, la query de la línea 73).
+- `milestones/milestones.go` `progress()`: `Percent = weight_closed * 100 / weight` redondeado, 0 si
+  `weight = 0`; `Total` y `Closed` sin cambios; `Progress` añade `weight` y `weight_closed` (RF-154).
+
+**API (cambios aditivos):** `default_weight` en tipos; `weight` en work items (ficha, árbol,
+listados, creación y modificación); `weight` y `weight_closed` en `progress` del hito. Fuera de
+rango: `422 validation_failed`.
+
+**Frontend:**
+- `types/work.ts`: `weight`, `default_weight`, `progress.weight`, `progress.weight_closed`.
+- `features/catalog/NamedCatalog.vue`: para `work-item-types`, columna «Peso por defecto»
+  (`EditableCell kind="number"`) y campo numérico en la fila rápida (RF-156).
+- `features/projects/ProjectWorkItems.vue`: columna «Peso» (`EditableCell kind="number"`), guardada
+  con `patchWorkItem`; `features/workitems/patch.ts` añade `weight` a `toUpdateInput` (RF-156).
+- `pages/WorkItemPage.vue`: campo «Peso» con la ayuda «0 = seguimiento» (RF-156).
+- `locales/es.json`: `workItems.weight`, `workItems.weightHint`, `catalog.defaultWeight`.
+
+**Tests:**
+- `apitest/workitems_test.go`: sin peso toma el del tipo; cambiar el peso del tipo o el tipo del
+  work item no cambia el peso; 0 y 100 válidos, -1 y 101 dan 422; avance del padre ponderado por
+  peso (hijo de peso 0 excluido, subárbol todo a 0 da media simple, cerrado cuenta 100); el payload
+  de `work_item.closed` lleva `weight`.
+- `apitest/milestones_test.go`: avance del hito ponderado; todo a peso 0 da 0 % con conteos intactos.
+- `apitest/templates_test.go`: la copia conserva el peso.
+- `apitest/catalog_test.go`: `default_weight` al crear (1 sin valor), al modificar y fuera de rango.
+- `db/schema_work_test.go`: los agregados de peso tras `work_item_recompute_project`.
+- Vitest: celda de peso en el árbol y de peso por defecto en el catálogo.
+- `apitest/perf_test.go` (T15) sin cambios y dentro de los límites: `work_item_refresh_one` suma dos
+  columnas más.
+- `matrix_work_test.go` sin cambios: no hay permisos nuevos.
+
+**Horas de work items de peso 0 (RF-159):** se siguen sumando; `MilestoneProgress` y los
+agregados de horas de `work_item_refresh_one` no cambian. Se prueba en `workitems_test` y
+`milestones_test`.
+
+| RF | Dónde | Cómo se prueba |
+|---|---|---|
+| RF-149 | columna `weight`, `workitems` | apitest de rango y de edición |
+| RF-150 | columna `default_weight`, `catalog` | apitest de catálogo |
+| RF-151 | `Create`/`Update` de `workitems` | apitest de peso por defecto y cambio de tipo |
+| RF-152 | `CHECK` + `validate` | apitest -1 y 101 → 422 |
+| RF-153 | `work_item_refresh_one`, `weighted_done_ratio` | apitest de avance del padre; `schema_work_test` |
+| RF-154 | `MilestoneProgress`, `progress()` | apitest de hitos |
+| RF-155 | `emitStatusEvent` | apitest del evento |
+| RF-156 | árbol, ficha, catálogo | Vitest |
+| RF-157 | `CopyWorkItem` | apitest de plantillas |
+| RF-158 | `work_item_refresh_up` al cambiar el peso | apitest de avance del padre tras cambiar el peso |
+
 ## Tareas
 Ver [tasks.md](tasks.md).
 

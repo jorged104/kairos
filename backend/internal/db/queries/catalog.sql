@@ -47,10 +47,14 @@ SELECT * FROM work_item_types ORDER BY position, name;
 SELECT * FROM work_item_types WHERE id = $1;
 
 -- name: CreateWorkItemType :one
-INSERT INTO work_item_types (name, name_normalized, color, position) VALUES ($1, $2, $3, $4) RETURNING *;
+-- A type without a default weight weighs 1 (RF-150).
+INSERT INTO work_item_types (name, name_normalized, color, position, default_weight)
+VALUES ($1, $2, $3, $4, coalesce(sqlc.narg(default_weight)::smallint, 1)) RETURNING *;
 
 -- name: UpdateWorkItemType :one
-UPDATE work_item_types SET name = $2, name_normalized = $3, color = $4, position = $5, updated_at = now()
+-- A client that doesn't send the default weight keeps the current one.
+UPDATE work_item_types SET name = $2, name_normalized = $3, color = $4, position = $5,
+    default_weight = coalesce(sqlc.narg(default_weight)::smallint, default_weight), updated_at = now()
 WHERE id = $1 RETURNING *;
 
 -- name: SetWorkItemTypeRetired :one
