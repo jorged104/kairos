@@ -1,6 +1,6 @@
 # Spec 006 — Tallas, varios asignados y comentarios en work items
 
-**Estado:** Borrador (2026-10-29), pendiente de aprobación.
+**Estado:** Aprobada (2026-10-29). Las dudas se cerraron con las respuestas propuestas («Dale, implementa»).
 
 ## Contexto y objetivo
 Hoy un work item tiene un peso (spec 004, RF-149 a RF-156), pero no hay una forma rápida y
@@ -37,7 +37,7 @@ trozo de texto de la página.
 
 ### Tallas
 - RF-1: EL SISTEMA permitirá a un administrador crear, renombrar, reordenar y retirar tallas en el catálogo, cada una con un nombre único (ignorando mayúsculas y espacios exteriores) y un peso entero de 0 a 100.
-- RF-2: EL SISTEMA creará el catálogo con las tallas XS, S, M, L y XL. [NECESITA ACLARACIÓN: ¿pesos por defecto XS = 1, S = 2, M = 3, L = 5 y XL = 8?]
+- RF-2: EL SISTEMA creará el catálogo con las tallas XS, S, M, L y XL, de pesos 1, 2, 3, 5 y 8.
 - RF-3: SI el peso de una talla no es un entero de 0 a 100, ENTONCES EL SISTEMA rechazará el cambio.
 - RF-4: EL SISTEMA guardará de cada work item una talla opcional del catálogo.
 - RF-5: CUANDO el usuario elija una talla para un work item, EL SISTEMA pondrá como peso del work item el peso de esa talla.
@@ -46,11 +46,12 @@ trozo de texto de la página.
 - RF-8: CUANDO cambie el peso de una talla en el catálogo, EL SISTEMA no cambiará el peso de los work items existentes con esa talla.
 - RF-9: SI una talla está retirada, ENTONCES EL SISTEMA no la ofrecerá para work items nuevos ni cambios, y la seguirá mostrando en los work items que ya la tienen.
 - RF-10: EL SISTEMA mostrará la talla y el peso entre las propiedades principales de la ficha del work item, siempre a la vista (cambia RF-68 de la spec 005).
+- RF-56: EL SISTEMA mostrará la talla en una columna del árbol, editable en la celda como las demás (RF-139 de la spec 004).
 - RF-11: CUANDO se copie un work item desde una plantilla, EL SISTEMA copiará su talla.
 
 ### Varios asignados
 - RF-12: EL SISTEMA guardará de cada work item una lista de cero o más asignados distintos, todos con el mismo papel. Sustituye al asignado único de la spec 004 (RF-61).
-- RF-13: SI un work item ya tiene el número máximo de asignados, ENTONCES EL SISTEMA rechazará añadir otro. [NECESITA ACLARACIÓN: ¿máximo de 20 asignados por work item?]
+- RF-13: SI un cambio deja más de 20 asignados en un work item, ENTONCES EL SISTEMA lo rechazará.
 - RF-14: SI alguno de los asignados que se añaden está inactivo, dado de baja o solo tiene el rol `viewer`, ENTONCES EL SISTEMA rechazará el cambio entero (extiende RF-68 de la spec 004 a cada asignado).
 - RF-15: CUANDO un asignado se desactive o se dé de baja, EL SISTEMA lo conservará en las listas de asignados existentes (como RF-69 de la spec 004).
 - RF-16: CUANDO se actualice la aplicación, EL SISTEMA convertirá el asignado único de cada work item existente en una lista con esa persona.
@@ -73,13 +74,13 @@ trozo de texto de la página.
 - RF-31: CUANDO el autor edite su comentario, EL SISTEMA guardará el texto nuevo y lo marcará como editado.
 - RF-32: CUANDO el autor borre un comentario sin respuestas, EL SISTEMA lo quitará del hilo.
 - RF-33: CUANDO el autor borre el comentario raíz de un hilo con respuestas, EL SISTEMA mostrará «Comentario eliminado» en su lugar y conservará las respuestas.
-- RF-34: DONDE el usuario pueda gestionar el proyecto, EL SISTEMA le permitirá borrar comentarios de otras personas. [NECESITA ACLARACIÓN: ¿quien gestiona el proyecto modera los comentarios, o solo cada autor borra los suyos?]
+- RF-34: DONDE el usuario pueda gestionar el proyecto, EL SISTEMA le permitirá borrar comentarios de otras personas.
 - RF-35: SI el usuario intenta editar un comentario de otra persona, ENTONCES EL SISTEMA lo rechazará.
 - RF-36: CUANDO el usuario resuelva un hilo, EL SISTEMA lo plegará bajo «N hilos resueltos» con quién y cuándo lo resolvió.
 - RF-37: CUANDO el usuario despliegue los hilos resueltos y reabra uno, EL SISTEMA lo volverá a mostrar entre los abiertos.
 - RF-38: CUANDO alguien responda a un hilo resuelto, EL SISTEMA lo reabrirá.
-- RF-39: MIENTRAS el proyecto no esté activo (cerrado o archivado), EL SISTEMA mostrará los comentarios en modo lectura. [NECESITA ACLARACIÓN: ¿se puede seguir comentando en proyectos cerrados o archivados?]
-- RF-40: CUANDO se borre un work item, EL SISTEMA marcará sus comentarios y los archivos de estos como borrados, como hace con los de su página (RF-49 de la spec 005).
+- RF-39: MIENTRAS el proyecto no esté activo (cerrado o archivado), EL SISTEMA mostrará los comentarios en modo lectura y rechazará cualquier cambio en ellos.
+- RF-40: CUANDO se borre un work item, EL SISTEMA borrará sus comentarios y marcará sus archivos como borrados, como hace con los de su página (RF-49 de la spec 005).
 - RF-41: CUANDO se copie un work item desde una plantilla, EL SISTEMA no copiará sus comentarios.
 - RF-42: EL SISTEMA auditará la creación, la edición, el borrado, la resolución y la reapertura de cada comentario o hilo, sin guardar el texto en la auditoría.
 - RF-43: CUANDO el usuario publique, edite, borre, resuelva o reabra un comentario, EL SISTEMA lo reflejará en la ficha sin recargar la página.
@@ -106,7 +107,7 @@ trozo de texto de la página.
 - **Idioma:** español por defecto; todos los textos y errores nuevos salen del catálogo de i18n.
 
 ## Casos límite
-- **Talla elegida y luego peso a mano:** la talla queda y el peso es el manual (RF-6); volver a elegir la misma talla vuelve a poner su peso.
+- **Talla elegida y luego peso a mano:** la talla queda y el peso es el manual (RF-6). Para volver al peso de la talla se elige otra y luego la misma.
 - **Talla retirada:** se ve en los work items que la tienen y no se ofrece (RF-9).
 - **Work item sin asignados:** válido; en el árbol se ve «Sin asignar».
 - **Misma persona dos veces:** la lista no admite duplicados; añadirla de nuevo no cambia nada.
@@ -125,7 +126,7 @@ trozo de texto de la página.
 - Reacciones con emoji, comentarios privados y vigilantes del work item.
 - Anclar comentarios a imágenes, adjuntos o bloques enteros: solo a trozos de texto.
 - Repartir horas, avance o XP entre los asignados.
-- Filtrar o agrupar el árbol por talla. [NECESITA ACLARACIÓN: ¿columna de talla en el árbol, editable como las demás, o solo en la ficha?]
+- Filtrar o agrupar el árbol por talla.
 
 ## Criterios de finalización
 - Todos los RF con tests en verde: API (permisos por rol en el test de matriz, conversión del asignado único, eventos con todos los asignados, comentarios y anclajes) y frontend (ficha, árbol y página).
@@ -137,9 +138,12 @@ trozo de texto de la página.
   4. Seleccionar texto de la página, comentarlo, borrar el texto y ver «texto eliminado».
   5. Entrar como `viewer` y comprobar que solo lee.
 
+## Decisiones tomadas con el usuario (2026-10-29)
+- **Tallas:** fijan el peso al elegirlas; el peso se puede retocar después (RF-5, RF-6). Pesos iniciales 1, 2, 3, 5 y 8 (RF-2). Columna editable en el árbol (RF-56).
+- **Asignados:** todos iguales, sin principal, con un máximo de 20 (RF-12, RF-13).
+- **Comentarios:** hilos con un nivel de respuestas que se resuelven y se reabren (RF-28, RF-36 a RF-38). Comentan todos los roles menos `viewer` (RF-23). Quien gestiona el proyecto puede borrar los de otros (RF-34). En proyectos cerrados o archivados, solo lectura (RF-39).
+- **Comentarios en la página:** anclados a un trozo de texto (RF-44 a RF-55).
+- **Fuera:** notificaciones, comentarios en proyectos e hitos, y tiempo real.
+
 ## Dudas abiertas
-1. [NECESITA ACLARACIÓN] Pesos por defecto de las tallas: ¿XS = 1, S = 2, M = 3, L = 5, XL = 8? (RF-2)
-2. [NECESITA ACLARACIÓN] Máximo de asignados por work item: ¿20? (RF-13)
-3. [NECESITA ACLARACIÓN] ¿Quien gestiona el proyecto puede borrar comentarios de otras personas? (RF-34)
-4. [NECESITA ACLARACIÓN] ¿Se puede comentar en proyectos cerrados o archivados? (RF-39)
-5. [NECESITA ACLARACIÓN] ¿Columna de talla en el árbol, editable? (Fuera de alcance)
+Ninguna.

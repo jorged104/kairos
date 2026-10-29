@@ -4,6 +4,8 @@
 
 **Cambio:** 2026-10-29. Ficha del work item: propiedades editables donde se ven, borrar con la papelera, sin hitos ni dependencias, y panel lateral a media pantalla y redimensionable. RF-39 se sustituye por RF-60 a RF-67.
 
+**Cambio:** 2026-10-29. Spec 006: la talla y el peso pasan a las propiedades principales (cambia RF-68), y la página admite comentarios anclados a trozos de texto (RF-44 a RF-55 de 006).
+
 **Cambio:** 2026-10-29. Propiedades principales a la vista y el resto plegadas tras «Más propiedades»: RF-68 y RF-69.
 
 ## Contexto y objetivo

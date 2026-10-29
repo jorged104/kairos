@@ -3,6 +3,8 @@
 **Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
+**Cambio:** 2026-10-29. Spec 006: un work item tiene varios asignados (RF-61 pasa a una lista, RF-12 de 006), el filtro por asignado los busca entre todos (RF-129) y los eventos los llevan todos (RF-122).
+
 **Cambio:** 2026-10-29. La ficha de work item ya no muestra los hitos efectivos ni las dependencias (spec 005, RF-60). La API las sigue ofreciendo; la pantalla para gestionarlas queda pendiente de otra spec.
 
 **Cambio:** 2026-10-29. Al reabrir un work item se reinician su avance y sus horas restantes: RF-160.
