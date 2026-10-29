@@ -59,11 +59,13 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-31 a RF-36
   - Hecho cuando: spec con temporizadores falsos (2 s, al salir, conflicto con aviso, reintento, límite de tamaño); medido el tamaño gzip del bloque de la página y anotado aquí (ING-3: más de +150 KB → asa propia).
   - Nota: el autoguardado y el editor se juntan en `PageSection`, con el indicador de estado y el aviso de conflicto («Copiar mi texto», «Recargar su versión»). El tamaño del bloque se mide en T11, cuando el editor ya está en las pantallas; antes el empaquetador lo descarta por no usarse.
+  - Medido en T11 con `npm run build`: el bloque del editor pasa de 134,4 KB a 140,7 KB comprimido y la página añade un bloque nuevo de 65,6 KB, unos +72 KB en total. Está por debajo de los +150 KB de ING-3, así que se queda el asa oficial.
 
-- [ ] **T11 — Vistas** (`WorkItemSheet.vue`, panel en `ProjectWorkItems.vue`, `WorkItemPage.vue`, layout, `ProjectPage.vue`, `MilestonePage.vue`)
+- [x] **T11 — Vistas** (`WorkItemSheet.vue`, panel en `ProjectWorkItems.vue`, `WorkItemPage.vue`, layout, `ProjectPage.vue`, `MilestonePage.vue`)
   - Depende de: T10
   - RF: RF-37 a RF-43
   - Hecho cuando: specs del panel con `?item=`, Escape que cierra, «Abrir como página», ancho completo recordado (también sin `localStorage`), y páginas de proyecto e hito editables.
+  - Nota: el panel es un lateral fijo sobre la parte derecha del árbol, que sigue visible a la izquierda. Se abre desde la clave de la fila; el título sigue editándose en la celda. Los `PATCH` del frontend ya no envían `description`, y la ficha usa la versión de la caché, que el autoguardado mantiene al día, para no chocar con sus propios guardados.
 
 - [ ] **T12 — Textos** (`locales/es.json`)
   - Depende de: T9, T11

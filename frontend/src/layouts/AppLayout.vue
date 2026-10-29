@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { LogOut } from '@lucide/vue'
 import { logout } from '@/api/auth'
 import { Button } from '@/components/ui/button'
+import { useFullWidth } from '@/features/pages/useFullWidth'
 import { useAuthStore } from '@/stores/auth'
 import type { Permission } from '@/types/api'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+// A work item page in full width hides the navigation (RF-40).
+const fullWidth = useFullWidth()
+const wide = computed(() => fullWidth.on.value && !!route.meta.fullWidth)
 
 const links = computed(() =>
   [
@@ -42,7 +47,7 @@ async function signOut() {
 
 <template>
   <div class="min-h-svh bg-muted/30">
-    <header class="border-b bg-background">
+    <header v-if="!wide" class="border-b bg-background">
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <span class="font-heading text-lg font-semibold">{{ t('app.name') }}</span>
         <nav class="flex flex-wrap gap-1 text-sm" :aria-label="t('nav.label')">
@@ -67,7 +72,7 @@ async function signOut() {
         </div>
       </div>
     </header>
-    <main class="mx-auto max-w-6xl p-4">
+    <main :class="wide ? 'px-4 py-4 sm:px-8' : 'mx-auto max-w-6xl p-4'" data-testid="main">
       <RouterView />
     </main>
   </div>

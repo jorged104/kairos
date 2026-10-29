@@ -114,7 +114,8 @@ export const createProject = (input: ProjectCreateInput) =>
 export interface ProjectUpdateInput {
   version: number
   name: string
-  description: RichDoc
+  /** Left out, the API keeps it: the page saves it (spec 005). */
+  description?: RichDoc
   team_id: string
   owner_id: string
   parent_id: string | null
@@ -233,7 +234,8 @@ export interface WorkItemUpdateInput {
   status_id: string
   priority_id: string
   title: string
-  description: RichDoc
+  /** Left out, the API keeps it: the page saves it (spec 005). */
+  description?: RichDoc
   parent_id: string | null
   assignee_id: string | null
   start_date: string | null

@@ -23,12 +23,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useErrorMessage } from '@/composables/useErrorMessage'
-import RichTextEditor from '@/features/richtext/RichTextEditor.vue'
-import RichTextView from '@/features/richtext/RichTextView.vue'
+import type { SavedPage } from '@/api/pages'
+import PageSection from '@/features/pages/PageSection.vue'
 import { milestoneVariant } from '@/features/work/Badges'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog } from '@/features/work/useCatalog'
-import type { Milestone, RichDoc } from '@/types/work'
+import type { Milestone } from '@/types/work'
 
 // Milestone page: progress, effective work items and links (RF-44 to RF-60).
 const props = defineProps<{ id: string }>()
@@ -59,11 +59,23 @@ function refresh(m?: Milestone) {
 }
 
 const editing = ref(false)
-const form = ref({ name: '', due: '', phase: '', description: null as RichDoc })
+const form = ref({ name: '', due: '', phase: '' })
 function startEdit(m: Milestone) {
-  form.value = { name: m.name, due: m.due_date ?? '', phase: m.phase?.id ?? '', description: m.description }
+  form.value = { name: m.name, due: m.due_date ?? '', phase: m.phase?.id ?? '' }
   editing.value = true
 }
+// The milestone's page (spec 005, RF-43): an autosave updates the cache.
+function onPageSaved(saved: SavedPage) {
+  qc.setQueryData<Milestone>(key.value, (old) =>
+    old && { ...old, description: saved.page, page_version: saved.page_version, version: saved.version, refs: saved.refs },
+  )
+}
+async function reloadPage() {
+  const fresh = await getMilestone(props.id)
+  qc.setQueryData(key.value, fresh)
+  return fresh
+}
+
 const save = useMutation({
   mutationFn: () =>
     updateMilestone(props.id, {
@@ -71,7 +83,6 @@ const save = useMutation({
       name: form.value.name,
       due_date: form.value.due || null,
       phase_id: form.value.phase || null,
-      description: form.value.description,
       position: milestone.value!.position,
     }),
   onSuccess: (m) => {
@@ -169,14 +180,12 @@ const unlink = useMutation({
               <option v-for="ph in phases ?? []" :key="ph.id" :value="ph.id">{{ ph.name }}</option>
             </NativeSelect>
           </div>
-          <div class="sm:col-span-3"><RichTextEditor v-model="form.description" /></div>
           <div class="flex gap-2">
             <Button type="submit" size="sm">{{ t('common.save') }}</Button>
             <Button type="button" size="sm" variant="ghost" @click="editing = false">{{ t('common.cancel') }}</Button>
           </div>
         </form>
         <template v-else>
-          <RichTextView :doc="milestone.description" />
           <div v-if="milestone.can.manage" class="mt-3 flex flex-wrap items-center gap-2">
             <Button size="sm" @click="startEdit(milestone)">{{ t('common.edit') }}</Button>
             <template v-if="milestone.status === 'abierto'">
@@ -188,6 +197,19 @@ const unlink = useMutation({
             <Button size="sm" variant="ghost" @click="remove.mutate()">{{ t('milestones.actions.delete') }}</Button>
           </div>
         </template>
+      </section>
+
+      <section class="rounded-lg border bg-background p-4">
+        <PageSection
+          :key="milestone.id"
+          :owner="{ kind: 'milestones', id: milestone.id }"
+          :doc="milestone.description"
+          :page-version="milestone.page_version"
+          :refs="milestone.refs"
+          :editable="milestone.can.manage"
+          :reload="reloadPage"
+          @saved="onPageSaved"
+        />
       </section>
 
       <section class="flex flex-col gap-2">

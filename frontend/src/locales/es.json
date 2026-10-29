@@ -667,6 +667,10 @@
       "copy": "Copiar mi texto",
       "copied": "Copiado",
       "reload": "Recargar su versión"
-    }
+    },
+    "openAsPage": "Abrir como página",
+    "closePanel": "Cerrar panel",
+    "fullWidth": "Ancho completo",
+    "exitFullWidth": "Salir del ancho completo"
   }
 }

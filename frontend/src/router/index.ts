@@ -7,6 +7,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     public?: boolean
     permissions?: Permission[]
+    /** The page can take the whole window, without the navigation (spec 005, RF-40). */
+    fullWidth?: boolean
   }
 }
 
@@ -60,7 +62,13 @@ export const routes = [
       },
       { path: 'projects/:id', name: 'project', component: () => import('@/pages/ProjectPage.vue'), props: true },
       { path: 'milestones/:id', name: 'milestone', component: () => import('@/pages/MilestonePage.vue'), props: true },
-      { path: 'work-items/:wikey', name: 'work-item', component: () => import('@/pages/WorkItemPage.vue'), props: true },
+      {
+        path: 'work-items/:wikey',
+        name: 'work-item',
+        component: () => import('@/pages/WorkItemPage.vue'),
+        props: true,
+        meta: { fullWidth: true },
+      },
       { path: 'objectives', name: 'objectives', component: () => import('@/pages/ObjectivesPage.vue') },
       { path: 'objectives/:id', name: 'objective', component: () => import('@/pages/ObjectivePage.vue'), props: true },
       {

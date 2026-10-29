@@ -4,7 +4,7 @@ import { refDebounced } from '@vueuse/core'
 import { ChevronDown, ChevronRight, Plus } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { createWorkItem, getWorkItem, listMilestones, listWorkItems, projectTree } from '@/api/work'
 import { EditableCell, GridTable, QuickAddRow, type CellOption } from '@/components/data-table'
 import NativeSelect from '@/components/NativeSelect.vue'
@@ -14,6 +14,7 @@ import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
 import { patchWorkItem } from '@/features/workitems/patch'
+import WorkItemSheet from '@/features/workitems/WorkItemSheet.vue'
 import { allParents, childrenOf, visibleRows } from '@/features/workitems/tree'
 import type { Project, WorkNode } from '@/types/work'
 
@@ -26,6 +27,17 @@ const { catalog, types, statuses, priorities } = useCatalog()
 const { users } = usePeople()
 
 const { data: tree } = useQuery({ queryKey: ['tree', props.project.id], queryFn: () => projectTree(props.project.id) })
+
+// The work item open in the side panel, kept in the URL (?item=KAI-12) so it
+// survives a reload and the back button closes it (spec 005, RF-37).
+const route = useRoute()
+const router = useRouter()
+const openItem = computed(() => (typeof route.query.item === 'string' ? route.query.item : null))
+const panelTo = (key: string) => ({ query: { ...route.query, item: key } })
+function closePanel() {
+  const { item: _item, ...query } = route.query
+  void router.replace({ query })
+}
 const children = computed(() => childrenOf(tree.value ?? []))
 const expanded = ref(new Set<string>())
 const rows = computed(() => visibleRows(children.value, expanded.value))
@@ -155,7 +167,12 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
         <template v-for="r in shownRows" :key="r.node.id">
           <tr class="hover:bg-muted/30" data-testid="work-item-row">
             <td class="px-2">
-              <RouterLink :to="`/work-items/${r.node.key}`" class="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline">
+              <RouterLink
+                :to="panelTo(r.node.key)"
+                class="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline"
+                :class="{ 'font-semibold text-primary': openItem === r.node.key }"
+                data-testid="open-item"
+              >
                 {{ r.node.key }}
               </RouterLink>
             </td>
@@ -277,5 +294,14 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
         </QuickAddRow>
       </tbody>
     </GridTable>
+
+    <aside
+      v-if="openItem"
+      class="fixed inset-y-0 right-0 z-30 w-full overflow-y-auto border-l bg-background p-4 shadow-2xl sm:w-[min(44rem,90vw)] sm:p-6"
+      :aria-label="openItem"
+      data-testid="item-panel"
+    >
+      <WorkItemSheet :key="openItem" :wikey="openItem" panel @close="closePanel" />
+    </aside>
   </div>
 </template>

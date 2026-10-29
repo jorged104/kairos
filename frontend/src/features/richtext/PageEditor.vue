@@ -179,7 +179,7 @@ defineExpose({ editor })
           class="absolute left-6 top-0 z-40 w-56 rounded-lg border bg-popover p-1 text-sm shadow-lg"
           role="menu"
           data-testid="block-menu"
-          @keydown.esc="closeMenu"
+          @keydown.esc.prevent="closeMenu"
         >
           <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted" @click="convertOpen = !convertOpen">
             <Repeat2 class="size-4" aria-hidden="true" />{{ t('page.menu.convert') }}
