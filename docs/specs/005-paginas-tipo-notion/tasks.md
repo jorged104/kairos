@@ -48,10 +48,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-1, RF-2, RF-5, RF-6, RF-56, RF-57
   - Hecho cuando: dependencias instaladas con versión exacta; `pageExtensions.spec` compara los nodos con la lista del backend y prueba los atajos de Markdown; `npm run build` en verde.
 
-- [ ] **T9 — Editor de páginas** (`PageEditor.vue`, `PageView.vue`, `SlashMenu.vue`, `MentionList.vue`, `FileBlock.vue`)
+- [x] **T9 — Editor de páginas** (`PageEditor.vue`, `PageView.vue`, `SlashMenu.vue`, `MentionList.vue`, `FileBlock.vue`)
   - Depende de: T8
   - RF: RF-3, RF-4, RF-7 a RF-13, RF-19, RF-20, RF-25 a RF-28
   - Hecho cuando: specs de Vitest del menú `/` (filtrar, flechas, Enter, Escape), del menú del bloque, del modo lectura, de `FileBlock` (progreso, error, reintento) y de las menciones `sin acceso` y `eliminado`.
+  - Desviación: `PageView` es el mismo `PageEditor` con `editable` a falso, y `SlashMenu` y `MentionList` son un solo `SuggestionList`, que sirve para `/`, `@` y `#`. Las menciones se pintan con una vista de nodo que lee `refs` de forma reactiva, para que un nombre resuelto tras guardar se vea sin recargar. Las casillas de las listas de tareas se deshabilitan a mano en modo lectura, porque TipTap solo las revierte. El arrastre en sí (RF-11) queda para T14.
 
 - [ ] **T10 — Autoguardado** (`features/pages/usePageAutosave.ts`)
   - Depende de: T9

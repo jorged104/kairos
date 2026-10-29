@@ -11,6 +11,7 @@ import type { Component } from 'vue'
 import { fileUrl } from '@/api/pages'
 import type { MentionRefs } from '@/types/work'
 import { richTextExtensions } from './extensions'
+import MentionView from './MentionView.vue'
 import { suggestionRenderer, type SuggestionItem } from './suggestionRender'
 
 /**
@@ -183,43 +184,30 @@ function slashCommand(ctx: PageContext) {
   })
 }
 
-const routeOf = (kind: string, id: string, label: string | undefined) => {
-  switch (kind) {
-    case 'work_item':
-      return label ? `/work-items/${label.split(' ')[0]}` : null
-    case 'milestone':
-      return `/milestones/${id}`
-    case 'project':
-      return `/projects/${id}`
-  }
-  return null
-}
-
 function pageMention(ctx: PageContext) {
-  // The text of a mention always comes from the API's refs: the label the
-  // editor wrote is only a fallback until the page is saved (RF-27).
+  // The text of a mention always comes from the API's refs, read by
+  // MentionView; the label the editor wrote is only a fallback until the
+  // page is saved (RF-27). renderHTML is what a copy to the clipboard gets.
   const text = (attrs: Record<string, string>) => {
     const ref = ctx.refs()[attrs.id]
-    if (ref?.state === 'no_access') return { text: ctx.t('page.mention.noAccess'), ok: false }
-    if (ref?.state === 'deleted') return { text: ctx.t('page.mention.deleted'), ok: false }
-    const prefix = attrs.kind === 'user' ? '@' : '#'
-    return { text: prefix + (ref?.label ?? attrs.label ?? ''), ok: true, label: ref?.label ?? attrs.label }
+    if (ref?.state === 'no_access') return ctx.t('page.mention.noAccess')
+    if (ref?.state === 'deleted') return ctx.t('page.mention.deleted')
+    return (attrs.kind === 'user' ? '@' : '#') + (ref?.label ?? attrs.label ?? '')
   }
   return Mention.extend({
+    addOptions() {
+      return { ...this.parent!(), refs: ctx.refs }
+    },
     addAttributes() {
       return {
         ...this.parent?.(),
         kind: { default: 'user', parseHTML: (el) => el.getAttribute('data-kind'), renderHTML: (a) => ({ 'data-kind': a.kind }) },
       }
     },
+    addNodeView: () => VueNodeViewRenderer(MentionView),
   }).configure({
-    renderText: ({ node }) => text(node.attrs).text,
-    renderHTML: ({ node }) => {
-      const r = text(node.attrs)
-      const href = r.ok ? routeOf(node.attrs.kind, node.attrs.id, r.label) : null
-      const attrs = { class: r.ok ? 'mention' : 'mention mention-missing', 'data-type': 'mention', 'data-id': node.attrs.id, 'data-kind': node.attrs.kind }
-      return href ? ['a', { ...attrs, href }, r.text] : ['span', attrs, r.text]
-    },
+    renderText: ({ node }) => text(node.attrs),
+    renderHTML: ({ node }) => ['span', { class: 'mention', 'data-type': 'mention', 'data-id': node.attrs.id, 'data-kind': node.attrs.kind }, text(node.attrs)],
     suggestions: [
       {
         char: '@',

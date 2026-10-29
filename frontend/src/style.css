@@ -142,4 +142,35 @@
   .rich-text th,
   .rich-text td { @apply border px-2 py-1 align-top; }
   .rich-text th { @apply bg-muted font-medium; }
+
+  /* Pages of spec 005: the same blocks, larger, plus the new ones. */
+  .page-content { @apply text-[15px] leading-relaxed; }
+  .page-content .ProseMirror { @apply min-h-32 py-1; }
+  .page-content h1 { @apply mt-4 text-2xl font-semibold; }
+  .page-content h2 { @apply mt-3 text-xl font-semibold; }
+  .page-content h3 { @apply mt-2 text-base font-semibold; }
+  .page-content ul[data-type="taskList"] { @apply list-none pl-0; }
+  .page-content li[data-checked] { @apply flex items-start gap-2; }
+  .page-content li[data-checked] > label { @apply mt-1 flex-none; }
+  .page-content li[data-checked] > div { @apply min-w-0 flex-1; }
+  .page-content li[data-checked="true"] > div { @apply text-muted-foreground line-through; }
+  .page-content .callout { @apply my-2 rounded-lg bg-primary/5 px-4 py-2; }
+  .page-content .details { @apply my-1 flex gap-1; }
+  .page-content .details > button { @apply mt-1 size-5 flex-none rounded text-muted-foreground hover:bg-muted; }
+  .page-content .details > button::before { content: "B8"; }
+  .page-content .details.is-open > button::before { content: "BE"; }
+  .page-content .details > div { @apply min-w-0 flex-1; }
+  .page-content .details summary { @apply cursor-text list-none font-medium; }
+  .page-content .details summary::-webkit-details-marker { display: none; }
+  .page-content img.page-image { @apply my-2 max-h-[32rem] max-w-full rounded-lg border; }
+  .page-content img.page-image.ProseMirror-selectednode { @apply ring-2 ring-ring; }
+  .page-content a.page-file { @apply my-2 flex w-fit items-center gap-2 rounded-lg border px-3 py-2 text-sm no-underline hover:bg-muted; }
+  .page-content .mention { @apply rounded bg-primary/10 px-1 font-medium text-primary; }
+  .page-content .mention a { @apply no-underline; }
+  .page-content .mention-missing { @apply bg-muted font-normal text-muted-foreground; }
+  .page-content p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-muted-foreground;
+  }
+  .page-readonly .page-content li[data-checked] input { @apply cursor-not-allowed; }
 }
