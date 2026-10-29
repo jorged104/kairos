@@ -15,7 +15,7 @@ import (
 
 const createMilestone = `-- name: CreateMilestone :one
 INSERT INTO milestones (project_id, phase_id, name, description, description_text, due_date, position)
-VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at, page_version
 `
 
 type CreateMilestoneParams struct {
@@ -53,6 +53,7 @@ func (q *Queries) CreateMilestone(ctx context.Context, arg CreateMilestoneParams
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PageVersion,
 	)
 	return i, err
 }
@@ -67,7 +68,7 @@ func (q *Queries) DeleteMilestone(ctx context.Context, id uuid.UUID) error {
 }
 
 const getMilestone = `-- name: GetMilestone :one
-SELECT id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at FROM milestones WHERE id = $1
+SELECT id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at, page_version FROM milestones WHERE id = $1
 `
 
 func (q *Queries) GetMilestone(ctx context.Context, id uuid.UUID) (Milestone, error) {
@@ -87,12 +88,13 @@ func (q *Queries) GetMilestone(ctx context.Context, id uuid.UUID) (Milestone, er
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PageVersion,
 	)
 	return i, err
 }
 
 const getMilestoneForUpdate = `-- name: GetMilestoneForUpdate :one
-SELECT id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at FROM milestones WHERE id = $1 FOR UPDATE
+SELECT id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at, page_version FROM milestones WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetMilestoneForUpdate(ctx context.Context, id uuid.UUID) (Milestone, error) {
@@ -112,6 +114,7 @@ func (q *Queries) GetMilestoneForUpdate(ctx context.Context, id uuid.UUID) (Mile
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PageVersion,
 	)
 	return i, err
 }
@@ -133,7 +136,7 @@ func (q *Queries) LinkMilestoneWorkItem(ctx context.Context, arg LinkMilestoneWo
 }
 
 const listProjectMilestones = `-- name: ListProjectMilestones :many
-SELECT m.id, m.project_id, m.phase_id, m.name, m.description, m.description_text, m.due_date, m.completed_on, m.status, m.position, m.version, m.created_at, m.updated_at, ph.id AS phase_ref_id, d.name AS phase_name
+SELECT m.id, m.project_id, m.phase_id, m.name, m.description, m.description_text, m.due_date, m.completed_on, m.status, m.position, m.version, m.created_at, m.updated_at, m.page_version, ph.id AS phase_ref_id, d.name AS phase_name
 FROM milestones m
 LEFT JOIN project_phases ph ON ph.id = m.phase_id
 LEFT JOIN phase_definitions d ON d.id = ph.definition_id
@@ -155,6 +158,7 @@ type ListProjectMilestonesRow struct {
 	Version         int32
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	PageVersion     int32
 	PhaseRefID      *uuid.UUID
 	PhaseName       *string
 }
@@ -182,6 +186,7 @@ func (q *Queries) ListProjectMilestones(ctx context.Context, projectID uuid.UUID
 			&i.Version,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PageVersion,
 			&i.PhaseRefID,
 			&i.PhaseName,
 		); err != nil {
@@ -351,7 +356,7 @@ func (q *Queries) MilestoneProgress(ctx context.Context, arg MilestoneProgressPa
 
 const setMilestoneStatus = `-- name: SetMilestoneStatus :one
 UPDATE milestones SET status = $3, completed_on = $4, version = version + 1, updated_at = now()
-WHERE id = $1 AND version = $2 RETURNING id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at
+WHERE id = $1 AND version = $2 RETURNING id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at, page_version
 `
 
 type SetMilestoneStatusParams struct {
@@ -383,6 +388,7 @@ func (q *Queries) SetMilestoneStatus(ctx context.Context, arg SetMilestoneStatus
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PageVersion,
 	)
 	return i, err
 }
@@ -408,7 +414,7 @@ const updateMilestone = `-- name: UpdateMilestone :one
 UPDATE milestones
 SET phase_id = $3, name = $4, description = $5, description_text = $6, due_date = $7, position = $8,
     version = version + 1, updated_at = now()
-WHERE id = $1 AND version = $2 RETURNING id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at
+WHERE id = $1 AND version = $2 RETURNING id, project_id, phase_id, name, description, description_text, due_date, completed_on, status, position, version, created_at, updated_at, page_version
 `
 
 type UpdateMilestoneParams struct {
@@ -448,6 +454,7 @@ func (q *Queries) UpdateMilestone(ctx context.Context, arg UpdateMilestoneParams
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PageVersion,
 	)
 	return i, err
 }

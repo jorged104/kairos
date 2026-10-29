@@ -4,7 +4,7 @@ Derivadas de [plan.md](plan.md) para [spec.md](spec.md), en orden de dependencia
 Un commit por tarea en `feat/005-paginas-tipo-notion`; ninguna se marca sin su verificación en verde.
 Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
 
-- [ ] **T1 — Esquema** (`00005_paginas.sql`, queries, `make sqlc`)
+- [x] **T1 — Esquema** (`00005_paginas.sql`, queries, `make sqlc`)
   - Depende de: —
   - RF: soporte de RF-14 a RF-24, RF-34, RF-49 a RF-55, RF-59
   - Hecho cuando: la migración sube, baja y vuelve a subir en limpio; test de BD de que el trigger incrementa `page_version` solo si cambia `description`; sqlc genera sin errores; `go test ./...` en verde.
