@@ -1,6 +1,6 @@
 # Spec 005 — Páginas tipo Notion para work items, proyectos e hitos
 
-**Estado:** Borrador (2026-10-29) — pendiente de aprobación.
+**Estado:** Aprobada (2026-10-29).
 
 ## Contexto y objetivo
 Hoy la descripción de un work item, un proyecto o un hito es un campo de texto enriquecido
@@ -173,7 +173,7 @@ documentos externos.
 - **Atajos de Markdown:** incluidos (RF-56).
 - **Anidamiento:** permitido hasta 20 niveles (RF-57, RF-58).
 - **Archivos por página:** sin límite de número (RF-55).
-- **Componente de edición:** se busca uno ya hecho en lugar de construir el editor desde cero. El plan lo elige y justifica cada dependencia nueva, que se añadirá a esta spec antes de instalarla (regla de `AGENTS.md`).
+- **Componente de edición:** se busca uno ya hecho en lugar de construir el editor desde cero. Se sigue con TipTap 3, que ya usa el proyecto, y se añaden sus extensiones oficiales: asa de arrastre para Vue 3 (con sus dependencias obligatorias de colaboración, que no se usa), sugerencias para el menú `/` y los buscadores, menciones, plegables e imagen. En el backend se añade un cliente S3 compatible con MinIO. El detalle y la justificación de cada una están en el plan.
 
 ## Dudas abiertas
 Ninguna.
