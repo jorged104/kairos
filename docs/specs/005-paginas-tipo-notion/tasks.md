@@ -83,6 +83,10 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: specs de cambiar una propiedad sin botón de editar (solo cambia esa), Escape en un campo, papelera con doble pulsación, sin hitos ni dependencias, y panel a media pantalla que se redimensiona y vuelve a la mitad.
   - Nota: los botones «Pasar a:» se quedan como atajo del estado.
 
+- [x] **T16 — Más propiedades** (`WorkItemSheet.vue`)
+  - RF: RF-68, RF-69
+  - Hecho cuando: spec de las cinco propiedades principales a la vista y el resto que se despliega y se vuelve a plegar.
+
 - [ ] **T14 — Prueba manual (tú)**
   - Depende de: todas
   - RF: RF-10, RF-11 y la demo de los criterios de finalización
