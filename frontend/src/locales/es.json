@@ -57,7 +57,7 @@
   },
   "auth": {
     "logout": "Cerrar sesión",
-    "passwordHint": "Entre 12 y 128 caracteres.",
+    "passwordHint": "Entre 6 y 128 caracteres.",
     "fields": {
       "name": "Nombre",
       "email": "Email",
@@ -253,7 +253,7 @@
     "local_auth_disabled": "El acceso con contraseña no está habilitado.",
     "oidc_disabled": "El acceso con la cuenta corporativa no está habilitado.",
     "registration_disabled": "El registro no está habilitado.",
-    "password_too_short": "La contraseña debe tener al menos 12 caracteres.",
+    "password_too_short": "La contraseña debe tener al menos 6 caracteres.",
     "password_too_long": "La contraseña no puede tener más de 128 caracteres.",
     "wrong_password": "La contraseña actual no es correcta.",
     "email_conflict": "Ese email ya pertenece a otra persona.",

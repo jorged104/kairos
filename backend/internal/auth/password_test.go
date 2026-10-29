@@ -42,9 +42,9 @@ func TestVerifyUsesTheCostStoredInTheHash(t *testing.T) {
 
 func TestPasswordLength(t *testing.T) {
 	cases := map[string]error{
-		strings.Repeat("a", 11):  errPasswordTooShort,
-		strings.Repeat("a", 12):  nil,
-		strings.Repeat("ñ", 12):  nil, // counted in characters, not bytes
+		strings.Repeat("a", 5):   errPasswordTooShort,
+		strings.Repeat("a", 6):   nil,
+		strings.Repeat("ñ", 5):   errPasswordTooShort, // counted in characters, not bytes
 		strings.Repeat("a", 128): nil,
 		strings.Repeat("a", 129): errPasswordTooLong,
 	}

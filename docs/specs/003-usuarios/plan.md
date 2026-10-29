@@ -161,7 +161,7 @@ cubre el caso general (máximo 60 s < 120 s).
   `PUBLIC_URL`; si no, 403 `csrf_rejected`. El callback OIDC es `GET` y se protege con `state`.
 - **Rate limit (RF-9):** en memoria, ventana deslizante de 15 min por email normalizado y por IP;
   al quinto fallo se bloquea 15 min. Una sola instancia de API: suficiente para esta iteración.
-- **Contraseñas:** 12 a 128 caracteres (contados en runas). Formato PHC
+- **Contraseñas:** 6 a 128 caracteres (contados en runas). Formato PHC
   `$argon2id$v=19$m=…,t=…,p=1$sal$hash`, comparación en tiempo constante. Si el email no existe
   se calcula igualmente un hash de relleno para no revelar su existencia por tiempo (RF-8).
 
