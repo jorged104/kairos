@@ -39,7 +39,7 @@ documentos externos.
 - RF-2: EL SISTEMA admitirá además listas de tareas con casilla, bloques plegables, citas, avisos destacados (callout) y separadores.
 - RF-3: CUANDO el usuario marque o desmarque la casilla de una lista de tareas, EL SISTEMA guardará el cambio como cualquier otra edición de la página.
 - RF-4: CUANDO el usuario pliegue o despliegue un bloque plegable, EL SISTEMA mostrará u ocultará su contenido sin guardar el cambio. Al abrir la página, todos aparecerán plegados.
-- RF-5: EL SISTEMA admitirá bloques de imagen y de archivo adjunto (RF-14 a RF-24).
+- RF-5: EL SISTEMA admitirá bloques de imagen y de archivo adjunto (RF-14 a RF-24 y RF-49 a RF-55).
 - RF-6: EL SISTEMA admitirá menciones de usuarios, work items, hitos y proyectos (RF-25 a RF-30).
 
 ### Edición por bloques
@@ -49,6 +49,9 @@ documentos externos.
 - RF-10: CUANDO el usuario pase el puntero sobre un bloque, EL SISTEMA mostrará junto a él un asa para arrastrarlo.
 - RF-11: CUANDO el usuario arrastre un bloque por su asa y lo suelte en otra posición, EL SISTEMA lo moverá ahí con todo su contenido, incluidos los bloques anidados.
 - RF-12: CUANDO el usuario abra el menú del asa, EL SISTEMA ofrecerá convertir el bloque en otro tipo compatible, duplicarlo y borrarlo.
+- RF-56: CUANDO el usuario escriba al principio de un bloque `# `, `## ` o `### `, `- `, `1. `, `[] `, `> `, `---` o tres acentos graves, EL SISTEMA lo convertirá en título del nivel correspondiente, lista con viñetas, lista numerada, lista de tareas, cita, separador o bloque de código.
+- RF-57: EL SISTEMA admitirá bloques plegables dentro de otros plegables, y los bloques de RF-2 y RF-5 dentro de celdas de tabla y de plegables, hasta el límite de 20 niveles de anidamiento de la descripción actual.
+- RF-58: SI un cambio superaría los 20 niveles de anidamiento, ENTONCES EL SISTEMA no lo aplicará.
 - RF-13: MIENTRAS el usuario no tenga permiso de escritura sobre el elemento, EL SISTEMA mostrará la página en modo lectura, sin menú `/` ni asas, y con las casillas de las listas de tareas deshabilitadas.
 
 ### Imágenes y archivos
@@ -63,6 +66,13 @@ documentos externos.
 - RF-22: DONDE no esté configurado ese almacenamiento, EL SISTEMA guardará los archivos en la base de datos.
 - RF-23: EL SISTEMA solo servirá una imagen o un adjunto a usuarios con acceso de lectura al elemento cuya página lo contiene.
 - RF-24: EL SISTEMA servirá los adjuntos como descarga y nunca para que el navegador los ejecute en la página de Kairos.
+- RF-49: CUANDO se guarde una página que ya no contiene un archivo que tenía, EL SISTEMA marcará ese archivo como borrado y dejará de servirlo.
+- RF-50: CUANDO se guarde una página que vuelve a contener un archivo suyo marcado como borrado (por ejemplo, al deshacer), EL SISTEMA quitará la marca y volverá a servirlo.
+- RF-51: CUANDO se borre un work item, un proyecto o un hito, EL SISTEMA marcará como borrados los archivos de su página.
+- RF-52: EL SISTEMA no eliminará del almacenamiento los archivos marcados como borrados. Los eliminará el mantenimiento periódico de una spec posterior.
+- RF-53: CUANDO se cree un proyecto desde una plantilla, EL SISTEMA duplicará los archivos de las páginas copiadas, de modo que marcar como borrado un archivo de la copia no afecte a la plantilla.
+- RF-54: CUANDO se configure el almacenamiento S3 habiendo archivos en la base de datos, EL SISTEMA seguirá sirviendo esos archivos desde la base de datos y guardará en S3 solo los nuevos.
+- RF-55: EL SISTEMA no limitará el número de archivos de una página, solo el tamaño de cada uno (RF-16).
 
 ### Menciones
 - RF-25: CUANDO el usuario escriba `@`, EL SISTEMA abrirá un buscador de usuarios activos por nombre o email.
@@ -73,10 +83,11 @@ documentos externos.
 - RF-30: EL SISTEMA no enviará avisos a los usuarios mencionados.
 
 ### Guardado
-- RF-31: CUANDO el usuario deje de escribir durante [NECESITA ACLARACIÓN: ¿2 segundos?], EL SISTEMA guardará la página sin que el usuario pulse ningún botón.
+- RF-31: CUANDO el usuario deje de escribir durante 2 segundos, EL SISTEMA guardará la página sin que el usuario pulse ningún botón.
 - RF-32: CUANDO el usuario salga de la página o cierre el panel con cambios sin guardar, EL SISTEMA los guardará antes de cerrar.
 - RF-33: EL SISTEMA mostrará en la página si hay cambios sin guardar, si se está guardando o si ya está guardada.
 - RF-34: SI otra persona cambió la página desde que el usuario la abrió, ENTONCES EL SISTEMA no sobrescribirá su cambio, avisará al usuario y conservará en pantalla el texto del usuario para que pueda copiarlo antes de recargar.
+- RF-59: CUANDO otra persona cambie otra propiedad del elemento (estado, asignado, fechas…) mientras el usuario edita la página, EL SISTEMA guardará la página sin tratarlo como conflicto y sin deshacer ese cambio.
 - RF-35: SI el guardado falla por un error de red, ENTONCES EL SISTEMA conservará los cambios en pantalla, mostrará el error y reintentará el guardado.
 - RF-36: SI la página supera el límite de tamaño de la descripción (50 000 caracteres, spec 004 RF-70), ENTONCES EL SISTEMA no la guardará e indicará el límite.
 
@@ -106,16 +117,19 @@ documentos externos.
 ## Casos límite
 - **Pegar contenido de otra web o de Notion:** solo se conserva lo admitido por RF-1, RF-2 y RF-45. Lo demás se convierte en texto.
 - **Pegar una imagen que supera 10 MB o de un tipo no admitido:** se rechaza como en RF-16 y RF-17, y el resto de lo pegado se conserva.
-- **Imagen borrada de la página:** la página deja de mostrarla. [NECESITA ACLARACIÓN: ¿el archivo se borra del almacenamiento al guardar, tras un periodo, o nunca?]
-- **Work item, proyecto o hito borrado:** sus archivos dejan de servirse. [NECESITA ACLARACIÓN: ¿se borran del almacenamiento a la vez?]
-- **Copia desde plantilla (spec 004):** la página copiada conserva sus imágenes y adjuntos. [NECESITA ACLARACIÓN: ¿la copia comparte los archivos de la plantilla o los duplica?]
-- **Cambio de almacenamiento:** si se configura S3 cuando ya hay archivos en la base de datos, los existentes se siguen sirviendo. [NECESITA ACLARACIÓN: ¿hay que migrarlos a S3?]
+- **Imagen quitada de la página:** se marca como borrada y deja de servirse (RF-49). Si se deshace y se vuelve a guardar, se recupera (RF-50).
+- **Work item, proyecto o hito borrado:** sus archivos se marcan como borrados (RF-51). Ninguno se elimina del almacenamiento en esta spec (RF-52).
+- **Copia desde plantilla (spec 004):** la copia tiene sus propios archivos duplicados (RF-53).
+- **Cambio de almacenamiento:** al activar S3, los archivos ya guardados en la base de datos se quedan ahí (RF-54). Si después se quita la configuración de S3, los archivos guardados en S3 dejan de poder servirse hasta que vuelva.
+- **Mención dentro de una página copiada de plantilla:** se copia tal cual, apuntando al mismo elemento.
 - **S3 configurado pero caído:** la subida falla con error (RF-20), no se guarda en la base de datos como alternativa. Los archivos ya subidos no se pueden ver mientras dure.
 - **Dos pestañas del mismo usuario:** se tratan como dos personas (RF-34).
-- **Un cambio de estado, asignado u otra propiedad mientras alguien edita la página:** [NECESITA ACLARACIÓN: ¿cuenta como conflicto de RF-34 o solo cuentan los cambios de la página?]
+- **Un cambio de estado, asignado u otra propiedad mientras alguien edita la página:** no es conflicto (RF-59).
+- **Atajo de Markdown dentro de un bloque de código:** se queda como texto, sin convertir.
 - **Mención a un work item de otro proyecto:** se admite si quien escribe tiene acceso. Quien lee sin acceso ve «sin acceso» (RF-28).
 - **Página vacía:** se muestra un texto de ayuda que invita a escribir o pulsar `/`, solo a quien puede editar.
-- **Bloques plegables anidados y listas de tareas dentro de tablas:** [NECESITA ACLARACIÓN: ¿se admiten o se limita el anidamiento?] El límite de 20 niveles de la descripción actual se mantiene.
+- **Bloques plegables anidados y bloques nuevos dentro de tablas:** se admiten hasta 20 niveles (RF-57, RF-58).
+- **Arrastrar un bloque dentro de sí mismo o más allá de 20 niveles:** no se aplica (RF-58).
 
 ## Fuera de alcance
 - Colaboración en tiempo real: cursores de otros usuarios y edición simultánea con fusión de cambios.
@@ -131,6 +145,7 @@ documentos externos.
 - Arrastrar bloques en pantallas táctiles.
 - Previsualizar PDF u Office dentro de la página: se descargan.
 - Cuotas de almacenamiento por proyecto o usuario.
+- Eliminar físicamente del almacenamiento los archivos marcados como borrados (RF-52), y migrar archivos entre la base de datos y S3.
 
 ## Criterios de finalización
 - Todos los RF cubiertos por tests automáticos en verde: backend para guardado, conflictos, archivos (tipos, tamaño, permisos y los dos almacenamientos) y menciones sin acceso; frontend para el menú `/`, las asas, el autoguardado y las vistas.
@@ -150,13 +165,15 @@ documentos externos.
 - **Edición:** menú `/`, asas para arrastrar y menú de bloque.
 - **Alcance:** work items, proyectos e hitos. Objetivos fuera.
 - **Menciones:** solo enlace, sin avisos.
+- **Autoguardado:** a los 2 s sin escribir (RF-31).
+- **Archivos quitados o de elementos borrados:** solo se marcan como borrados. Su eliminación física la hará un mantenimiento periódico de otra spec (RF-49 a RF-52).
+- **Plantillas:** la copia duplica los archivos (RF-53).
+- **Activar S3:** los archivos existentes se quedan en la base de datos (RF-54).
+- **Conflicto:** solo cuentan los cambios de la página (RF-34, RF-59).
+- **Atajos de Markdown:** incluidos (RF-56).
+- **Anidamiento:** permitido hasta 20 niveles (RF-57, RF-58).
+- **Archivos por página:** sin límite de número (RF-55).
+- **Componente de edición:** se busca uno ya hecho en lugar de construir el editor desde cero. El plan lo elige y justifica cada dependencia nueva, que se añadirá a esta spec antes de instalarla (regla de `AGENTS.md`).
 
 ## Dudas abiertas
-- [NECESITA ACLARACIÓN] Tiempo sin escribir antes del autoguardado (RF-31). Propuesta: 2 s.
-- [NECESITA ACLARACIÓN] Qué pasa con un archivo al quitarlo de la página y al borrar el elemento: borrar del almacenamiento al momento, tras un periodo o nunca.
-- [NECESITA ACLARACIÓN] Copia desde plantilla: compartir o duplicar los archivos.
-- [NECESITA ACLARACIÓN] Al configurar S3 con archivos ya en la base de datos: migrarlos o dejarlos.
-- [NECESITA ACLARACIÓN] Conflicto de autoguardado: solo si otro cambió la página, o también si cambió cualquier propiedad del elemento. Propuesta: solo la página, para que un cambio de estado no interrumpa a quien escribe.
-- [NECESITA ACLARACIÓN] Atajos de Markdown al escribir (`# ` título, `- ` lista, `[] ` tarea, `> ` cita): ¿se incluyen?
-- [NECESITA ACLARACIÓN] Anidamiento: plegables dentro de plegables y bloques nuevos dentro de celdas de tabla.
-- [NECESITA ACLARACIÓN] Límite de archivos por página. Propuesta: sin límite propio, solo los 10 MB por archivo.
+Ninguna.
