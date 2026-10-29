@@ -44,6 +44,7 @@ type Project struct {
 	Identifier        string                        `json:"identifier"`
 	Name              string                        `json:"name"`
 	Description       json.RawMessage               `json:"description"`
+	PageVersion       int32                         `json:"page_version"` // compared by the autosave (spec 005)
 	Team              workcore.Ref                  `json:"team"`
 	Owner             workcore.Ref                  `json:"owner"`
 	Methodology       *workcore.Ref                 `json:"methodology"`

@@ -17,6 +17,7 @@ import (
 	"openscum/internal/customfields"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/files"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
 )
@@ -125,7 +126,7 @@ func create(ctx context.Context, q *sqlc.Queries, p *authz.Principal, req create
 	if err != nil {
 		return sqlc.Project{}, err
 	}
-	desc, text, err := richtext.Clean(req.Description)
+	desc, text, err := files.NewPage(req.Description)
 	if err != nil {
 		return sqlc.Project{}, err
 	}
@@ -274,7 +275,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return err
 			}
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.Description(ctx, q, files.Owner{Kind: "project", ID: id, ProjectID: id},
+			req.Description, row.Description, row.DescriptionText)
 		if err != nil {
 			return err
 		}
@@ -500,7 +502,7 @@ func (s *Service) Subtree(ctx context.Context, p *authz.Principal, id uuid.UUID)
 // view builds the full project for the caller.
 func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Project) (Project, error) {
 	out := Project{
-		ID: row.ID, Identifier: row.Identifier, Name: row.Name, Description: row.Description,
+		ID: row.ID, Identifier: row.Identifier, Name: row.Name, Description: row.Description, PageVersion: row.PageVersion,
 		TemplateID: row.TemplateID, IsTemplate: row.IsTemplate, Lifecycle: row.Lifecycle, Health: row.Health,
 		HealthExplanation: row.HealthExplanation, StartDate: workcore.FromTime(row.StartDate), EndDate: workcore.FromTime(row.EndDate),
 		Depth: row.Depth, Version: row.Version, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,

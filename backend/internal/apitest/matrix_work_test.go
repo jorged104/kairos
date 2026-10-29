@@ -195,6 +195,15 @@ var workOps = []workOp{
 	{"subir archivo a proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Upload("/api/projects/"+m.project(a).String()+"/files", "a.png", pngData)
 	}, managers(201)},
+	{"guardar página de work item", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/work-items/"+m.workItem(m.project(a)).ID.String()+"/page", map[string]any{"page": nil, "page_version": 1})
+	}, writers(200)},
+	{"guardar página de hito", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/milestones/"+m.milestone(m.project(a)).ID.String()+"/page", map[string]any{"page": nil, "page_version": 1})
+	}, managers(200)},
+	{"guardar página de proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/page", map[string]any{"page": nil, "page_version": 1})
+	}, managers(200)},
 	{"descargar archivo", func(m *workMatrix, c *Client, a string) *Response {
 		var f fileDTO
 		m.admin.Upload("/api/projects/"+m.project(a).String()+"/files", "a.png", pngData).Expect(m.t, http.StatusCreated).JSON(m.t, &f)

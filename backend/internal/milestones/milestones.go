@@ -21,6 +21,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
+	"openscum/internal/files"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -51,6 +52,7 @@ type Milestone struct {
 	Phase       *workcore.Ref        `json:"phase"`
 	Name        string               `json:"name"`
 	Description json.RawMessage      `json:"description"`
+	PageVersion int32                `json:"page_version"` // compared by the autosave (spec 005)
 	DueDate     *workcore.Date       `json:"due_date"`
 	CompletedOn *workcore.Date       `json:"completed_on"`
 	Status      string               `json:"status"`
@@ -178,7 +180,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err := checkPhase(ctx, q, projectID, req.PhaseID); err != nil {
 			return err
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.NewPage(req.Description)
 		if err != nil {
 			return err
 		}
@@ -249,7 +251,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if err := checkPhase(ctx, q, project.ID, req.PhaseID); err != nil {
 			return err
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.Description(ctx, q, files.Owner{Kind: "milestone", ID: id, ProjectID: project.ID},
+			req.Description, m.Description, m.DescriptionText)
 		if err != nil {
 			return err
 		}
@@ -448,7 +451,7 @@ func (s *Service) progress(ctx context.Context, q *sqlc.Queries, arg sqlc.Milest
 func (s *Service) base(p *authz.Principal, m sqlc.Milestone, project sqlc.Project) Milestone {
 	out := Milestone{
 		ID: m.ID, Project: workitems.ProjectRef{ID: project.ID, Identifier: project.Identifier, Name: project.Name},
-		Name: m.Name, Description: m.Description, DueDate: workcore.FromTime(m.DueDate),
+		Name: m.Name, Description: m.Description, PageVersion: m.PageVersion, DueDate: workcore.FromTime(m.DueDate),
 		CompletedOn: workcore.FromTime(m.CompletedOn), Status: m.Status, Position: m.Position, Version: m.Version,
 	}
 	today := time.Date(s.now().Year(), s.now().Month(), s.now().Day(), 0, 0, 0, 0, time.UTC)

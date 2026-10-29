@@ -26,10 +26,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: tests de detección por contenido (incluidos los rechazos de SVG, HTML, ejecutable y ZIP disfrazado), de 10 MB exactos y 10 MB + 1, y `apitest` de subir y servir con cabeceras, lector sin acceso con 404 y 25 archivos en una página.
   - Desviación: en la spec 004 todos los proyectos se leen con `work:read`, así que un usuario de otro equipo puede ver un archivo igual que ve la página que lo contiene (RF-23). El 404 queda para archivos que no existen o están marcados como borrados, y para plantillas sin `templates:use`. La subida está en el paquete `pages`, que sabe quién puede cambiar cada dueño; `files` guarda, sirve y marca.
 
-- [ ] **T5 — Guardar la página** (`internal/pages`, `description` opcional en los `PATCH`)
+- [x] **T5 — Guardar la página** (`internal/pages`, `description` opcional en los `PATCH`)
   - Depende de: T2, T4
   - RF: RF-34, RF-36, RF-43, RF-44, RF-47, RF-49, RF-50, RF-59
   - Hecho cuando: `apitest` de `PUT …/page` en los tres dueños, `page_conflict`, cambio de estado sin conflicto, `PATCH` sin `description` que la conserva, `PATCH` antiguo que incrementa `page_version`, marcar y desmarcar archivos, descripción de la 004 leída y guardada, y auditoría `description_changed`.
+  - Nota: el `PATCH` que trae `description` (el del frontend anterior) también la valida como página y sincroniza sus archivos, para que ningún camino deje una página sin controlar sus archivos. Las altas validan la descripción como página sin archivos. La descarga de archivos pasó de `files` a `pages`, porque `projects` necesita importar `files` y `files` no puede importar `projects`.
 
 - [ ] **T6 — Borrados y plantillas** (`workitems`, `milestones`, `projects/templates.go`)
   - Depende de: T5

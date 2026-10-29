@@ -5,18 +5,14 @@ package files
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
-	"openscum/internal/apperr"
-	"openscum/internal/authz"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
-	"openscum/internal/projects"
 	"openscum/internal/richtext"
 )
 
@@ -116,19 +112,42 @@ func (s *Service) Copy(ctx context.Context, q *sqlc.Queries, from, to Owner, by 
 	return ids, nil
 }
 
-// Open returns a file and its content to whoever can read its project
-// (RF-23). A marked file is not served (RF-49).
-func (s *Service) Open(ctx context.Context, p *authz.Principal, id uuid.UUID) (sqlc.PageFile, io.ReadCloser, error) {
-	f, err := s.store.GetPageFile(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && f.DeletedAt != nil) {
-		return f, nil, apperr.ErrNotFound
+// Read returns the content of f from wherever it was stored. Who may read it
+// is checked by the caller.
+func (s *Service) Read(ctx context.Context, f sqlc.PageFile) (io.ReadCloser, error) {
+	return s.storage.open(ctx, s.store.Queries, f)
+}
+
+// Description is the description a PATCH leaves on o: the stored one when the
+// request brings none (a client that only changes other fields, RF-59), else
+// the request's, validated as a page.
+func Description(ctx context.Context, q *sqlc.Queries, o Owner, raw, stored json.RawMessage, storedText string) (json.RawMessage, string, error) {
+	if raw == nil {
+		return stored, storedText, nil
 	}
+	doc, text, _, err := Page(ctx, q, o, raw)
+	return doc, text, err
+}
+
+// NewPage validates the description of an element being created: a page
+// with no files yet.
+func NewPage(raw json.RawMessage) (json.RawMessage, string, error) {
+	doc, text, _, err := richtext.CleanPage(raw, nil)
+	return doc, text, err
+}
+
+// Page validates the page of o with its files (richtext.CleanPage) and
+// leaves live the files it shows (RF-49, RF-50), in the caller's transaction.
+// Every save of a description goes through here, the PATCH of the previous
+// frontend too, so no page loses track of its files.
+func Page(ctx context.Context, q *sqlc.Queries, o Owner, raw json.RawMessage) (json.RawMessage, string, richtext.Page, error) {
+	owned, err := Owned(ctx, q, o)
 	if err != nil {
-		return f, nil, fmt.Errorf("leer archivo: %w", err)
+		return nil, "", richtext.Page{}, err
 	}
-	if _, err := projects.Get(ctx, s.store.Queries, p, f.ProjectID, false); err != nil {
-		return f, nil, err
+	doc, text, page, err := richtext.CleanPage(raw, owned)
+	if err != nil {
+		return nil, "", richtext.Page{}, err
 	}
-	r, err := s.storage.open(ctx, s.store.Queries, f)
-	return f, r, err
+	return doc, text, page, Sync(ctx, q, o, page.Files)
 }

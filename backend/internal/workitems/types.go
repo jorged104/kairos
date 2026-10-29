@@ -46,6 +46,7 @@ type WorkItem struct {
 	PriorityID       uuid.UUID                     `json:"priority_id"`
 	Title            string                        `json:"title"`
 	Description      json.RawMessage               `json:"description"`
+	PageVersion      int32                         `json:"page_version"` // compared by the autosave (spec 005)
 	Author           workcore.Ref                  `json:"author"`
 	Assignee         *workcore.Ref                 `json:"assignee"`
 	Parent           *Ref                          `json:"parent"`

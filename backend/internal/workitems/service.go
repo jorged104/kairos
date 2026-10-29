@@ -21,6 +21,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
+	"openscum/internal/files"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -234,7 +235,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 				return err
 			}
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.NewPage(req.Description)
 		if err != nil {
 			return err
 		}
@@ -368,7 +369,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return err
 			}
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.Description(ctx, q, files.Owner{Kind: "work_item", ID: id, ProjectID: project.ID},
+			req.Description, row.Description, row.DescriptionText)
 		if err != nil {
 			return err
 		}
@@ -582,7 +584,7 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		ID: row.ID, Key: Key(project.Identifier, row.SequenceNumber), SequenceNumber: row.SequenceNumber,
 		Project: ProjectRef{ID: project.ID, Identifier: project.Identifier, Name: project.Name},
 		TypeID:  row.TypeID, StatusID: row.StatusID, PriorityID: row.PriorityID, Title: row.Title,
-		Description: row.Description, Author: workcore.Ref{ID: row.AuthorID},
+		Description: row.Description, PageVersion: row.PageVersion, Author: workcore.Ref{ID: row.AuthorID},
 		StartDate: workcore.FromTime(row.StartDate), DueDate: workcore.FromTime(row.DueDate),
 		EstimatedHours: row.EstimatedHours, RemainingHours: row.RemainingHours, DoneRatio: row.DoneRatio, Weight: row.Weight,
 		Derived:  Derived{EstimatedHours: row.AggEstimated, RemainingHours: row.AggRemaining},
