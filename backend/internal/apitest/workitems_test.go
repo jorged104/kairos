@@ -211,9 +211,20 @@ func TestCompositionAndDerivedValues(t *testing.T) {
 		t.Fatalf("derived after close = %+v, want 15 h and (0+50+100)/3 = 50", got)
 	}
 
-	// Moving A out of the epic updates both sides (RF-57, RF-83).
+	// Reopening B restarts it although the client sends 100 % and 0 h back (RF-160).
+	var bReopened workItemDTO
+	s.patch(s.lead, bClosed, map[string]any{"status_id": s.env.CatalogID("statuses", "En progreso")}).
+		Expect(t, http.StatusOK).JSON(t, &bReopened)
+	if bReopened.DoneRatio != 0 || bReopened.RemainingHours == nil || *bReopened.RemainingHours != 10 || bReopened.ClosedAt != nil {
+		t.Fatalf("reopened = %+v, want 0 %% and the 10 estimated hours", bReopened)
+	}
+	if got := s.get(t, epic.ID).Derived; got.RemainingHours != 25 || got.DoneRatio != 17 {
+		t.Fatalf("derived after reopen = %+v, want 25 h and 17", got)
+	}
+
+	// Moving A out of the epic updates both sides (RF-57, RF-83); the reopened B counts its 10 h again.
 	s.patch(s.member, s.get(t, a.ID), map[string]any{"parent_id": nil}).Expect(t, http.StatusOK)
-	if got := s.get(t, epic.ID).Derived; got.EstimatedHours != 20 || got.RemainingHours != 10 {
+	if got := s.get(t, epic.ID).Derived; got.EstimatedHours != 20 || got.RemainingHours != 20 {
 		t.Fatalf("derived after move = %+v", got)
 	}
 	if got := s.get(t, a.ID); got.Depth != 0 || got.Parent != nil {

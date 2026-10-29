@@ -350,7 +350,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			zero, now := 0.0, time.Now().UTC()
 			ratio, remaining, closedAt = 100, &zero, &now
 		case reopening:
-			closedAt = nil
+			// Reopening starts it over, whatever the client sends back (RF-160).
+			ratio, remaining, closedAt = 0, req.EstimatedHours, nil
 		}
 
 		depth := row.Depth

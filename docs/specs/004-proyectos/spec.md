@@ -3,6 +3,8 @@
 **Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
+**Cambio:** 2026-10-29. Al reabrir un work item se reinician su avance y sus horas restantes: RF-160.
+
 **Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.
 
 **Cambio:** Aprobado (2026-10-28) · PR #12. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-159.
@@ -174,6 +176,7 @@ Vienen del borrador del responsable de producto y **no se reabren**:
 - ~~RF-82: SI ningún work item del subárbol tiene horas estimadas, ENTONCES EL SISTEMA calculará el avance derivado como la media simple de sus avances.~~ Sustituida por RF-153 (pesos).
 - RF-83: CUANDO cambien las horas, el avance, el estado o el padre de un work item, EL SISTEMA dejará actualizados los valores derivados de todos sus ancestros (y de los antiguos, si cambió de padre) al confirmar el cambio.
 - RF-84: CUANDO un work item pase a un estado cerrado, EL SISTEMA pondrá su avance en 100 % y sus horas restantes en 0.
+- RF-160: CUANDO un work item cerrado pase a un estado abierto, EL SISTEMA pondrá su avance en 0 % y sus horas restantes en sus horas estimadas (vacías si no las tiene), aunque la petición traiga otros valores.
 - RF-85: SI se intenta borrar un work item que tiene hijos, ENTONCES EL SISTEMA rechazará el borrado.
 
 ### Estados y flujos
