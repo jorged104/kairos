@@ -16,7 +16,10 @@ const catalog: Catalog = {
   methodologies: [],
   work_item_types: [{ id: 'ty', name: 'Historia', color: '#3b82f6', position: 1, default_weight: 1, retired: false }],
   statuses: [{ id: 'st', name: 'Nuevo', color: '#3b82f6', position: 1, is_closed: false, is_default: true, retired: false }],
-  priorities: [{ id: 'pr', name: 'Normal', color: '#3b82f6', position: 1, is_default: true, retired: false }],
+  priorities: [
+    { id: 'pr', name: 'Normal', color: '#3b82f6', position: 1, is_default: true, retired: false },
+    { id: 'pr2', name: 'Alta', color: '#ef4444', position: 2, is_default: false, retired: false },
+  ],
 }
 const node: WorkNode = {
   id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login con SSO', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null,
@@ -38,13 +41,21 @@ const project: Project = {
   can: { manage: true, write_work_items: true, manage_template: false },
 }
 
+// The work item as the API has it now: a PATCH changes it and moves its version.
+let current: WorkItem
 beforeEach(() => {
+  current = item
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string) => {
+    vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        current = { ...current, ...JSON.parse(String(init.body)), version: current.version + 1 }
+        return json(current)
+      }
+      if (init?.method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }))
       if (url.endsWith('/tree')) return json({ items: [node] })
       if (url.endsWith('/api/catalog')) return json(catalog)
-      if (url.includes('/api/work-items/by-key/KAI-1')) return json(item)
+      if (url.includes('/api/work-items/by-key/KAI-1')) return json(current)
       if (url.endsWith('/api/projects/p1')) return json(project)
       return json({ items: [] })
     }),
@@ -63,6 +74,7 @@ async function renderTree(path = '/projects/p1') {
     routes: [
       { path: '/projects/:id', component: page },
       { path: '/work-items/:wikey', component: { template: '<div data-testid="full-page" />' } },
+      { path: '/projects/:id/x', component: { template: '<div />' } },
     ],
   })
   await router.push(path)
@@ -82,7 +94,7 @@ describe('vistas del work item', () => {
     await flushPromises()
     expect(router.currentRoute.value.query.item).toBe('KAI-1')
     const panel = wrapper.find('[data-testid=item-panel]')
-    expect(panel.text()).toContain('Login con SSO')
+    expect((panel.find('#w-title').element as HTMLInputElement).value).toBe('Login con SSO')
     expect(panel.text()).toContain('Criterios de aceptación')
     expect(wrapper.find('[data-testid=work-item-row]').exists()).toBe(true) // the tree stays
   })
@@ -113,6 +125,72 @@ describe('vistas del work item', () => {
     await wrapper.find('[data-testid=close-panel]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.item).toBeUndefined()
+  })
+})
+
+describe('ficha del work item', () => {
+  const calls = (method: string) => vi.mocked(fetch).mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === method)
+
+  it('cada propiedad se cambia donde se ve, sin botón de editar', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const panel = wrapper.find('[data-testid=item-panel]')
+    expect(panel.findAll('button').some((b) => b.text() === 'Editar')).toBe(false)
+    await panel.find('#w-priority').setValue('pr2')
+    await flushPromises()
+    const [[url, init]] = calls('PATCH')
+    expect(url).toBe('/api/work-items/w1')
+    const body = JSON.parse(String((init as RequestInit).body))
+    expect(body).toMatchObject({ priority_id: 'pr2', title: 'Login con SSO', version: 4 })
+    expect(body.description).toBeUndefined() // the page saves itself
+
+    const title = panel.find('#w-title')
+    await title.setValue('Login con SAML')
+    await title.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(JSON.parse(String((calls('PATCH')[1][1] as RequestInit).body))).toMatchObject({ title: 'Login con SAML', priority_id: 'pr2', version: 5 })
+  })
+
+  it('Escape en un campo lo deja como estaba, sin cerrar el panel', async () => {
+    const { wrapper, router } = await renderTree('/projects/p1?item=KAI-1')
+    const est = wrapper.find('#w-est')
+    await est.setValue('8')
+    await est.trigger('keydown', { key: 'Escape' })
+    await est.trigger('blur')
+    await flushPromises()
+    expect((est.element as HTMLInputElement).value).toBe('')
+    expect(calls('PATCH')).toHaveLength(0)
+    expect(router.currentRoute.value.query.item).toBe('KAI-1')
+  })
+
+  it('se borra con la papelera de arriba a la izquierda, pulsando dos veces', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const bin = wrapper.find('[data-testid=delete-item]')
+    expect(bin.element.parentElement?.firstElementChild).toBe(bin.element)
+    await bin.trigger('click')
+    expect(calls('DELETE')).toHaveLength(0)
+    expect(bin.text()).toContain('Pulsa otra vez')
+    await bin.trigger('click')
+    await flushPromises()
+    expect(calls('DELETE')[0][0]).toBe('/api/work-items/w1')
+  })
+
+  it('no muestra hitos ni dependencias', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const panel = wrapper.find('[data-testid=item-panel]')
+    expect(panel.text()).not.toContain('Dependencias')
+    expect(panel.find('[data-testid=wi-milestone]').exists()).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/work-items/w1/milestones'))).toBe(false)
+  })
+
+  it('el panel ocupa la mitad y su borde cambia el ancho solo en esta visita', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const panel = () => wrapper.find('[data-testid=item-panel]').element as HTMLElement
+    expect(panel().style.getPropertyValue('--panel-w')).toBe('50vw')
+    const edge = wrapper.find('[data-testid=panel-resize]')
+    await edge.trigger('keydown', { key: 'ArrowLeft' })
+    expect(panel().style.getPropertyValue('--panel-w')).toBe(`${Math.round(window.innerWidth / 2) + 32}px`)
+    await edge.trigger('dblclick')
+    expect(panel().style.getPropertyValue('--panel-w')).toBe('50vw')
   })
 })
 
