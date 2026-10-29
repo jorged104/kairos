@@ -507,6 +507,8 @@
     "moveTo": "Pasar a:",
     "delete": "Borrar",
     "confirmDelete": "Pulsa otra vez para borrar",
+    "moreProperties": "Más propiedades ({count})",
+    "lessProperties": "Menos propiedades",
     "milestones": "Hitos",
     "dependencies": "Dependencias",
     "depType": "Tipo de dependencia",

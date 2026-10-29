@@ -152,6 +152,7 @@ describe('ficha del work item', () => {
 
   it('Escape en un campo lo deja como estaba, sin cerrar el panel', async () => {
     const { wrapper, router } = await renderTree('/projects/p1?item=KAI-1')
+    await wrapper.find('[data-testid=more-properties]').trigger('click')
     const est = wrapper.find('#w-est')
     await est.setValue('8')
     await est.trigger('keydown', { key: 'Escape' })
@@ -160,6 +161,22 @@ describe('ficha del work item', () => {
     expect((est.element as HTMLInputElement).value).toBe('')
     expect(calls('PATCH')).toHaveLength(0)
     expect(router.currentRoute.value.query.item).toBe('KAI-1')
+  })
+
+  it('muestra las propiedades principales y pliega las demás tras «Más propiedades» (RF-68, RF-69)', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const props = wrapper.find('[data-testid=properties]')
+    for (const id of ['w-status', 'w-assignee', 'w-priority', 'w-start', 'w-due']) expect(props.find(`#${id}`).exists()).toBe(true)
+    for (const id of ['w-type', 'w-parent', 'w-est', 'w-rem', 'w-ratio', 'w-weight']) expect(props.find(`#${id}`).exists()).toBe(false)
+    const toggle = props.find('[data-testid=more-properties]')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.text()).toBe('Más propiedades (7)')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    for (const id of ['w-type', 'w-parent', 'w-est', 'w-rem', 'w-ratio', 'w-weight']) expect(props.find(`#${id}`).exists()).toBe(true)
+    expect(props.text()).toContain('Autor')
+    await toggle.trigger('click')
+    expect(props.find('#w-type').exists()).toBe(false)
   })
 
   it('se borra con la papelera de arriba a la izquierda, pulsando dos veces', async () => {

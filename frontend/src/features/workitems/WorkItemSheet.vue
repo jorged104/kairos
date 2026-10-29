@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { Expand, Maximize2, Minimize2, Trash2, X } from '@lucide/vue'
+import { ChevronDown, ChevronRight, Expand, Maximize2, Minimize2, Trash2, X } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
@@ -23,7 +23,7 @@ import type { CustomField, WorkItem } from '@/types/work'
 import InlineField from './InlineField.vue'
 
 // A work item as a page (spec 005): title and properties, edited where they
-// are shown, and below them its page (RF-60 to RF-64). In the side panel of the tree
+// are shown, the main ones first (RF-68), and below them its page (RF-60 to RF-64). In the side panel of the tree
 // it offers to open it as a page and closes with Escape (RF-37, RF-38,
 // RF-42); as a page, the full width (RF-40).
 const props = defineProps<{ wikey: string; panel?: boolean }>()
@@ -107,6 +107,9 @@ function saveField(patch: Partial<WorkItemUpdateInput>) {
 const orNull = (v: string) => v || null
 const hours = (v: string) => (v === '' ? null : Number(v))
 const changeStatus = (statusId: string) => saveField({ status_id: statusId }).catch(() => undefined)
+
+// The main properties are always shown; the rest fold away, as in Notion (RF-68).
+const moreProperties = ref(false)
 
 // Custom fields as text in the fields, typed for the API.
 const fieldKind = (f: CustomField) =>
@@ -263,18 +266,6 @@ defineExpose({ close })
             </dd>
           </div>
           <div class="flex flex-col">
-            <dt><label for="w-type" class="text-muted-foreground">{{ t('workItems.type') }}</label></dt>
-            <dd>
-              <InlineField id="w-type" kind="select" :value="wi.type_id" :label="t('workItems.type')" :options="typeOptions" :editable="writable" required :save="(v) => saveField({ type_id: v })" />
-            </dd>
-          </div>
-          <div class="flex flex-col">
-            <dt><label for="w-priority" class="text-muted-foreground">{{ t('workItems.priority') }}</label></dt>
-            <dd>
-              <InlineField id="w-priority" kind="select" :value="wi.priority_id" :label="t('workItems.priority')" :options="priorityOptions" :editable="writable" required :save="(v) => saveField({ priority_id: v })" />
-            </dd>
-          </div>
-          <div class="flex flex-col">
             <dt><label for="w-assignee" class="text-muted-foreground">{{ t('workItems.assignee') }}</label></dt>
             <dd>
               <InlineField
@@ -290,23 +281,10 @@ defineExpose({ close })
             </dd>
           </div>
           <div class="flex flex-col">
-            <dt><label for="w-parent" class="text-muted-foreground">{{ t('workItems.parent') }}</label></dt>
+            <dt><label for="w-priority" class="text-muted-foreground">{{ t('workItems.priority') }}</label></dt>
             <dd>
-              <InlineField
-                id="w-parent"
-                kind="select"
-                :value="wi.parent?.id ?? ''"
-                :label="t('workItems.parent')"
-                :options="parentOptions"
-                :empty-label="t('workItems.noParent')"
-                :editable="writable"
-                :save="(v) => saveField({ parent_id: orNull(v) })"
-              />
+              <InlineField id="w-priority" kind="select" :value="wi.priority_id" :label="t('workItems.priority')" :options="priorityOptions" :editable="writable" required :save="(v) => saveField({ priority_id: v })" />
             </dd>
-          </div>
-          <div class="flex flex-col">
-            <dt class="text-muted-foreground">{{ t('workItems.author') }}</dt>
-            <dd class="flex h-8 items-center">{{ wi.author.name }}</dd>
           </div>
           <div class="flex flex-col">
             <dt><label for="w-start" class="text-muted-foreground">{{ t('workItems.start') }}</label></dt>
@@ -320,89 +298,126 @@ defineExpose({ close })
               <InlineField id="w-due" kind="date" :value="wi.due_date ?? ''" :label="t('workItems.due')" :editable="writable" :save="(v) => saveField({ due_date: orNull(v) })" />
             </dd>
           </div>
-          <div class="flex flex-col">
-            <dt><label for="w-est" class="text-muted-foreground">{{ t('workItems.estimated') }}</label></dt>
-            <dd>
-              <InlineField
-                id="w-est"
-                kind="number"
-                :min="0"
-                :max="10000"
-                :step="0.25"
-                :value="fieldText(wi.estimated_hours)"
-                :label="t('workItems.estimated')"
-                :editable="writable"
-                :save="(v) => saveField({ estimated_hours: hours(v) })"
-              />
-            </dd>
-          </div>
-          <div class="flex flex-col">
-            <dt><label for="w-rem" class="text-muted-foreground">{{ t('workItems.remaining') }}</label></dt>
-            <dd>
-              <InlineField
-                id="w-rem"
-                kind="number"
-                :min="0"
-                :max="10000"
-                :step="0.25"
-                :value="fieldText(wi.remaining_hours)"
-                :label="t('workItems.remaining')"
-                :editable="writable"
-                :save="(v) => saveField({ remaining_hours: hours(v) })"
-              />
-            </dd>
-          </div>
-          <div class="flex flex-col">
-            <dt><label for="w-ratio" class="text-muted-foreground">{{ t('workItems.doneRatio') }}</label></dt>
-            <dd>
-              <InlineField
-                id="w-ratio"
-                kind="number"
-                :min="0"
-                :max="100"
-                :value="String(wi.done_ratio)"
-                :label="t('workItems.doneRatio')"
-                :editable="writable"
-                required
-                :save="(v) => saveField({ done_ratio: Number(v) })"
-              />
-            </dd>
-          </div>
-          <div class="flex flex-col">
-            <dt>
-              <label for="w-weight" class="text-muted-foreground" :title="t('workItems.weightHint')">
-                {{ t('workItems.weight') }}<span v-if="wi.weight === 0"> · {{ t('workItems.tracking') }}</span>
-              </label>
-            </dt>
-            <dd>
-              <InlineField
-                id="w-weight"
-                kind="number"
-                :min="0"
-                :max="100"
-                :value="String(wi.weight)"
-                :label="t('workItems.weight')"
-                :editable="writable"
-                required
-                :save="(v) => saveField({ weight: Number(v) })"
-              />
-            </dd>
-          </div>
-          <div v-for="f in itemFields" :key="f.id" class="flex flex-col">
-            <dt><label :for="`wf-${f.id}`" class="text-muted-foreground">{{ f.name }}{{ f.required ? ' *' : '' }}</label></dt>
-            <dd>
-              <InlineField
-                :id="`wf-${f.id}`"
-                :kind="fieldKind(f)"
-                :value="fieldText(wi.custom_values[f.id])"
-                :label="f.name"
-                :options="fieldOptions(f)"
-                :editable="writable && !f.retired_at"
-                :save="(v) => saveCustom(f, v)"
-              />
-            </dd>
-          </div>
+          <template v-if="moreProperties">
+            <div class="flex flex-col">
+              <dt><label for="w-type" class="text-muted-foreground">{{ t('workItems.type') }}</label></dt>
+              <dd>
+                <InlineField id="w-type" kind="select" :value="wi.type_id" :label="t('workItems.type')" :options="typeOptions" :editable="writable" required :save="(v) => saveField({ type_id: v })" />
+              </dd>
+            </div>
+            <div class="flex flex-col">
+              <dt><label for="w-parent" class="text-muted-foreground">{{ t('workItems.parent') }}</label></dt>
+              <dd>
+                <InlineField
+                  id="w-parent"
+                  kind="select"
+                  :value="wi.parent?.id ?? ''"
+                  :label="t('workItems.parent')"
+                  :options="parentOptions"
+                  :empty-label="t('workItems.noParent')"
+                  :editable="writable"
+                  :save="(v) => saveField({ parent_id: orNull(v) })"
+                />
+              </dd>
+            </div>
+            <div class="flex flex-col">
+              <dt class="text-muted-foreground">{{ t('workItems.author') }}</dt>
+              <dd class="flex h-8 items-center">{{ wi.author.name }}</dd>
+            </div>
+            <div class="flex flex-col">
+              <dt><label for="w-est" class="text-muted-foreground">{{ t('workItems.estimated') }}</label></dt>
+              <dd>
+                <InlineField
+                  id="w-est"
+                  kind="number"
+                  :min="0"
+                  :max="10000"
+                  :step="0.25"
+                  :value="fieldText(wi.estimated_hours)"
+                  :label="t('workItems.estimated')"
+                  :editable="writable"
+                  :save="(v) => saveField({ estimated_hours: hours(v) })"
+                />
+              </dd>
+            </div>
+            <div class="flex flex-col">
+              <dt><label for="w-rem" class="text-muted-foreground">{{ t('workItems.remaining') }}</label></dt>
+              <dd>
+                <InlineField
+                  id="w-rem"
+                  kind="number"
+                  :min="0"
+                  :max="10000"
+                  :step="0.25"
+                  :value="fieldText(wi.remaining_hours)"
+                  :label="t('workItems.remaining')"
+                  :editable="writable"
+                  :save="(v) => saveField({ remaining_hours: hours(v) })"
+                />
+              </dd>
+            </div>
+            <div class="flex flex-col">
+              <dt><label for="w-ratio" class="text-muted-foreground">{{ t('workItems.doneRatio') }}</label></dt>
+              <dd>
+                <InlineField
+                  id="w-ratio"
+                  kind="number"
+                  :min="0"
+                  :max="100"
+                  :value="String(wi.done_ratio)"
+                  :label="t('workItems.doneRatio')"
+                  :editable="writable"
+                  required
+                  :save="(v) => saveField({ done_ratio: Number(v) })"
+                />
+              </dd>
+            </div>
+            <div class="flex flex-col">
+              <dt>
+                <label for="w-weight" class="text-muted-foreground" :title="t('workItems.weightHint')">
+                  {{ t('workItems.weight') }}<span v-if="wi.weight === 0"> · {{ t('workItems.tracking') }}</span>
+                </label>
+              </dt>
+              <dd>
+                <InlineField
+                  id="w-weight"
+                  kind="number"
+                  :min="0"
+                  :max="100"
+                  :value="String(wi.weight)"
+                  :label="t('workItems.weight')"
+                  :editable="writable"
+                  required
+                  :save="(v) => saveField({ weight: Number(v) })"
+                />
+              </dd>
+            </div>
+            <div v-for="f in itemFields" :key="f.id" class="flex flex-col">
+              <dt><label :for="`wf-${f.id}`" class="text-muted-foreground">{{ f.name }}{{ f.required ? ' *' : '' }}</label></dt>
+              <dd>
+                <InlineField
+                  :id="`wf-${f.id}`"
+                  :kind="fieldKind(f)"
+                  :value="fieldText(wi.custom_values[f.id])"
+                  :label="f.name"
+                  :options="fieldOptions(f)"
+                  :editable="writable && !f.retired_at"
+                  :save="(v) => saveCustom(f, v)"
+                />
+              </dd>
+            </div>
+          </template>
         </dl>
+        <button
+          type="button"
+          class="-mt-1 flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          :aria-expanded="moreProperties"
+          data-testid="more-properties"
+          @click="moreProperties = !moreProperties"
+        >
+          <component :is="moreProperties ? ChevronDown : ChevronRight" class="size-4" aria-hidden="true" />
+          {{ moreProperties ? t('workItems.lessProperties') : t('workItems.moreProperties', { count: 7 + itemFields.length }) }}
+        </button>
         <div class="grid gap-2 sm:grid-cols-2">
           <div>
             <p class="text-xs text-muted-foreground">{{ t('workItems.ownProgress') }}</p>
