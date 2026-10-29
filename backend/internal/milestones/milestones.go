@@ -22,6 +22,7 @@ import (
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
 	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -47,19 +48,20 @@ type Progress struct {
 }
 
 type Milestone struct {
-	ID          uuid.UUID            `json:"id"`
-	Project     workitems.ProjectRef `json:"project"`
-	Phase       *workcore.Ref        `json:"phase"`
-	Name        string               `json:"name"`
-	Description json.RawMessage      `json:"description"`
-	PageVersion int32                `json:"page_version"` // compared by the autosave (spec 005)
-	DueDate     *workcore.Date       `json:"due_date"`
-	CompletedOn *workcore.Date       `json:"completed_on"`
-	Status      string               `json:"status"`
-	Overdue     bool                 `json:"overdue"`
-	Position    int32                `json:"position"`
-	Version     int32                `json:"version"`
-	Progress    Progress             `json:"progress"`
+	ID          uuid.UUID               `json:"id"`
+	Project     workitems.ProjectRef    `json:"project"`
+	Phase       *workcore.Ref           `json:"phase"`
+	Name        string                  `json:"name"`
+	Description json.RawMessage         `json:"description"`
+	PageVersion int32                   `json:"page_version"`   // compared by the autosave (spec 005)
+	Refs        map[string]mentions.Ref `json:"refs,omitempty"` // the page's mentions, on single reads (RF-27)
+	DueDate     *workcore.Date          `json:"due_date"`
+	CompletedOn *workcore.Date          `json:"completed_on"`
+	Status      string                  `json:"status"`
+	Overdue     bool                    `json:"overdue"`
+	Position    int32                   `json:"position"`
+	Version     int32                   `json:"version"`
+	Progress    Progress                `json:"progress"`
 	Can         struct {
 		Manage bool `json:"manage"`
 	} `json:"can"`
@@ -206,7 +208,12 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (Mi
 	if err != nil {
 		return Milestone{}, err
 	}
-	return s.view(ctx, s.store.Queries, p, m, project)
+	out, err := s.view(ctx, s.store.Queries, p, m, project)
+	if err != nil {
+		return out, err
+	}
+	out.Refs, err = mentions.Refs(ctx, s.store.Queries, p, out.Description)
+	return out, err
 }
 
 // List returns the milestones of a project with their progress in two queries.
@@ -270,6 +277,10 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return err
 		}
 		out, err = s.view(ctx, q, p, updated, project)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -326,6 +337,10 @@ func (s *Service) SetStatus(ctx context.Context, p *authz.Principal, id uuid.UUI
 			return err
 		}
 		out, err = s.view(ctx, q, p, updated, project)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err

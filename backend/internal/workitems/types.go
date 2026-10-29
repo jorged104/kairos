@@ -13,6 +13,7 @@ import (
 
 	"openscum/internal/apperr"
 	"openscum/internal/customfields"
+	"openscum/internal/mentions"
 	"openscum/internal/workcore"
 )
 
@@ -46,7 +47,8 @@ type WorkItem struct {
 	PriorityID       uuid.UUID                     `json:"priority_id"`
 	Title            string                        `json:"title"`
 	Description      json.RawMessage               `json:"description"`
-	PageVersion      int32                         `json:"page_version"` // compared by the autosave (spec 005)
+	PageVersion      int32                         `json:"page_version"`   // compared by the autosave (spec 005)
+	Refs             map[string]mentions.Ref       `json:"refs,omitempty"` // the page's mentions, on single reads (RF-27)
 	Author           workcore.Ref                  `json:"author"`
 	Assignee         *workcore.Ref                 `json:"assignee"`
 	Parent           *Ref                          `json:"parent"`

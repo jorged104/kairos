@@ -18,6 +18,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
 )
@@ -73,7 +74,12 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (Pr
 	if err != nil {
 		return Project{}, err
 	}
-	return view(ctx, s.store.Queries, p, row)
+	out, err := view(ctx, s.store.Queries, p, row)
+	if err != nil {
+		return out, err
+	}
+	out.Refs, err = mentions.Refs(ctx, s.store.Queries, p, out.Description)
+	return out, err
 }
 
 // Create saves a new project with its types, fields and the phases of its
@@ -308,6 +314,10 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return err
 		}
 		out, err = view(ctx, q, p, updated)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -360,6 +370,10 @@ func (s *Service) SetLifecycle(ctx context.Context, p *authz.Principal, id uuid.
 			return err
 		}
 		out, err = view(ctx, q, p, updated)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err

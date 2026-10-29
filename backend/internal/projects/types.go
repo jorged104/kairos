@@ -13,6 +13,7 @@ import (
 
 	"openscum/internal/apperr"
 	"openscum/internal/customfields"
+	"openscum/internal/mentions"
 	"openscum/internal/workcore"
 )
 
@@ -44,7 +45,8 @@ type Project struct {
 	Identifier        string                        `json:"identifier"`
 	Name              string                        `json:"name"`
 	Description       json.RawMessage               `json:"description"`
-	PageVersion       int32                         `json:"page_version"` // compared by the autosave (spec 005)
+	PageVersion       int32                         `json:"page_version"`   // compared by the autosave (spec 005)
+	Refs              map[string]mentions.Ref       `json:"refs,omitempty"` // the page's mentions, on single reads (RF-27)
 	Team              workcore.Ref                  `json:"team"`
 	Owner             workcore.Ref                  `json:"owner"`
 	Methodology       *workcore.Ref                 `json:"methodology"`

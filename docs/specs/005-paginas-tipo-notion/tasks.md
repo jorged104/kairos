@@ -37,10 +37,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-51 a RF-53
   - Hecho cuando: `apitest` de archivos marcados al borrar un work item y un hito; la copia desde plantilla duplica los archivos (en la BD y en MinIO), reescribe los `fileId`, y marcar uno de la copia no afecta a la plantilla.
 
-- [ ] **T7 — Menciones** (`internal/mentions`, `refs` en los `GET`)
+- [x] **T7 — Menciones** (`internal/mentions`, `refs` en los `GET`)
   - Depende de: T5
   - RF: RF-25 a RF-30
   - Hecho cuando: `apitest` de `/api/mentions` filtrado por ámbito y de `refs` con `ok`, `no_access` (sin `label`) y `deleted`; el test de matriz cubre las rutas nuevas.
+  - Nota: la búsqueda `#` usa consultas fijas de sqlc en vez de Squirrel, porque el filtro no cambia de forma. Un usuario dado de baja (`offboarded`) se lee como «eliminado». Los `refs` van en las lecturas de un solo elemento, en sus `PATCH` y en el guardado de la página; los listados no los llevan.
 
 - [ ] **T8 — Dependencias de frontend y extensiones de página** (`package.json`, `features/richtext/pageExtensions.ts`)
   - Depende de: T2

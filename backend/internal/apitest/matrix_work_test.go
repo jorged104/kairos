@@ -204,6 +204,7 @@ var workOps = []workOp{
 	{"guardar página de proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/page", map[string]any{"page": nil, "page_version": 1})
 	}, managers(200)},
+	{"buscar menciones", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/mentions?q=x") }, workAll(200)},
 	{"descargar archivo", func(m *workMatrix, c *Client, a string) *Response {
 		var f fileDTO
 		m.admin.Upload("/api/projects/"+m.project(a).String()+"/files", "a.png", pngData).Expect(m.t, http.StatusCreated).JSON(m.t, &f)

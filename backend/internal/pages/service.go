@@ -18,6 +18,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 )
@@ -49,7 +50,8 @@ type Saved struct {
 	PageVersion int32           `json:"page_version"`
 	// Version is the owner's general version, which a save also moves, so a
 	// later PATCH with the old one still sees the change.
-	Version int32 `json:"version"`
+	Version int32                   `json:"version"`
+	Refs    map[string]mentions.Ref `json:"refs"`
 }
 
 // Save stores the page of kind/id. Only the page version is compared, so a
@@ -69,6 +71,9 @@ func (s *Service) Save(ctx context.Context, p *authz.Principal, kind string, id 
 			return err
 		}
 		if out, err = update(ctx, q, kind, id, req.PageVersion, doc, text); err != nil {
+			return err
+		}
+		if out.Refs, err = mentions.Refs(ctx, q, p, out.Page); err != nil {
 			return err
 		}
 		if !richtext.Changed(o.description, doc) {

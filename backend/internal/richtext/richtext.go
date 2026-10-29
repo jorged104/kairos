@@ -478,3 +478,31 @@ func Changed(a, b json.RawMessage) bool {
 	}
 	return !reflect.DeepEqual(x, y)
 }
+
+// Mentions lists the mentions of a stored page, to resolve them when reading
+// (RF-27). The page was validated when saved, so a malformed one yields none.
+func Mentions(doc json.RawMessage) []Mention {
+	var root node
+	if len(bytes.TrimSpace(doc)) == 0 || json.Unmarshal(doc, &root) != nil {
+		return nil
+	}
+	var out []Mention
+	var walk func(n *node)
+	walk = func(n *node) {
+		if n == nil {
+			return
+		}
+		if n.Type == "mention" {
+			id, ok := attrUUID(n.Attrs, "id")
+			var kind string
+			if ok && json.Unmarshal(n.Attrs["kind"], &kind) == nil {
+				out = append(out, Mention{Kind: kind, ID: id})
+			}
+		}
+		for _, c := range n.Content {
+			walk(c)
+		}
+	}
+	walk(&root)
+	return out
+}

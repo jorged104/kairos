@@ -22,6 +22,7 @@ import (
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
 	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -58,7 +59,12 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (Wo
 	if err != nil {
 		return WorkItem{}, err
 	}
-	return view(ctx, s.store.Queries, p, row, project)
+	out, err := view(ctx, s.store.Queries, p, row, project)
+	if err != nil {
+		return out, err
+	}
+	out.Refs, err = mentions.Refs(ctx, s.store.Queries, p, out.Description)
+	return out, err
 }
 
 // GetByKey opens a work item by its readable key (RF-133).
@@ -416,6 +422,10 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return fmt.Errorf("releer work item: %w", err)
 		}
 		out, err = view(ctx, q, p, updated, project)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
