@@ -2,6 +2,7 @@ package projects
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/customfields"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/files"
 	"openscum/internal/workcore"
 )
 
@@ -131,8 +133,9 @@ func (s *Service) FromTemplate(ctx context.Context, p *authz.Principal, req from
 				methodology = nil
 			}
 		}
+		// The page is set below, once its files are duplicated (RF-53).
 		row, err := create(ctx, q, p, createRequest{
-			Identifier: req.Identifier, Name: req.Name, Description: tpl.Description, TeamID: req.TeamID,
+			Identifier: req.Identifier, Name: req.Name, TeamID: req.TeamID,
 			OwnerID: req.OwnerID, MethodologyID: methodology, ParentID: req.ParentID,
 			StartDate: req.StartDate, EndDate: req.EndDate, HealthExplanation: "",
 			TypeIDs: append([]uuid.UUID{}, types...), CustomFieldIDs: fieldIDs, CustomValues: values,
@@ -140,12 +143,21 @@ func (s *Service) FromTemplate(ctx context.Context, p *authz.Principal, req from
 		if err != nil {
 			return err
 		}
+		if tpl.Description != nil {
+			err := s.copyPage(ctx, q, p, page("project", tpl.ID, tpl.ID), page("project", row.ID, row.ID), tpl.Description,
+				func(doc json.RawMessage) error {
+					return q.SetProjectDescription(ctx, sqlc.SetProjectDescriptionParams{ID: row.ID, Description: doc, DescriptionText: tpl.DescriptionText})
+				})
+			if err != nil {
+				return err
+			}
+		}
 		if req.IncludeContent {
 			shift := 0
 			if tpl.StartDate != nil && req.StartDate != nil {
 				shift = int(req.StartDate.Sub(*tpl.StartDate).Hours() / 24)
 			}
-			if err := copyContent(ctx, q, p, tpl.ID, row.ID, shift); err != nil {
+			if err := s.copyContent(ctx, q, p, tpl.ID, row.ID, shift); err != nil {
 				return err
 			}
 		}
@@ -201,7 +213,7 @@ func shiftDate(t *time.Time, days int) *time.Time {
 // copyContent copies milestones, work items (hierarchy kept, new numbers,
 // default status, no assignee), internal dependencies, milestone links and
 // work item values from a template (RF-37).
-func copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from, to uuid.UUID, shift int) error {
+func (s *Service) copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from, to uuid.UUID, shift int) error {
 	status, err := q.GetDefaultStatus(ctx)
 	if err != nil {
 		return fmt.Errorf("estado por defecto: %w", err)
@@ -244,6 +256,13 @@ func copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from,
 			return fmt.Errorf("copiar hito: %w", err)
 		}
 		milestones[m.ID] = id
+		err = s.copyPage(ctx, q, p, page("milestone", m.ID, from), page("milestone", id, to), m.Description,
+			func(doc json.RawMessage) error {
+				return q.SetMilestoneDescription(ctx, sqlc.SetMilestoneDescriptionParams{ID: id, Description: doc, DescriptionText: m.DescriptionText})
+			})
+		if err != nil {
+			return err
+		}
 	}
 
 	items := map[uuid.UUID]uuid.UUID{}
@@ -268,6 +287,13 @@ func copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from,
 			return fmt.Errorf("copiar work item: %w", err)
 		}
 		items[w.ID] = id
+		err = s.copyPage(ctx, q, p, page("work_item", w.ID, from), page("work_item", id, to), w.Description,
+			func(doc json.RawMessage) error {
+				return q.SetWorkItemDescription(ctx, sqlc.SetWorkItemDescriptionParams{ID: id, Description: doc, DescriptionText: w.DescriptionText})
+			})
+		if err != nil {
+			return err
+		}
 	}
 	if err := q.SetWorkItemCounter(ctx, sqlc.SetWorkItemCounterParams{ID: to, WiCounter: int32(len(rows))}); err != nil {
 		return fmt.Errorf("contador de work items: %w", err)
@@ -306,4 +332,28 @@ func copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from,
 		return fmt.Errorf("recalcular derivados: %w", err)
 	}
 	return nil
+}
+
+// page names an owner of a page: its kind, its id and its project.
+func page(kind string, id, project uuid.UUID) files.Owner {
+	return files.Owner{Kind: kind, ID: id, ProjectID: project}
+}
+
+// copyPage duplicates the files of from's page for to (RF-53) and, when there
+// are any, stores the copied page pointing at the new files with set. A uuid
+// is unique, so replacing each quoted old id only touches its fileId.
+func (s *Service) copyPage(ctx context.Context, q *sqlc.Queries, p *authz.Principal, from, to files.Owner,
+	doc json.RawMessage, set func(json.RawMessage) error) error {
+	ids, err := s.files.Copy(ctx, q, from, to, p.UserID)
+	if err != nil {
+		return err
+	}
+	if len(ids) == 0 && to.Kind != "project" {
+		return nil // the copy already holds the same page
+	}
+	out := string(doc)
+	for old, copied := range ids {
+		out = strings.ReplaceAll(out, `"`+old.String()+`"`, `"`+copied.String()+`"`)
+	}
+	return set(json.RawMessage(out))
 }

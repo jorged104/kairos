@@ -24,9 +24,12 @@ import (
 
 type Service struct {
 	store *db.Store
+	files *files.Service // copies the files of a template's pages (spec 005, RF-53)
 }
 
-func NewService(store *db.Store) *Service { return &Service{store: store} }
+func NewService(store *db.Store, filesSvc *files.Service) *Service {
+	return &Service{store: store, files: filesSvc}
+}
 
 // Ref is what the permission checks need from a project.
 func Ref(p sqlc.Project) authz.ProjectRef {

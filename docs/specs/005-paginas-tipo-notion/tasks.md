@@ -32,7 +32,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: `apitest` de `PUT …/page` en los tres dueños, `page_conflict`, cambio de estado sin conflicto, `PATCH` sin `description` que la conserva, `PATCH` antiguo que incrementa `page_version`, marcar y desmarcar archivos, descripción de la 004 leída y guardada, y auditoría `description_changed`.
   - Nota: el `PATCH` que trae `description` (el del frontend anterior) también la valida como página y sincroniza sus archivos, para que ningún camino deje una página sin controlar sus archivos. Las altas validan la descripción como página sin archivos. La descarga de archivos pasó de `files` a `pages`, porque `projects` necesita importar `files` y `files` no puede importar `projects`.
 
-- [ ] **T6 — Borrados y plantillas** (`workitems`, `milestones`, `projects/templates.go`)
+- [x] **T6 — Borrados y plantillas** (`workitems`, `milestones`, `projects/templates.go`)
   - Depende de: T5
   - RF: RF-51 a RF-53
   - Hecho cuando: `apitest` de archivos marcados al borrar un work item y un hito; la copia desde plantilla duplica los archivos (en la BD y en MinIO), reescribe los `fileId`, y marcar uno de la copia no afecta a la plantilla.

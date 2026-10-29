@@ -52,3 +52,13 @@ RETURNING *;
 
 -- name: CopyPageFileData :exec
 INSERT INTO page_file_data (file_id, data) SELECT @new_id::uuid, d.data FROM page_file_data d WHERE d.file_id = @old_id::uuid;
+
+-- name: SetWorkItemDescription :exec
+-- The page of a copy, once its files are duplicated (RF-53).
+UPDATE work_items SET description = $2, description_text = $3 WHERE id = $1;
+
+-- name: SetMilestoneDescription :exec
+UPDATE milestones SET description = $2, description_text = $3 WHERE id = $1;
+
+-- name: SetProjectDescription :exec
+UPDATE projects SET description = $2, description_text = $3 WHERE id = $1;

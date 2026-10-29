@@ -348,6 +348,10 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 		if err := q.DeleteMilestone(ctx, id); err != nil {
 			return fmt.Errorf("borrar hito: %w", err)
 		}
+		// Its files stop being served; they stay in the storage (RF-51, RF-52).
+		if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: "milestone", OwnerID: id}); err != nil {
+			return fmt.Errorf("marcar archivos: %w", err)
+		}
 		return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "milestone.deleted", TargetType: "milestone",
 			TargetID: id.String(), Before: auditView(m)})
 	})

@@ -228,6 +228,52 @@ func (q *Queries) MarkOwnerPageFilesDeleted(ctx context.Context, arg MarkOwnerPa
 	return err
 }
 
+const setMilestoneDescription = `-- name: SetMilestoneDescription :exec
+UPDATE milestones SET description = $2, description_text = $3 WHERE id = $1
+`
+
+type SetMilestoneDescriptionParams struct {
+	ID              uuid.UUID
+	Description     json.RawMessage
+	DescriptionText string
+}
+
+func (q *Queries) SetMilestoneDescription(ctx context.Context, arg SetMilestoneDescriptionParams) error {
+	_, err := q.db.Exec(ctx, setMilestoneDescription, arg.ID, arg.Description, arg.DescriptionText)
+	return err
+}
+
+const setProjectDescription = `-- name: SetProjectDescription :exec
+UPDATE projects SET description = $2, description_text = $3 WHERE id = $1
+`
+
+type SetProjectDescriptionParams struct {
+	ID              uuid.UUID
+	Description     json.RawMessage
+	DescriptionText string
+}
+
+func (q *Queries) SetProjectDescription(ctx context.Context, arg SetProjectDescriptionParams) error {
+	_, err := q.db.Exec(ctx, setProjectDescription, arg.ID, arg.Description, arg.DescriptionText)
+	return err
+}
+
+const setWorkItemDescription = `-- name: SetWorkItemDescription :exec
+UPDATE work_items SET description = $2, description_text = $3 WHERE id = $1
+`
+
+type SetWorkItemDescriptionParams struct {
+	ID              uuid.UUID
+	Description     json.RawMessage
+	DescriptionText string
+}
+
+// The page of a copy, once its files are duplicated (RF-53).
+func (q *Queries) SetWorkItemDescription(ctx context.Context, arg SetWorkItemDescriptionParams) error {
+	_, err := q.db.Exec(ctx, setWorkItemDescription, arg.ID, arg.Description, arg.DescriptionText)
+	return err
+}
+
 const syncPageFiles = `-- name: SyncPageFiles :exec
 UPDATE page_files
 SET deleted_at = CASE WHEN id = ANY($1::uuid[]) THEN NULL ELSE coalesce(deleted_at, now()) END

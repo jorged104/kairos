@@ -531,6 +531,10 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 		if err := q.DeleteWorkItem(ctx, id); err != nil {
 			return fmt.Errorf("borrar work item: %w", err)
 		}
+		// Its files stop being served; they stay in the storage (RF-51, RF-52).
+		if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: "work_item", OwnerID: id}); err != nil {
+			return fmt.Errorf("marcar archivos: %w", err)
+		}
 		if row.ParentID != nil {
 			if err := q.RefreshWorkItemUp(ctx, *row.ParentID); err != nil {
 				return fmt.Errorf("recalcular derivados: %w", err)
