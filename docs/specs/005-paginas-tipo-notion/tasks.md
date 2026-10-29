@@ -43,7 +43,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: `apitest` de `/api/mentions` filtrado por ámbito y de `refs` con `ok`, `no_access` (sin `label`) y `deleted`; el test de matriz cubre las rutas nuevas.
   - Nota: la búsqueda `#` usa consultas fijas de sqlc en vez de Squirrel, porque el filtro no cambia de forma. Un usuario dado de baja (`offboarded`) se lee como «eliminado». Los `refs` van en las lecturas de un solo elemento, en sus `PATCH` y en el guardado de la página; los listados no los llevan.
 
-- [ ] **T8 — Dependencias de frontend y extensiones de página** (`package.json`, `features/richtext/pageExtensions.ts`)
+- [x] **T8 — Dependencias de frontend y extensiones de página** (`package.json`, `features/richtext/pageExtensions.ts`)
   - Depende de: T2
   - RF: RF-1, RF-2, RF-5, RF-6, RF-56, RF-57
   - Hecho cuando: dependencias instaladas con versión exacta; `pageExtensions.spec` compara los nodos con la lista del backend y prueba los atajos de Markdown; `npm run build` en verde.

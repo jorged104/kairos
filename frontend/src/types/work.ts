@@ -6,6 +6,13 @@ import type { AttributeOption, AttributeType, AttributeValue, Role } from './api
 /** A TipTap/ProseMirror JSON document, as stored by the API. */
 export type RichDoc = JSONContent | null
 
+/** How a mention of a page reads now (spec 005, RF-27 to RF-29). */
+export interface MentionRef {
+  label?: string
+  state: 'ok' | 'no_access' | 'deleted'
+}
+export type MentionRefs = Record<string, MentionRef>
+
 export interface Ref {
   id: string
   name: string
@@ -97,6 +104,10 @@ export interface Project {
   identifier: string
   name: string
   description: RichDoc
+  /** Compared by the autosave of the page (spec 005). */
+  page_version: number
+  /** The page's mentions, on single reads. */
+  refs?: MentionRefs
   team: Ref
   owner: Ref
   methodology: Ref | null
@@ -163,6 +174,10 @@ export interface Milestone {
   phase: Ref | null
   name: string
   description: RichDoc
+  /** Compared by the autosave of the page (spec 005). */
+  page_version: number
+  /** The page's mentions, on single reads. */
+  refs?: MentionRefs
   due_date: string | null
   completed_on: string | null
   status: MilestoneStatus
@@ -241,6 +256,10 @@ export interface WorkItem {
   priority_id: string
   title: string
   description: RichDoc
+  /** Compared by the autosave of the page (spec 005). */
+  page_version: number
+  /** The page's mentions, on single reads. */
+  refs?: MentionRefs
   author: Ref
   assignee: Ref | null
   parent: WorkRef | null
