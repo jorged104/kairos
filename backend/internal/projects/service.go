@@ -17,15 +17,20 @@ import (
 	"openscum/internal/customfields"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
 )
 
 type Service struct {
 	store *db.Store
+	files *files.Service // copies the files of a template's pages (spec 005, RF-53)
 }
 
-func NewService(store *db.Store) *Service { return &Service{store: store} }
+func NewService(store *db.Store, filesSvc *files.Service) *Service {
+	return &Service{store: store, files: filesSvc}
+}
 
 // Ref is what the permission checks need from a project.
 func Ref(p sqlc.Project) authz.ProjectRef {
@@ -69,7 +74,12 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (Pr
 	if err != nil {
 		return Project{}, err
 	}
-	return view(ctx, s.store.Queries, p, row)
+	out, err := view(ctx, s.store.Queries, p, row)
+	if err != nil {
+		return out, err
+	}
+	out.Refs, err = mentions.Refs(ctx, s.store.Queries, p, out.Description)
+	return out, err
 }
 
 // Create saves a new project with its types, fields and the phases of its
@@ -125,7 +135,7 @@ func create(ctx context.Context, q *sqlc.Queries, p *authz.Principal, req create
 	if err != nil {
 		return sqlc.Project{}, err
 	}
-	desc, text, err := richtext.Clean(req.Description)
+	desc, text, err := files.NewPage(req.Description)
 	if err != nil {
 		return sqlc.Project{}, err
 	}
@@ -274,7 +284,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return err
 			}
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.Description(ctx, q, files.Owner{Kind: "project", ID: id, ProjectID: id},
+			req.Description, row.Description, row.DescriptionText)
 		if err != nil {
 			return err
 		}
@@ -303,6 +314,10 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return err
 		}
 		out, err = view(ctx, q, p, updated)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -355,6 +370,10 @@ func (s *Service) SetLifecycle(ctx context.Context, p *authz.Principal, id uuid.
 			return err
 		}
 		out, err = view(ctx, q, p, updated)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -500,7 +519,7 @@ func (s *Service) Subtree(ctx context.Context, p *authz.Principal, id uuid.UUID)
 // view builds the full project for the caller.
 func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Project) (Project, error) {
 	out := Project{
-		ID: row.ID, Identifier: row.Identifier, Name: row.Name, Description: row.Description,
+		ID: row.ID, Identifier: row.Identifier, Name: row.Name, Description: row.Description, PageVersion: row.PageVersion,
 		TemplateID: row.TemplateID, IsTemplate: row.IsTemplate, Lifecycle: row.Lifecycle, Health: row.Health,
 		HealthExplanation: row.HealthExplanation, StartDate: workcore.FromTime(row.StartDate), EndDate: workcore.FromTime(row.EndDate),
 		Depth: row.Depth, Version: row.Version, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,

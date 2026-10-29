@@ -38,6 +38,12 @@ services:
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       OIDC_ROLE_SOURCE: ${OIDC_ROLE_SOURCE:-idp}
       OIDC_LINK_BY_EMAIL: ${OIDC_LINK_BY_EMAIL:-false}
+      # Archivos de las páginas (spec 005): vacío = en la BD. make up-s3 los manda a SeaweedFS.
+      FILES_S3_ENDPOINT: ${FILES_S3_ENDPOINT_CONTAINER:-}
+      FILES_S3_BUCKET: ${FILES_S3_BUCKET:-}
+      FILES_S3_ACCESS_KEY: ${FILES_S3_ACCESS_KEY:-}
+      FILES_S3_SECRET_KEY: ${FILES_S3_SECRET_KEY:-}
+      FILES_S3_USE_SSL: ${FILES_S3_USE_SSL:-false}
     ports:
       - "${API_PORT}:8080"
     depends_on:
@@ -76,5 +82,18 @@ services:
     volumes:
       - ./scripts/keycloak:/opt/keycloak/data/import:ro
 
+  # Almacenamiento compatible con S3 para los archivos de las páginas (spec 005).
+  # Solo con el profile s3: make up-s3. Credenciales en scripts/seaweedfs/s3.json.
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    profiles: [s3]
+    command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json", "-ip.bind=0.0.0.0"]
+    ports:
+      - "${S3_PORT:-8333}:8333"
+    volumes:
+      - ./scripts/seaweedfs:/etc/seaweedfs:ro
+      - s3data:/data
+
 volumes:
   pgdata:
+  s3data:

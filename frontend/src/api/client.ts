@@ -25,7 +25,7 @@ interface RequestOptions {
   query?: Record<string, string | number | undefined>
 }
 
-function errorFrom(status: number, body: unknown): ApiError {
+export function errorFrom(status: number, body: unknown): ApiError {
   if (typeof body === 'object' && body !== null && 'error' in body) {
     const error = (body as { error: { code?: unknown; details?: unknown } }).error
     if (typeof error?.code === 'string') {

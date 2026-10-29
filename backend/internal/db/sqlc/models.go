@@ -137,6 +137,7 @@ type Milestone struct {
 	Version         int32
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	PageVersion     int32
 }
 
 type MilestoneWorkItem struct {
@@ -179,6 +180,27 @@ type OidcLoginState struct {
 	CodeVerifier string
 	ReturnTo     string
 	CreatedAt    time.Time
+}
+
+type PageFile struct {
+	ID          uuid.UUID
+	ProjectID   uuid.UUID
+	OwnerKind   string
+	OwnerID     uuid.UUID
+	Kind        string
+	Name        string
+	ContentType string
+	SizeBytes   int64
+	Storage     string
+	S3Key       *string
+	CreatedBy   uuid.UUID
+	CreatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type PageFileDatum struct {
+	FileID uuid.UUID
+	Data   []byte
 }
 
 type PhaseDefinition struct {
@@ -227,6 +249,7 @@ type Project struct {
 	Version           int32
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	PageVersion       int32
 }
 
 type ProjectCustomField struct {
@@ -362,6 +385,7 @@ type WorkItem struct {
 	AggWeight         int64
 	AggWeightRatioSum int64
 	WeightedDoneRatio *int16
+	PageVersion       int32
 }
 
 type WorkItemCustomValue struct {

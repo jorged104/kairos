@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   changeLifecycle,
+  getProject,
   setProjectFields,
   setProjectTypes,
   setTemplate,
@@ -14,8 +15,8 @@ import NativeSelect from '@/components/NativeSelect.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import RichTextEditor from '@/features/richtext/RichTextEditor.vue'
-import RichTextView from '@/features/richtext/RichTextView.vue'
+import type { SavedPage } from '@/api/pages'
+import PageSection from '@/features/pages/PageSection.vue'
 import AttributeField from '@/features/users/AttributeField.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
@@ -44,10 +45,21 @@ function toForm(p: Project) {
     endDate: p.end_date ?? '',
     health: p.health,
     explanation: p.health_explanation,
-    description: p.description,
     values: { ...p.custom_values } as CustomValues,
   }
 }
+// An autosave of the page updates the cached project, versions included.
+function onPageSaved(saved: SavedPage) {
+  qc.setQueryData<Project>(['project', props.project.id], (old) =>
+    old && { ...old, description: saved.page, page_version: saved.page_version, version: saved.version, refs: saved.refs },
+  )
+}
+async function reloadPage() {
+  const fresh = await getProject(props.project.id)
+  qc.setQueryData(['project', props.project.id], fresh)
+  return fresh
+}
+
 const editing = ref(false)
 const form = ref(toForm(props.project))
 watch(
@@ -67,7 +79,6 @@ const save = useMutation({
     return updateProject(props.project.id, {
       version: props.project.version,
       name: f.name,
-      description: f.description,
       team_id: f.teamId,
       owner_id: f.ownerId,
       parent_id: props.project.parent?.id ?? null,
@@ -163,10 +174,6 @@ const actions = computed((): LifecycleAction[] => {
           <Label :for="`pf-${f.id}`">{{ f.name }}{{ f.required ? ' *' : '' }}</Label>
           <AttributeField :id="`pf-${f.id}`" v-model="form.values[f.id]" :attribute="f" :disabled="!!f.retired_at" />
         </div>
-        <div class="flex flex-col gap-1.5 sm:col-span-2">
-          <Label>{{ t('projects.description') }}</Label>
-          <RichTextEditor v-model="form.description" />
-        </div>
         <div class="flex gap-2 sm:col-span-2">
           <Button type="submit" :disabled="save.isPending.value">{{ t('common.save') }}</Button>
           <Button type="button" variant="ghost" @click="editing = false">{{ t('common.cancel') }}</Button>
@@ -191,7 +198,6 @@ const actions = computed((): LifecycleAction[] => {
             <dd>{{ project.custom_values[f.id] ?? t('common.none') }}</dd>
           </div>
         </dl>
-        <RichTextView :doc="project.description" />
         <div v-if="project.can.manage" class="flex flex-wrap gap-2">
           <Button v-if="writable" size="sm" @click="editing = true">{{ t('common.edit') }}</Button>
           <Button v-for="a in actions" :key="a" size="sm" variant="outline" @click="lifecycle.mutate(a)">
@@ -202,6 +208,20 @@ const actions = computed((): LifecycleAction[] => {
           </Button>
         </div>
       </div>
+    </section>
+
+    <!-- The project's page, saved as it is written (spec 005, RF-43). -->
+    <section class="rounded-lg border bg-background p-4">
+      <PageSection
+        :key="project.id"
+        :owner="{ kind: 'projects', id: project.id }"
+        :doc="project.description"
+        :page-version="project.page_version"
+        :refs="project.refs"
+        :editable="writable"
+        :reload="reloadPage"
+        @saved="onPageSaved"
+      />
     </section>
 
     <section v-if="project.can.manage" class="grid gap-4 sm:grid-cols-2">

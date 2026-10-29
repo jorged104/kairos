@@ -16,10 +16,13 @@ import (
 	"openscum/internal/customfields"
 	"openscum/internal/db"
 	"openscum/internal/events"
+	"openscum/internal/files"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
+	"openscum/internal/mentions"
 	"openscum/internal/milestones"
 	"openscum/internal/objectives"
+	"openscum/internal/pages"
 	"openscum/internal/projects"
 	"openscum/internal/realtime"
 	"openscum/internal/teams"
@@ -39,7 +42,8 @@ type App struct {
 	Events *events.Dispatcher
 }
 
-func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
+// storage keeps the files of the pages; files.NewStorage builds it from cfg.Files.
+func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *slog.Logger) *App {
 	sessions := auth.NewSessions(cfg.Auth.SessionSecret, cfg.Auth.CookieSecure)
 	loader := auth.NewPrincipalLoader(store, auth.PrincipalTTL)
 
@@ -58,10 +62,13 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 	eventsH := events.NewHandler(store, logger)
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
-	projectsH := projects.NewHandler(projects.NewService(store), logger)
+	filesSvc := files.NewService(store, storage)
+	projectsH := projects.NewHandler(projects.NewService(store, filesSvc), logger)
 	workItemsH := workitems.NewHandler(workitems.NewService(store), logger)
 	milestonesH := milestones.NewHandler(milestones.NewService(store), logger)
 	objectivesH := objectives.NewHandler(objectives.NewService(store), logger)
+	pagesH := pages.NewHandler(pages.NewService(store, filesSvc), logger)
+	mentionsH := mentions.NewHandler(store, logger)
 	dispatcher := events.NewDispatcher(store, logger, time.Second)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
@@ -87,6 +94,8 @@ func NewApp(cfg config.Config, store *db.Store, logger *slog.Logger) *App {
 			workItemsH.Routes(p)
 			milestonesH.Routes(p)
 			objectivesH.Routes(p)
+			pagesH.Routes(p)
+			mentionsH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)

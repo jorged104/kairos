@@ -21,6 +21,8 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
+	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -46,18 +48,20 @@ type Progress struct {
 }
 
 type Milestone struct {
-	ID          uuid.UUID            `json:"id"`
-	Project     workitems.ProjectRef `json:"project"`
-	Phase       *workcore.Ref        `json:"phase"`
-	Name        string               `json:"name"`
-	Description json.RawMessage      `json:"description"`
-	DueDate     *workcore.Date       `json:"due_date"`
-	CompletedOn *workcore.Date       `json:"completed_on"`
-	Status      string               `json:"status"`
-	Overdue     bool                 `json:"overdue"`
-	Position    int32                `json:"position"`
-	Version     int32                `json:"version"`
-	Progress    Progress             `json:"progress"`
+	ID          uuid.UUID               `json:"id"`
+	Project     workitems.ProjectRef    `json:"project"`
+	Phase       *workcore.Ref           `json:"phase"`
+	Name        string                  `json:"name"`
+	Description json.RawMessage         `json:"description"`
+	PageVersion int32                   `json:"page_version"`   // compared by the autosave (spec 005)
+	Refs        map[string]mentions.Ref `json:"refs,omitempty"` // the page's mentions, on single reads (RF-27)
+	DueDate     *workcore.Date          `json:"due_date"`
+	CompletedOn *workcore.Date          `json:"completed_on"`
+	Status      string                  `json:"status"`
+	Overdue     bool                    `json:"overdue"`
+	Position    int32                   `json:"position"`
+	Version     int32                   `json:"version"`
+	Progress    Progress                `json:"progress"`
 	Can         struct {
 		Manage bool `json:"manage"`
 	} `json:"can"`
@@ -128,6 +132,11 @@ func load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID
 	return m, project, err
 }
 
+// Load reads a milestone visible to p and its project; forUpdate locks it.
+func Load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID, forUpdate bool) (sqlc.Milestone, sqlc.Project, error) {
+	return load(ctx, q, p, id, forUpdate)
+}
+
 // manageable loads a milestone whose project the caller manages and can write.
 func manageable(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID) (sqlc.Milestone, sqlc.Project, error) {
 	m, project, err := load(ctx, q, p, id, true)
@@ -173,7 +182,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err := checkPhase(ctx, q, projectID, req.PhaseID); err != nil {
 			return err
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.NewPage(req.Description)
 		if err != nil {
 			return err
 		}
@@ -199,7 +208,12 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (Mi
 	if err != nil {
 		return Milestone{}, err
 	}
-	return s.view(ctx, s.store.Queries, p, m, project)
+	out, err := s.view(ctx, s.store.Queries, p, m, project)
+	if err != nil {
+		return out, err
+	}
+	out.Refs, err = mentions.Refs(ctx, s.store.Queries, p, out.Description)
+	return out, err
 }
 
 // List returns the milestones of a project with their progress in two queries.
@@ -244,7 +258,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if err := checkPhase(ctx, q, project.ID, req.PhaseID); err != nil {
 			return err
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.Description(ctx, q, files.Owner{Kind: "milestone", ID: id, ProjectID: project.ID},
+			req.Description, m.Description, m.DescriptionText)
 		if err != nil {
 			return err
 		}
@@ -262,6 +277,10 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return err
 		}
 		out, err = s.view(ctx, q, p, updated, project)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -318,6 +337,10 @@ func (s *Service) SetStatus(ctx context.Context, p *authz.Principal, id uuid.UUI
 			return err
 		}
 		out, err = s.view(ctx, q, p, updated, project)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -339,6 +362,10 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 		}
 		if err := q.DeleteMilestone(ctx, id); err != nil {
 			return fmt.Errorf("borrar hito: %w", err)
+		}
+		// Its files stop being served; they stay in the storage (RF-51, RF-52).
+		if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: "milestone", OwnerID: id}); err != nil {
+			return fmt.Errorf("marcar archivos: %w", err)
 		}
 		return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "milestone.deleted", TargetType: "milestone",
 			TargetID: id.String(), Before: auditView(m)})
@@ -443,7 +470,7 @@ func (s *Service) progress(ctx context.Context, q *sqlc.Queries, arg sqlc.Milest
 func (s *Service) base(p *authz.Principal, m sqlc.Milestone, project sqlc.Project) Milestone {
 	out := Milestone{
 		ID: m.ID, Project: workitems.ProjectRef{ID: project.ID, Identifier: project.Identifier, Name: project.Name},
-		Name: m.Name, Description: m.Description, DueDate: workcore.FromTime(m.DueDate),
+		Name: m.Name, Description: m.Description, PageVersion: m.PageVersion, DueDate: workcore.FromTime(m.DueDate),
 		CompletedOn: workcore.FromTime(m.CompletedOn), Status: m.Status, Position: m.Position, Version: m.Version,
 	}
 	today := time.Date(s.now().Year(), s.now().Month(), s.now().Day(), 0, 0, 0, 0, time.UTC)

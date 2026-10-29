@@ -12,6 +12,7 @@ import (
 
 	"openscum/internal/config"
 	"openscum/internal/db"
+	"openscum/internal/files"
 	"openscum/internal/health"
 	"openscum/internal/server"
 )
@@ -36,7 +37,11 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	app := server.NewApp(cfg, db.NewStore(pool), logger)
+	storage, err := files.NewStorage(ctx, cfg.Files)
+	if err != nil {
+		return fmt.Errorf("almacenamiento de archivos: %w", err)
+	}
+	app := server.NewApp(cfg, db.NewStore(pool), storage, logger)
 	go app.Hub.Run(ctx)
 	go app.Events.Run(ctx)
 

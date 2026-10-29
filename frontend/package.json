@@ -10,13 +10,24 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@floating-ui/dom": "1.8.0",
     "@lucide/vue": "^1.61.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/vue-query": "^5.104.5",
+    "@tiptap/extension-collaboration": "3.31.4",
+    "@tiptap/extension-details": "3.31.4",
+    "@tiptap/extension-drag-handle": "3.31.4",
+    "@tiptap/extension-drag-handle-vue-3": "3.31.4",
+    "@tiptap/extension-image": "3.31.4",
+    "@tiptap/extension-mention": "3.31.4",
+    "@tiptap/extension-node-range": "3.31.4",
     "@tiptap/extension-table": "3.31.4",
+    "@tiptap/extension-text-style": "3.31.4",
     "@tiptap/pm": "3.31.4",
     "@tiptap/starter-kit": "3.31.4",
+    "@tiptap/suggestion": "3.31.4",
     "@tiptap/vue-3": "3.31.4",
+    "@tiptap/y-tiptap": "3.0.10",
     "@vueuse/core": "^15.0.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
@@ -25,7 +36,9 @@
     "tailwindcss": "^4.3.3",
     "vue": "^3.5.44",
     "vue-i18n": "^11.4.16",
-    "vue-router": "^5.4.0"
+    "vue-router": "^5.4.0",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

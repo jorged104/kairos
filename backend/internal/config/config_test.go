@@ -116,3 +116,53 @@ func TestLoadRejectsUnknownDefaultRole(t *testing.T) {
 		t.Fatal("Load accepted DEFAULT_ROLE=owner")
 	}
 }
+
+func setS3(t *testing.T) {
+	t.Helper()
+	t.Setenv("FILES_S3_ENDPOINT", "localhost:9000")
+	t.Setenv("FILES_S3_BUCKET", "kairos")
+	t.Setenv("FILES_S3_ACCESS_KEY", "key")
+	t.Setenv("FILES_S3_SECRET_KEY", "secret")
+}
+
+// Without S3 the page files go to the database (RF-22).
+func TestLoadFilesInTheDatabaseByDefault(t *testing.T) {
+	setBase(t)
+	cfg, err := Load()
+	if err != nil || cfg.Files.S3() {
+		t.Fatalf("Load = %+v, %v; want files in the database", cfg.Files, err)
+	}
+}
+
+func TestLoadFilesInS3(t *testing.T) {
+	setBase(t)
+	setS3(t)
+	t.Setenv("FILES_S3_USE_SSL", "false")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if f := cfg.Files; !f.S3() || f.Bucket != "kairos" || f.UseSSL || f.AccessKey != "key" {
+		t.Fatalf("files = %+v", f)
+	}
+}
+
+// Half a configuration never falls back to the database silently.
+func TestLoadRejectsHalfAnS3Configuration(t *testing.T) {
+	cases := map[string]func(t *testing.T){
+		"bucket without endpoint": func(t *testing.T) { t.Setenv("FILES_S3_BUCKET", "kairos") },
+		"endpoint without bucket": func(t *testing.T) { setS3(t); t.Setenv("FILES_S3_BUCKET", "") },
+		"endpoint without key":    func(t *testing.T) { setS3(t); t.Setenv("FILES_S3_SECRET_KEY", "") },
+		"endpoint with scheme":    func(t *testing.T) { setS3(t); t.Setenv("FILES_S3_ENDPOINT", "http://localhost:9000") },
+		"ssl not a boolean":       func(t *testing.T) { setS3(t); t.Setenv("FILES_S3_USE_SSL", "quizá") },
+	}
+	for name, set := range cases {
+		t.Run(name, func(t *testing.T) {
+			setBase(t)
+			set(t)
+			if _, err := Load(); err == nil {
+				t.Fatal("Load accepted it")
+			}
+		})
+	}
+}

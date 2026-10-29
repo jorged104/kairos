@@ -39,7 +39,7 @@ function saver(m: Milestone, field: Field) {
   return async (value: string) => {
     const cur = await getMilestone(m.id)
     const input: MilestoneInput = {
-      version: cur.version, name: cur.name, description: cur.description, due_date: cur.due_date,
+      version: cur.version, name: cur.name, due_date: cur.due_date,
       phase_id: cur.phase?.id ?? null, position: cur.position,
     }
     await updateMilestone(m.id, { ...input, [field]: field === 'name' ? value : value || null })

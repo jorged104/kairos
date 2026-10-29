@@ -21,6 +21,8 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
+	"openscum/internal/files"
+	"openscum/internal/mentions"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -57,7 +59,12 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (Wo
 	if err != nil {
 		return WorkItem{}, err
 	}
-	return view(ctx, s.store.Queries, p, row, project)
+	out, err := view(ctx, s.store.Queries, p, row, project)
+	if err != nil {
+		return out, err
+	}
+	out.Refs, err = mentions.Refs(ctx, s.store.Queries, p, out.Description)
+	return out, err
 }
 
 // GetByKey opens a work item by its readable key (RF-133).
@@ -234,7 +241,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 				return err
 			}
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.NewPage(req.Description)
 		if err != nil {
 			return err
 		}
@@ -368,7 +375,8 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return err
 			}
 		}
-		desc, text, err := richtext.Clean(req.Description)
+		desc, text, err := files.Description(ctx, q, files.Owner{Kind: "work_item", ID: id, ProjectID: project.ID},
+			req.Description, row.Description, row.DescriptionText)
 		if err != nil {
 			return err
 		}
@@ -414,6 +422,10 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			return fmt.Errorf("releer work item: %w", err)
 		}
 		out, err = view(ctx, q, p, updated, project)
+		if err != nil {
+			return err
+		}
+		out.Refs, err = mentions.Refs(ctx, q, p, out.Description)
 		return err
 	})
 	return out, err
@@ -529,6 +541,10 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 		if err := q.DeleteWorkItem(ctx, id); err != nil {
 			return fmt.Errorf("borrar work item: %w", err)
 		}
+		// Its files stop being served; they stay in the storage (RF-51, RF-52).
+		if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: "work_item", OwnerID: id}); err != nil {
+			return fmt.Errorf("marcar archivos: %w", err)
+		}
 		if row.ParentID != nil {
 			if err := q.RefreshWorkItemUp(ctx, *row.ParentID); err != nil {
 				return fmt.Errorf("recalcular derivados: %w", err)
@@ -582,7 +598,7 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		ID: row.ID, Key: Key(project.Identifier, row.SequenceNumber), SequenceNumber: row.SequenceNumber,
 		Project: ProjectRef{ID: project.ID, Identifier: project.Identifier, Name: project.Name},
 		TypeID:  row.TypeID, StatusID: row.StatusID, PriorityID: row.PriorityID, Title: row.Title,
-		Description: row.Description, Author: workcore.Ref{ID: row.AuthorID},
+		Description: row.Description, PageVersion: row.PageVersion, Author: workcore.Ref{ID: row.AuthorID},
 		StartDate: workcore.FromTime(row.StartDate), DueDate: workcore.FromTime(row.DueDate),
 		EstimatedHours: row.EstimatedHours, RemainingHours: row.RemainingHours, DoneRatio: row.DoneRatio, Weight: row.Weight,
 		Derived:  Derived{EstimatedHours: row.AggEstimated, RemainingHours: row.AggRemaining},

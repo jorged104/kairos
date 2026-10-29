@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -22,6 +23,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/dbtest"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/files"
 	"openscum/internal/server"
 )
 
@@ -56,7 +58,11 @@ func New(t *testing.T, opts ...Option) *Env {
 		o(&cfg)
 	}
 	store := db.NewStore(dbtest.New(t))
-	app := server.NewApp(cfg, store, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	storage, err := files.NewStorage(context.Background(), cfg.Files)
+	if err != nil {
+		t.Fatalf("storage: %v", err)
+	}
+	app := server.NewApp(cfg, store, storage, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	srv := httptest.NewServer(app.Handler)
 	t.Cleanup(srv.Close)
 	return &Env{t: t, Cfg: cfg, Store: store, App: app, Srv: srv}
@@ -114,6 +120,30 @@ func (c *Client) Do(method, path string, body any) *Response {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	return c.send(req)
+}
+
+// Upload sends one file in the multipart field "file", as the page editor does.
+func (c *Client) Upload(path, filename string, data []byte) *Response {
+	c.t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	part, err := w.CreateFormFile("file", filename)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	_, _ = part.Write(data)
+	_ = w.Close()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.env.Srv.URL+path, &buf)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return c.send(req)
+}
+
+func (c *Client) send(req *http.Request) *Response {
+	c.t.Helper()
 	if c.Origin != "" {
 		req.Header.Set("Origin", c.Origin)
 	}

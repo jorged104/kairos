@@ -70,7 +70,7 @@ function saver(p: ProjectSummary, field: Field) {
   return async (value: string) => {
     const cur = await getProject(p.id)
     await updateProject(p.id, {
-      version: cur.version, name: cur.name, description: cur.description, team_id: cur.team.id, owner_id: cur.owner.id,
+      version: cur.version, name: cur.name, team_id: cur.team.id, owner_id: cur.owner.id,
       parent_id: cur.parent?.id ?? null, start_date: cur.start_date, end_date: cur.end_date, health: cur.health,
       health_explanation: cur.health_explanation, custom_values: cur.custom_values,
       [field]: field === 'start_date' || field === 'end_date' ? value || null : value,
