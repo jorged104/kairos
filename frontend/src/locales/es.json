@@ -653,6 +653,20 @@
       "uploading": "Subiendo… {percent} %",
       "retry": "Reintentar",
       "remove": "Quitar"
+    },
+    "label": "Página",
+    "save": {
+      "saved": "Guardado",
+      "dirty": "Cambios sin guardar",
+      "saving": "Guardando…",
+      "tooLong": "La página supera 50 000 caracteres: no se guardará hasta que la acortes.",
+      "error": "No se ha podido guardar: {reason}"
+    },
+    "conflict": {
+      "message": "Otra persona cambió esta página mientras escribías. Tus cambios no se han guardado: cópialos antes de recargar.",
+      "copy": "Copiar mi texto",
+      "copied": "Copiado",
+      "reload": "Recargar su versión"
     }
   }
 }

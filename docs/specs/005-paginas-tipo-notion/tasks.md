@@ -54,10 +54,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: specs de Vitest del menú `/` (filtrar, flechas, Enter, Escape), del menú del bloque, del modo lectura, de `FileBlock` (progreso, error, reintento) y de las menciones `sin acceso` y `eliminado`.
   - Desviación: `PageView` es el mismo `PageEditor` con `editable` a falso, y `SlashMenu` y `MentionList` son un solo `SuggestionList`, que sirve para `/`, `@` y `#`. Las menciones se pintan con una vista de nodo que lee `refs` de forma reactiva, para que un nombre resuelto tras guardar se vea sin recargar. Las casillas de las listas de tareas se deshabilitan a mano en modo lectura, porque TipTap solo las revierte. El arrastre en sí (RF-11) queda para T14.
 
-- [ ] **T10 — Autoguardado** (`features/pages/usePageAutosave.ts`)
+- [x] **T10 — Autoguardado** (`features/pages/usePageAutosave.ts`)
   - Depende de: T9
   - RF: RF-31 a RF-36
   - Hecho cuando: spec con temporizadores falsos (2 s, al salir, conflicto con aviso, reintento, límite de tamaño); medido el tamaño gzip del bloque de la página y anotado aquí (ING-3: más de +150 KB → asa propia).
+  - Nota: el autoguardado y el editor se juntan en `PageSection`, con el indicador de estado y el aviso de conflicto («Copiar mi texto», «Recargar su versión»). El tamaño del bloque se mide en T11, cuando el editor ya está en las pantallas; antes el empaquetador lo descarta por no usarse.
 
 - [ ] **T11 — Vistas** (`WorkItemSheet.vue`, panel en `ProjectWorkItems.vue`, `WorkItemPage.vue`, layout, `ProjectPage.vue`, `MilestonePage.vue`)
   - Depende de: T10
