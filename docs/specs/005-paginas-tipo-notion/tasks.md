@@ -78,6 +78,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: test de API de autoguardado de una página de 50 000 caracteres con 20 imágenes < 300 ms en local.
   - Resultado: mediana de 57 ms (`TestPagePerformance`). Los límites de la spec 004 siguen dentro (árbol de 5 000 work items, 47 ms).
 
+- [x] **T15 — Ficha del work item** (`WorkItemSheet.vue`, `InlineField.vue`, panel en `ProjectWorkItems.vue`)
+  - RF: RF-60 a RF-67
+  - Hecho cuando: specs de cambiar una propiedad sin botón de editar (solo cambia esa), Escape en un campo, papelera con doble pulsación, sin hitos ni dependencias, y panel a media pantalla que se redimensiona y vuelve a la mitad.
+  - Nota: los botones «Pasar a:» se quedan como atajo del estado.
+
 - [ ] **T14 — Prueba manual (tú)**
   - Depende de: todas
   - RF: RF-10, RF-11 y la demo de los criterios de finalización

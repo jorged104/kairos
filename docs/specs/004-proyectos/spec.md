@@ -3,6 +3,8 @@
 **Estado:** Aprobada (2026-10-23). Las decisiones abiertas
 del borrador original quedan tomadas en «Decisiones de la revisión».
 
+**Cambio:** 2026-10-29. La ficha de work item ya no muestra los hitos efectivos ni las dependencias (spec 005, RF-60). La API las sigue ofreciendo; la pantalla para gestionarlas queda pendiente de otra spec.
+
 **Cambio:** 2026-10-29. Al reabrir un work item se reinician su avance y sus horas restantes: RF-160.
 
 **Cambio:** Aprobado (2026-10-28) · Issue #10. Alta rápida desde cualquier campo y en móvil: RF-140 se sustituye por RF-145 a RF-148.

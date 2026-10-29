@@ -2,6 +2,8 @@
 
 **Estado:** Aprobada (2026-10-29).
 
+**Cambio:** 2026-10-29. Ficha del work item: propiedades editables donde se ven, borrar con la papelera, sin hitos ni dependencias, y panel lateral a media pantalla y redimensionable. RF-39 se sustituye por RF-60 a RF-65.
+
 ## Contexto y objetivo
 Hoy la descripción de un work item, un proyecto o un hito es un campo de texto enriquecido
 dentro de su ficha (spec 004, RF-70 y RF-71). Tiene formato básico, se guarda con un botón y no
@@ -94,7 +96,15 @@ documentos externos.
 ### Vistas
 - RF-37: CUANDO el usuario haga clic en un work item del árbol de un proyecto, EL SISTEMA abrirá su página en un panel lateral junto al árbol, sin salir de él.
 - RF-38: CUANDO el usuario pulse «Abrir como página» en el panel, EL SISTEMA abrirá la página completa del work item en su URL propia.
-- RF-39: CUANDO el usuario abra la URL de un work item, EL SISTEMA mostrará la página completa: título editable, propiedades del work item (estado, tipo, prioridad, asignado, fechas, horas, avance, peso, padre, campos personalizados, hitos y dependencias) y, debajo, el cuerpo de la página.
+- ~~RF-39: CUANDO el usuario abra la URL de un work item, EL SISTEMA mostrará la página completa: título editable, propiedades del work item (estado, tipo, prioridad, asignado, fechas, horas, avance, peso, padre, campos personalizados, hitos y dependencias) y, debajo, el cuerpo de la página.~~ Sustituida por RF-60.
+- RF-60: CUANDO el usuario abra la URL de un work item, EL SISTEMA mostrará la página completa: título, propiedades del work item (estado, tipo, prioridad, asignado, padre, autor, fechas, horas, avance, peso y campos personalizados) y, debajo, el cuerpo de la página, sin las secciones de hitos ni de dependencias.
+- RF-61: MIENTRAS el usuario tenga permiso de escritura sobre el work item, EL SISTEMA le dejará cambiar el título y cada propiedad, salvo el autor, en la propia página, sin un botón ni un modo de edición.
+- RF-62: CUANDO el usuario elija un valor en una lista, o pulse Enter o salga de un campo cuyo valor cambió, EL SISTEMA guardará solo esa propiedad.
+- RF-63: CUANDO el usuario pulse Escape en un campo de propiedad, EL SISTEMA devolverá el valor guardado y no cerrará el panel.
+- RF-64: DONDE el usuario pueda borrar el work item, EL SISTEMA mostrará en la esquina superior izquierda de su página un botón con solo el icono de la papelera, y borrará el work item cuando se pulse por segunda vez en menos de 3 s.
+- RF-65: CUANDO se abra el panel lateral, EL SISTEMA le dará la mitad del ancho de la ventana.
+- RF-66: CUANDO el usuario arrastre el borde izquierdo del panel, o use las flechas del teclado sobre él, EL SISTEMA cambiará su ancho entre 360 px y el ancho de la ventana menos 120 px.
+- RF-67: CUANDO se cierre el panel o el usuario haga doble clic en su borde, EL SISTEMA volverá a la mitad del ancho; el ancho elegido no se recuerda.
 - RF-40: CUANDO el usuario pulse «Ancho completo», EL SISTEMA ocultará la navegación lateral de la aplicación y extenderá la página a todo el ancho de la ventana. Al pulsarlo de nuevo, volverá a la vista normal.
 - RF-41: EL SISTEMA recordará en el navegador del usuario si eligió el ancho completo.
 - RF-42: CUANDO el usuario pulse Escape en el panel lateral sin ningún menú abierto, EL SISTEMA cerrará el panel.
