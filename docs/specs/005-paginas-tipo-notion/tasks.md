@@ -67,7 +67,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: specs del panel con `?item=`, Escape que cierra, «Abrir como página», ancho completo recordado (también sin `localStorage`), y páginas de proyecto e hito editables.
   - Nota: el panel es un lateral fijo sobre la parte derecha del árbol, que sigue visible a la izquierda. Se abre desde la clave de la fila; el título sigue editándose en la celda. Los `PATCH` del frontend ya no envían `description`, y la ficha usa la versión de la caché, que el autoguardado mantiene al día, para no chocar con sus propios guardados.
 
-- [ ] **T12 — Textos** (`locales/es.json`)
+- [x] **T12 — Textos** (`locales/es.json`)
   - Depende de: T9, T11
   - RF: RF-48
   - Hecho cuando: el test de claves i18n pasa y ningún componente nuevo tiene texto visible fijo.

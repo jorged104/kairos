@@ -99,3 +99,11 @@ describe('editor de páginas', () => {
     expect(nodesOf(editor.getJSON())).toContain(node)
   })
 })
+
+describe('tamaño de los adjuntos', () => {
+  it('se escribe en el idioma de la página', async () => {
+    const { formatSize } = await import('./pageExtensions')
+    expect(formatSize(1200000)).toMatch(/^1,1\s?MB$/)
+    expect(formatSize(2048)).toMatch(/^2\s?kB$/i)
+  })
+})

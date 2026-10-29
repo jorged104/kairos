@@ -64,10 +64,11 @@ const PageImage = Image.extend({
   parseHTML: () => [{ tag: 'img[data-file-id]' }],
 }).configure({ HTMLAttributes: { class: 'page-image' } })
 
+/** A file size in the page's language, units included (Intl writes them). */
 export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`
+  const lang = (typeof document !== 'undefined' && document.documentElement.lang) || 'es'
+  const [value, unit] = bytes < 1024 ? [bytes, 'byte'] : bytes < 1024 * 1024 ? [bytes / 1024, 'kilobyte'] : [bytes / 1024 / 1024, 'megabyte']
+  return new Intl.NumberFormat(lang, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: unit === 'megabyte' ? 1 : 0 }).format(value)
 }
 
 const FileAttachment = Node.create({
