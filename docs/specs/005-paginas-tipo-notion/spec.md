@@ -2,7 +2,9 @@
 
 **Estado:** Aprobada (2026-10-29).
 
-**Cambio:** 2026-10-29. Ficha del work item: propiedades editables donde se ven, borrar con la papelera, sin hitos ni dependencias, y panel lateral a media pantalla y redimensionable. RF-39 se sustituye por RF-60 a RF-65.
+**Cambio:** 2026-10-29. Ficha del work item: propiedades editables donde se ven, borrar con la papelera, sin hitos ni dependencias, y panel lateral a media pantalla y redimensionable. RF-39 se sustituye por RF-60 a RF-67.
+
+**Cambio:** 2026-10-29. Propiedades principales a la vista y el resto plegadas tras «Más propiedades»: RF-68 y RF-69.
 
 ## Contexto y objetivo
 Hoy la descripción de un work item, un proyecto o un hito es un campo de texto enriquecido
@@ -105,6 +107,8 @@ documentos externos.
 - RF-65: CUANDO se abra el panel lateral, EL SISTEMA le dará la mitad del ancho de la ventana.
 - RF-66: CUANDO el usuario arrastre el borde izquierdo del panel, o use las flechas del teclado sobre él, EL SISTEMA cambiará su ancho entre 360 px y el ancho de la ventana menos 120 px.
 - RF-67: CUANDO se cierre el panel o el usuario haga doble clic en su borde, EL SISTEMA volverá a la mitad del ancho; el ancho elegido no se recuerda.
+- RF-68: EL SISTEMA mostrará siempre en la página del work item su estado, asignado, prioridad, fecha de inicio y fecha de fin, y plegará el resto de propiedades tras un control «Más propiedades» que indica cuántas hay.
+- RF-69: CUANDO el usuario pulse «Más propiedades», EL SISTEMA mostrará el resto de propiedades; al pulsarlo de nuevo, las volverá a plegar. Al abrir otra página empiezan plegadas.
 - RF-40: CUANDO el usuario pulse «Ancho completo», EL SISTEMA ocultará la navegación lateral de la aplicación y extenderá la página a todo el ancho de la ventana. Al pulsarlo de nuevo, volverá a la vista normal.
 - RF-41: EL SISTEMA recordará en el navegador del usuario si eligió el ancho completo.
 - RF-42: CUANDO el usuario pulse Escape en el panel lateral sin ningún menú abierto, EL SISTEMA cerrará el panel.
