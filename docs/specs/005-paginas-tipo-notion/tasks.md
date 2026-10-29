@@ -72,10 +72,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-48
   - Hecho cuando: el test de claves i18n pasa y ningún componente nuevo tiene texto visible fijo.
 
-- [ ] **T13 — Rendimiento**
+- [x] **T13 — Rendimiento**
   - Depende de: T5, T11
   - RF: RNF de rendimiento
   - Hecho cuando: test de API de autoguardado de una página de 50 000 caracteres con 20 imágenes < 300 ms en local.
+  - Resultado: mediana de 57 ms (`TestPagePerformance`). Los límites de la spec 004 siguen dentro (árbol de 5 000 work items, 47 ms).
 
 - [ ] **T14 — Prueba manual (tú)**
   - Depende de: todas
