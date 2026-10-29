@@ -20,10 +20,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - Hecho cuando: tests de `dbStore` y de `s3Store` contra MinIO (`TEST_S3_ENDPOINT`); tests de config (sin S3, completo, a medias → error); `make up-s3` levanta MinIO; `actionlint` sin avisos sobre el workflow con el servicio MinIO.
   - Desviación: MinIO ya no publica imágenes en Docker Hub ni Quay, así que el S3 de desarrollo y de CI es SeaweedFS 4.48, también compatible con S3. El cliente sigue siendo `minio-go`, que funciona con cualquier S3. En CI va como `docker run` en un paso, porque los servicios de Actions no admiten los argumentos de arranque que necesita.
 
-- [ ] **T4 — Subir y servir archivos** (`internal/files` handler y service)
+- [x] **T4 — Subir y servir archivos** (`internal/files` handler y service)
   - Depende de: T3
   - RF: RF-14 a RF-18, RF-23, RF-24, RF-55
   - Hecho cuando: tests de detección por contenido (incluidos los rechazos de SVG, HTML, ejecutable y ZIP disfrazado), de 10 MB exactos y 10 MB + 1, y `apitest` de subir y servir con cabeceras, lector sin acceso con 404 y 25 archivos en una página.
+  - Desviación: en la spec 004 todos los proyectos se leen con `work:read`, así que un usuario de otro equipo puede ver un archivo igual que ve la página que lo contiene (RF-23). El 404 queda para archivos que no existen o están marcados como borrados, y para plantillas sin `templates:use`. La subida está en el paquete `pages`, que sabe quién puede cambiar cada dueño; `files` guarda, sirve y marca.
 
 - [ ] **T5 — Guardar la página** (`internal/pages`, `description` opcional en los `PATCH`)
   - Depende de: T2, T4

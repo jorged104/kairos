@@ -52,7 +52,12 @@ type workSetup struct {
 
 func newWorkSetup(t *testing.T) *workSetup {
 	t.Helper()
-	env := New(t)
+	return newWorkSetupOn(t, New(t))
+}
+
+// newWorkSetupOn builds the same users and teams on an environment with options.
+func newWorkSetupOn(t *testing.T, env *Env) *workSetup {
+	t.Helper()
 	s := &workSetup{env: env}
 	s.leadID = env.CreateUser(UserSpec{Name: "Laura", Email: "lead@x.com", Roles: []string{"lead"}})
 	s.bi = env.CreateTeam("BI", nil, s.leadID)

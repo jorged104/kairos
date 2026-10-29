@@ -128,6 +128,11 @@ func load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID
 	return m, project, err
 }
 
+// Load reads a milestone visible to p and its project; forUpdate locks it.
+func Load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID, forUpdate bool) (sqlc.Milestone, sqlc.Project, error) {
+	return load(ctx, q, p, id, forUpdate)
+}
+
 // manageable loads a milestone whose project the caller manages and can write.
 func manageable(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID) (sqlc.Milestone, sqlc.Project, error) {
 	m, project, err := load(ctx, q, p, id, true)

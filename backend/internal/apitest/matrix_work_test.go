@@ -185,6 +185,21 @@ var workOps = []workOp{
 		return c.Post("/api/objectives/"+m.objective(a).ID.String()+"/milestones", map[string]any{"id": m.milestone(m.project(a)).ID})
 	}, managers(200)},
 	{"consultar eventos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/events") }, map[string]int{"admin": 200}},
+	// Spec 005: files of the pages follow the permission of each owner's edits.
+	{"subir archivo a work item", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Upload("/api/work-items/"+m.workItem(m.project(a)).ID.String()+"/files", "a.png", pngData)
+	}, writers(201)},
+	{"subir archivo a hito", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Upload("/api/milestones/"+m.milestone(m.project(a)).ID.String()+"/files", "a.png", pngData)
+	}, managers(201)},
+	{"subir archivo a proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Upload("/api/projects/"+m.project(a).String()+"/files", "a.png", pngData)
+	}, managers(201)},
+	{"descargar archivo", func(m *workMatrix, c *Client, a string) *Response {
+		var f fileDTO
+		m.admin.Upload("/api/projects/"+m.project(a).String()+"/files", "a.png", pngData).Expect(m.t, http.StatusCreated).JSON(m.t, &f)
+		return c.Get("/api/files/" + f.ID.String())
+	}, workAll(200)},
 }
 
 // TestWorkPermissionMatrix checks every operation of spec 004 against every
