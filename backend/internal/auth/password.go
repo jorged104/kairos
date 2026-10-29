@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	MinPasswordLength = 12
+	MinPasswordLength = 6
 	MaxPasswordLength = 128
 
 	saltBytes = 16
@@ -80,7 +80,7 @@ func verify(password, encoded string) (bool, error) {
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
 
-// CheckPasswordLength enforces 12 to 128 characters (RF-14).
+// CheckPasswordLength enforces 6 to 128 characters (RF-14).
 func CheckPasswordLength(password string) error {
 	n := utf8.RuneCountInString(password)
 	if n < MinPasswordLength {

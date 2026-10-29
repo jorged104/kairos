@@ -12,7 +12,7 @@ var (
 	errLocalAuthDisabled    = apperr.New(http.StatusForbidden, "local_auth_disabled", "El login con contraseña no está habilitado")
 	errOIDCDisabled         = apperr.New(http.StatusForbidden, "oidc_disabled", "El login con SSO no está habilitado")
 	errRegistrationDisabled = apperr.New(http.StatusForbidden, "registration_disabled", "El registro no está habilitado")
-	errPasswordTooShort     = apperr.New(http.StatusBadRequest, "password_too_short", "La contraseña debe tener al menos 12 caracteres").WithDetail("field", "password")
+	errPasswordTooShort     = apperr.New(http.StatusBadRequest, "password_too_short", "La contraseña debe tener al menos 6 caracteres").WithDetail("field", "password")
 	errPasswordTooLong      = apperr.New(http.StatusBadRequest, "password_too_long", "La contraseña no puede tener más de 128 caracteres").WithDetail("field", "password")
 	errWrongPassword        = apperr.New(http.StatusBadRequest, "wrong_password", "La contraseña actual no es correcta")
 	errEmailConflict        = apperr.New(http.StatusConflict, "email_conflict", "El email ya pertenece a otro usuario")

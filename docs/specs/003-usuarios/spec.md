@@ -2,6 +2,8 @@
 
 **Estado:** Aprobada (2026-10-22). Dudas resueltas el 2026-10-22; ver «Decisiones de la revisión».
 
+**Cambio:** 2026-10-28. La contraseña mínima baja de 12 a 6 caracteres (RF-14 y «Contraseñas»).
+
 > **Nota de numeración.** El árbol de ejemplo de `AGENTS.md` reserva `001-auth`,
 > `002-work-hierarchy` y `003-gamification`, pero en disco 001 y 002 se usaron para la
 > infraestructura base y el entorno de previsualización. Esta spec toma el 003, como la rama
@@ -91,7 +93,7 @@ como restricciones de entrada para el plan y **no se reabren**:
 - RF-11: DONDE el login local esté habilitado y el registro abierto esté activado por configuración, CUANDO un visitante se registre con nombre, email y contraseña válidos, EL SISTEMA creará un usuario activo con el rol por defecto y sin equipo.
 - RF-12: MIENTRAS el registro abierto esté desactivado, EL SISTEMA rechazará los registros y no mostrará la opción en la pantalla de login.
 - RF-13: SI el email del registro ya pertenece a otro usuario, ENTONCES EL SISTEMA no creará un duplicado y responderá con un código de conflicto.
-- RF-14: SI la contraseña tiene menos de 12 caracteres, ENTONCES EL SISTEMA rechazará el registro indicando el motivo.
+- RF-14: SI la contraseña tiene menos de 6 caracteres, ENTONCES EL SISTEMA rechazará el registro indicando el motivo.
 
 ### Login OIDC
 - RF-15: DONDE el login OIDC esté habilitado, CUANDO un visitante elija entrar con SSO, EL SISTEMA lo redirigirá al IdP con una petición de autorización protegida con PKCE, `state` y `nonce`.
@@ -276,7 +278,7 @@ solo actúa sobre usuarios de su equipo cuyo rol de mayor prioridad sea `member`
 - **Infraestructura base (spec 001):** la pantalla de estado pasa a requerir sesión (RF-121, RF-122). Los endpoints de salud siguen siendo públicos (RF-123).
 
 ## Requisitos no funcionales
-- **Contraseñas:** se guardan solo con un hash adaptativo con sal, de coste configurable. Mínimo 12 caracteres y máximo 128. Nunca aparecen en logs, respuestas de la API ni auditoría.
+- **Contraseñas:** se guardan solo con un hash adaptativo con sal, de coste configurable. Mínimo 6 caracteres y máximo 128. Nunca aparecen en logs, respuestas de la API ni auditoría.
 - **Secretos:** la clave de firma de sesión y el secreto del cliente OIDC vienen solo del entorno. `.env.example` solo lleva valores de desarrollo marcados como tales. Ningún secreto se registra en los logs. Los tokens del IdP (access, refresh, id) no se persisten después de completar el login. El cierre de sesión en el IdP se pide con el client id, sin `id_token_hint`.
 - **Cookies:** la cookie de sesión no es accesible desde JavaScript. Fuera de desarrollo solo viaja por HTTPS.
 - **CSRF:** las operaciones que modifican datos rechazan las peticiones cuyo origen no sea el del frontend configurado.
