@@ -506,6 +506,7 @@
     "anyMilestone": "Cualquier hito",
     "moveTo": "Pasar a:",
     "delete": "Borrar",
+    "confirmDelete": "Pulsa otra vez para borrar",
     "milestones": "Hitos",
     "dependencies": "Dependencias",
     "depType": "Tipo de dependencia",
@@ -670,6 +671,7 @@
     },
     "openAsPage": "Abrir como página",
     "closePanel": "Cerrar panel",
+    "resizePanel": "Cambiar el ancho del panel (doble clic: mitad de la pantalla)",
     "fullWidth": "Ancho completo",
     "exitFullWidth": "Salir del ancho completo"
   }
