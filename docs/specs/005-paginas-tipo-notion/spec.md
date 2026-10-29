@@ -1,0 +1,162 @@
+# Spec 005 — Páginas tipo Notion para work items, proyectos e hitos
+
+**Estado:** Borrador (2026-10-29) — pendiente de aprobación.
+
+## Contexto y objetivo
+Hoy la descripción de un work item, un proyecto o un hito es un campo de texto enriquecido
+dentro de su ficha (spec 004, RF-70 y RF-71). Tiene formato básico, se guarda con un botón y no
+admite imágenes, adjuntos ni referencias a otros elementos. El equipo quiere que esa descripción
+sea una **página**, como en Notion: un documento hecho de bloques que se insertan con `/`, se
+arrastran para reordenarlos y admiten listas de tareas, bloques plegables, imágenes, archivos y
+menciones. Se guarda solo mientras se escribe. Así el detalle de una tarea (criterios, capturas,
+notas de reunión, enlaces a otros work items) vive junto a ella, en lugar de repartirse en
+documentos externos.
+
+## Usuarios / actores
+- **Participante del proyecto** con permiso de escritura sobre el elemento: edita la página.
+- **Usuario con acceso de lectura** al proyecto: lee la página, ve imágenes y descarga adjuntos.
+- **Administrador del sistema:** configura dónde se guardan los archivos.
+
+## Conceptos
+- **Página:** la descripción de un work item, un proyecto o un hito, compuesta por bloques. Sustituye a la descripción actual y conserva su contenido.
+- **Bloque:** una unidad de la página, como un párrafo, un título, una lista, una tabla o una imagen.
+- **Almacenamiento de archivos:** dónde se guardan las imágenes y los adjuntos. Puede ser un almacenamiento de objetos compatible con S3 (por ejemplo MinIO) o la base de datos.
+
+## Historias de usuario
+- H1: Como participante quiero escribir `/` e insertar el bloque que necesito para dar formato sin buscar botones.
+- H2: Como participante quiero arrastrar un bloque para reordenar la página sin cortar y pegar.
+- H3: Como participante quiero pegar o subir capturas y adjuntar documentos para dejar el contexto junto a la tarea.
+- H4: Como participante quiero listas de tareas y bloques plegables para organizar criterios y notas largas.
+- H5: Como participante quiero mencionar a un compañero o a otro work item, hito o proyecto para enlazarlos.
+- H6: Como participante quiero que la página se guarde sola para no perder lo escrito.
+- H7: Como participante quiero abrir un work item en un panel junto al árbol, o como página completa, para leerlo sin perder el contexto o con todo el espacio.
+- H8: Como administrador quiero guardar los archivos en S3 o MinIO cuando lo tenga, y en la base de datos cuando no.
+
+## Requisitos funcionales (criterios de aceptación en EARS)
+
+### Bloques
+- RF-1: EL SISTEMA admitirá en una página los bloques que ya admite la descripción: párrafo, títulos, listas con viñetas y numeradas, código, tabla y enlaces. También las marcas de negrita, cursiva y código en línea.
+- RF-2: EL SISTEMA admitirá además listas de tareas con casilla, bloques plegables, citas, avisos destacados (callout) y separadores.
+- RF-3: CUANDO el usuario marque o desmarque la casilla de una lista de tareas, EL SISTEMA guardará el cambio como cualquier otra edición de la página.
+- RF-4: CUANDO el usuario pliegue o despliegue un bloque plegable, EL SISTEMA mostrará u ocultará su contenido sin guardar el cambio. Al abrir la página, todos aparecerán plegados.
+- RF-5: EL SISTEMA admitirá bloques de imagen y de archivo adjunto (RF-14 a RF-24).
+- RF-6: EL SISTEMA admitirá menciones de usuarios, work items, hitos y proyectos (RF-25 a RF-30).
+
+### Edición por bloques
+- RF-7: CUANDO el usuario escriba `/` al principio de un bloque vacío o tras un espacio, EL SISTEMA abrirá un menú con los bloques que se pueden insertar.
+- RF-8: MIENTRAS el menú de `/` esté abierto, EL SISTEMA filtrará sus opciones por el texto escrito tras `/` y permitirá elegirlas con las flechas y Enter.
+- RF-9: CUANDO el usuario pulse Escape con el menú de `/` abierto, EL SISTEMA cerrará el menú y dejará el texto escrito.
+- RF-10: CUANDO el usuario pase el puntero sobre un bloque, EL SISTEMA mostrará junto a él un asa para arrastrarlo.
+- RF-11: CUANDO el usuario arrastre un bloque por su asa y lo suelte en otra posición, EL SISTEMA lo moverá ahí con todo su contenido, incluidos los bloques anidados.
+- RF-12: CUANDO el usuario abra el menú del asa, EL SISTEMA ofrecerá convertir el bloque en otro tipo compatible, duplicarlo y borrarlo.
+- RF-13: MIENTRAS el usuario no tenga permiso de escritura sobre el elemento, EL SISTEMA mostrará la página en modo lectura, sin menú `/` ni asas, y con las casillas de las listas de tareas deshabilitadas.
+
+### Imágenes y archivos
+- RF-14: CUANDO el usuario suba, pegue o arrastre una imagen PNG, JPG, GIF o WebP sobre la página, EL SISTEMA la guardará y la insertará como bloque de imagen visible en la página.
+- RF-15: CUANDO el usuario suba o arrastre un archivo PDF, de Office (Word, Excel o PowerPoint), TXT, CSV o ZIP, EL SISTEMA lo guardará y lo insertará como bloque de adjunto con su nombre, tamaño y un enlace de descarga.
+- RF-16: SI el archivo supera 10 MB, ENTONCES EL SISTEMA lo rechazará e indicará el límite.
+- RF-17: SI el tipo de archivo no es uno de RF-14 o RF-15, ENTONCES EL SISTEMA lo rechazará e indicará los tipos admitidos. Esto incluye SVG, HTML y ejecutables.
+- RF-18: EL SISTEMA determinará el tipo del archivo por su contenido, no solo por su extensión ni por lo que declare el navegador.
+- RF-19: MIENTRAS se sube un archivo, EL SISTEMA mostrará su progreso en el bloque.
+- RF-20: SI la subida falla, ENTONCES EL SISTEMA mostrará el error en el bloque y permitirá reintentarla o quitar el bloque.
+- RF-21: DONDE esté configurado un almacenamiento de objetos compatible con S3, EL SISTEMA guardará ahí los archivos.
+- RF-22: DONDE no esté configurado ese almacenamiento, EL SISTEMA guardará los archivos en la base de datos.
+- RF-23: EL SISTEMA solo servirá una imagen o un adjunto a usuarios con acceso de lectura al elemento cuya página lo contiene.
+- RF-24: EL SISTEMA servirá los adjuntos como descarga y nunca para que el navegador los ejecute en la página de Kairos.
+
+### Menciones
+- RF-25: CUANDO el usuario escriba `@`, EL SISTEMA abrirá un buscador de usuarios activos por nombre o email.
+- RF-26: CUANDO el usuario escriba `#`, EL SISTEMA abrirá un buscador de work items (por clave o título), hitos y proyectos a los que tenga acceso de lectura.
+- RF-27: CUANDO el usuario elija un resultado, EL SISTEMA insertará la mención como un enlace que muestra el nombre actual del usuario, o la clave y el título actuales del elemento.
+- RF-28: SI quien lee la página no tiene acceso al elemento mencionado, ENTONCES EL SISTEMA mostrará la mención como «sin acceso», sin revelar su título.
+- RF-29: SI el usuario o el elemento mencionado ya no existe, ENTONCES EL SISTEMA mostrará la mención como «eliminado».
+- RF-30: EL SISTEMA no enviará avisos a los usuarios mencionados.
+
+### Guardado
+- RF-31: CUANDO el usuario deje de escribir durante [NECESITA ACLARACIÓN: ¿2 segundos?], EL SISTEMA guardará la página sin que el usuario pulse ningún botón.
+- RF-32: CUANDO el usuario salga de la página o cierre el panel con cambios sin guardar, EL SISTEMA los guardará antes de cerrar.
+- RF-33: EL SISTEMA mostrará en la página si hay cambios sin guardar, si se está guardando o si ya está guardada.
+- RF-34: SI otra persona cambió la página desde que el usuario la abrió, ENTONCES EL SISTEMA no sobrescribirá su cambio, avisará al usuario y conservará en pantalla el texto del usuario para que pueda copiarlo antes de recargar.
+- RF-35: SI el guardado falla por un error de red, ENTONCES EL SISTEMA conservará los cambios en pantalla, mostrará el error y reintentará el guardado.
+- RF-36: SI la página supera el límite de tamaño de la descripción (50 000 caracteres, spec 004 RF-70), ENTONCES EL SISTEMA no la guardará e indicará el límite.
+
+### Vistas
+- RF-37: CUANDO el usuario haga clic en un work item del árbol de un proyecto, EL SISTEMA abrirá su página en un panel lateral junto al árbol, sin salir de él.
+- RF-38: CUANDO el usuario pulse «Abrir como página» en el panel, EL SISTEMA abrirá la página completa del work item en su URL propia.
+- RF-39: CUANDO el usuario abra la URL de un work item, EL SISTEMA mostrará la página completa: título editable, propiedades del work item (estado, tipo, prioridad, asignado, fechas, horas, avance, peso, padre, campos personalizados, hitos y dependencias) y, debajo, el cuerpo de la página.
+- RF-40: CUANDO el usuario pulse «Ancho completo», EL SISTEMA ocultará la navegación lateral de la aplicación y extenderá la página a todo el ancho de la ventana. Al pulsarlo de nuevo, volverá a la vista normal.
+- RF-41: EL SISTEMA recordará en el navegador del usuario si eligió el ancho completo.
+- RF-42: CUANDO el usuario pulse Escape en el panel lateral sin ningún menú abierto, EL SISTEMA cerrará el panel.
+- RF-43: EL SISTEMA mostrará la página de un proyecto en su ficha y la de un hito en la suya, con las mismas capacidades de edición que la de un work item.
+
+### Compatibilidad
+- RF-44: EL SISTEMA mostrará y permitirá editar las descripciones existentes como páginas sin perder contenido.
+- RF-45: EL SISTEMA seguirá rechazando en una página HTML, scripts ejecutables y enlaces que no sean `http`, `https` o `mailto` (spec 004 RF-71).
+- RF-46: EL SISTEMA seguirá buscando por el texto de la página, incluido el de los bloques nuevos y el nombre de los adjuntos, como hoy busca por la descripción.
+- RF-47: EL SISTEMA seguirá auditando solo que la página cambió, sin guardar su contenido (spec 004 RF-135).
+- RF-48: EL SISTEMA obtendrá todos los textos visibles de los menús, bloques, avisos y errores de esta spec del catálogo de traducciones.
+
+## Requisitos no funcionales
+- **Seguridad:** las imágenes y adjuntos se sirven tras comprobar la sesión y el permiso sobre el elemento (RF-23). Las URL de los archivos no dan acceso sin sesión. Los adjuntos se sirven con un tipo que el navegador no ejecuta (RF-24).
+- **Rendimiento** (entorno local): abrir una página de 50 000 caracteres con 20 imágenes se pinta en < 1 s sin contar la descarga de las imágenes. Escribir no muestra retraso visible con esa página. Un autoguardado responde en < 300 ms.
+- **Compatibilidad de despliegue:** la versión anterior de la API sigue leyendo y guardando descripciones mientras conviven las dos versiones (regla de migraciones de `AGENTS.md`).
+- **Plataformas:** navegadores de escritorio actuales. En móvil, la página se lee y se edita con teclado, sin arrastrar bloques.
+- **Idioma:** español por defecto (RF-48).
+
+## Casos límite
+- **Pegar contenido de otra web o de Notion:** solo se conserva lo admitido por RF-1, RF-2 y RF-45. Lo demás se convierte en texto.
+- **Pegar una imagen que supera 10 MB o de un tipo no admitido:** se rechaza como en RF-16 y RF-17, y el resto de lo pegado se conserva.
+- **Imagen borrada de la página:** la página deja de mostrarla. [NECESITA ACLARACIÓN: ¿el archivo se borra del almacenamiento al guardar, tras un periodo, o nunca?]
+- **Work item, proyecto o hito borrado:** sus archivos dejan de servirse. [NECESITA ACLARACIÓN: ¿se borran del almacenamiento a la vez?]
+- **Copia desde plantilla (spec 004):** la página copiada conserva sus imágenes y adjuntos. [NECESITA ACLARACIÓN: ¿la copia comparte los archivos de la plantilla o los duplica?]
+- **Cambio de almacenamiento:** si se configura S3 cuando ya hay archivos en la base de datos, los existentes se siguen sirviendo. [NECESITA ACLARACIÓN: ¿hay que migrarlos a S3?]
+- **S3 configurado pero caído:** la subida falla con error (RF-20), no se guarda en la base de datos como alternativa. Los archivos ya subidos no se pueden ver mientras dure.
+- **Dos pestañas del mismo usuario:** se tratan como dos personas (RF-34).
+- **Un cambio de estado, asignado u otra propiedad mientras alguien edita la página:** [NECESITA ACLARACIÓN: ¿cuenta como conflicto de RF-34 o solo cuentan los cambios de la página?]
+- **Mención a un work item de otro proyecto:** se admite si quien escribe tiene acceso. Quien lee sin acceso ve «sin acceso» (RF-28).
+- **Página vacía:** se muestra un texto de ayuda que invita a escribir o pulsar `/`, solo a quien puede editar.
+- **Bloques plegables anidados y listas de tareas dentro de tablas:** [NECESITA ACLARACIÓN: ¿se admiten o se limita el anidamiento?] El límite de 20 niveles de la descripción actual se mantiene.
+
+## Fuera de alcance
+- Colaboración en tiempo real: cursores de otros usuarios y edición simultánea con fusión de cambios.
+- Historial de versiones de la página y restauración.
+- Subpáginas o páginas sueltas fuera de un work item, proyecto o hito.
+- Página tipo Notion para objetivos y resultados clave.
+- Embeds de vídeos, Figma, Google Docs u otras webs.
+- Avisos o notificaciones por menciones (RF-30).
+- Comentarios en bloques.
+- Bases de datos o vistas de Notion dentro de la página.
+- Exportar o importar páginas (PDF, Markdown, Notion).
+- Editar imágenes: recortar o redimensionar más allá del ancho de la página.
+- Arrastrar bloques en pantallas táctiles.
+- Previsualizar PDF u Office dentro de la página: se descargan.
+- Cuotas de almacenamiento por proyecto o usuario.
+
+## Criterios de finalización
+- Todos los RF cubiertos por tests automáticos en verde: backend para guardado, conflictos, archivos (tipos, tamaño, permisos y los dos almacenamientos) y menciones sin acceso; frontend para el menú `/`, las asas, el autoguardado y las vistas.
+- Demo manual:
+  1. Abrir un work item desde el árbol en el panel, escribir `/`, insertar un checklist y un plegable, y arrastrar un bloque.
+  2. Pegar una captura y adjuntar un PDF, con y sin S3 configurado.
+  3. Mencionar a un usuario y a otro work item.
+  4. Abrir la página completa y el ancho completo.
+  5. Provocar un conflicto desde otra pestaña.
+  6. Entrar con un usuario de solo lectura y comprobar el modo lectura y la mención «sin acceso».
+
+## Decisiones tomadas con el usuario (2026-10-29)
+- **Bloques nuevos:** listas de tareas, plegables, citas, avisos destacados y separadores; imágenes y archivos; menciones. Sin embeds.
+- **Archivos:** en un almacenamiento compatible con S3 (por ejemplo MinIO) si está configurado y, si no, en la base de datos. Máximo 10 MB. Imágenes PNG, JPG, GIF y WebP visibles en la página; PDF, Office, TXT, CSV y ZIP como adjuntos. Sin SVG ni ejecutables.
+- **Vistas:** panel lateral desde el árbol, página completa con URL propia y opción de ancho completo. El diseño visual se propone aparte con `/design`.
+- **Guardado:** autoguardado con aviso de conflicto, sin colaboración en tiempo real.
+- **Edición:** menú `/`, asas para arrastrar y menú de bloque.
+- **Alcance:** work items, proyectos e hitos. Objetivos fuera.
+- **Menciones:** solo enlace, sin avisos.
+
+## Dudas abiertas
+- [NECESITA ACLARACIÓN] Tiempo sin escribir antes del autoguardado (RF-31). Propuesta: 2 s.
+- [NECESITA ACLARACIÓN] Qué pasa con un archivo al quitarlo de la página y al borrar el elemento: borrar del almacenamiento al momento, tras un periodo o nunca.
+- [NECESITA ACLARACIÓN] Copia desde plantilla: compartir o duplicar los archivos.
+- [NECESITA ACLARACIÓN] Al configurar S3 con archivos ya en la base de datos: migrarlos o dejarlos.
+- [NECESITA ACLARACIÓN] Conflicto de autoguardado: solo si otro cambió la página, o también si cambió cualquier propiedad del elemento. Propuesta: solo la página, para que un cambio de estado no interrumpa a quien escribe.
+- [NECESITA ACLARACIÓN] Atajos de Markdown al escribir (`# ` título, `- ` lista, `[] ` tarea, `> ` cita): ¿se incluyen?
+- [NECESITA ACLARACIÓN] Anidamiento: plegables dentro de plegables y bloques nuevos dentro de celdas de tabla.
+- [NECESITA ACLARACIÓN] Límite de archivos por página. Propuesta: sin límite propio, solo los 10 MB por archivo.
