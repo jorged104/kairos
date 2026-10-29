@@ -33,7 +33,21 @@ type Config struct {
 	Port        string
 	Auth        AuthConfig
 	OIDC        OIDCConfig
+	// Files is the S3 storage of page files; Endpoint empty keeps them in the database (RF-21, RF-22).
+	Files FilesConfig
 }
+
+type FilesConfig struct {
+	Endpoint  string
+	Bucket    string
+	Region    string
+	AccessKey string
+	SecretKey string
+	UseSSL    bool
+}
+
+// S3 reports whether page files go to an S3 storage.
+func (f FilesConfig) S3() bool { return f.Endpoint != "" }
 
 type AuthConfig struct {
 	Mode                string
@@ -91,7 +105,44 @@ func Load() (Config, error) {
 		}
 		cfg.OIDC = oidc
 	}
+
+	files, err := loadFiles()
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Files = files
 	return cfg, nil
+}
+
+// loadFiles reads the optional S3 storage. Half a configuration is an error,
+// so a typo never sends the files to the database unnoticed.
+func loadFiles() (FilesConfig, error) {
+	f := FilesConfig{
+		Endpoint:  os.Getenv("FILES_S3_ENDPOINT"),
+		Bucket:    os.Getenv("FILES_S3_BUCKET"),
+		Region:    os.Getenv("FILES_S3_REGION"),
+		AccessKey: os.Getenv("FILES_S3_ACCESS_KEY"),
+		SecretKey: os.Getenv("FILES_S3_SECRET_KEY"),
+	}
+	var errs []error
+	f.UseSSL = boolEnv("FILES_S3_USE_SSL", true, &errs)
+	if f.Endpoint == "" {
+		if f.Bucket != "" || f.AccessKey != "" || f.SecretKey != "" {
+			errs = append(errs, errors.New("falta FILES_S3_ENDPOINT para usar el almacenamiento S3"))
+		}
+		return FilesConfig{}, errors.Join(errs...)
+	}
+	if strings.Contains(f.Endpoint, "://") {
+		errs = append(errs, fmt.Errorf("FILES_S3_ENDPOINT=%q debe ser host[:puerto], sin esquema", f.Endpoint))
+	}
+	for name, v := range map[string]string{
+		"FILES_S3_BUCKET": f.Bucket, "FILES_S3_ACCESS_KEY": f.AccessKey, "FILES_S3_SECRET_KEY": f.SecretKey,
+	} {
+		if v == "" {
+			errs = append(errs, fmt.Errorf("falta la variable de entorno %s", name))
+		}
+	}
+	return f, errors.Join(errs...)
 }
 
 func loadAuth() (AuthConfig, error) {

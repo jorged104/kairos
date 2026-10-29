@@ -14,10 +14,11 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-1 a RF-6, RF-45, RF-46, RF-57, RF-58
   - Hecho cuando: tests de `CleanPage` (nodos nuevos, `open` descartado, `src` rechazado, `fileId` ajeno rechazado, 21 niveles rechazados, texto con adjuntos) y de que `Clean` sigue rechazando los nodos nuevos.
 
-- [ ] **T3 — Almacenamiento y configuración** (`internal/files/store.go`, `internal/config`, `docker-compose.yml` profile `s3`, `Makefile`, `.env.example`, CI)
+- [x] **T3 — Almacenamiento y configuración** (`internal/files/store.go`, `internal/config`, `docker-compose.yml` profile `s3`, `Makefile`, `.env.example`, CI)
   - Depende de: T1
   - RF: RF-21, RF-22, RF-54
   - Hecho cuando: tests de `dbStore` y de `s3Store` contra MinIO (`TEST_S3_ENDPOINT`); tests de config (sin S3, completo, a medias → error); `make up-s3` levanta MinIO; `actionlint` sin avisos sobre el workflow con el servicio MinIO.
+  - Desviación: MinIO ya no publica imágenes en Docker Hub ni Quay, así que el S3 de desarrollo y de CI es SeaweedFS 4.48, también compatible con S3. El cliente sigue siendo `minio-go`, que funciona con cualquier S3. En CI va como `docker run` en un paso, porque los servicios de Actions no admiten los argumentos de arranque que necesita.
 
 - [ ] **T4 — Subir y servir archivos** (`internal/files` handler y service)
   - Depende de: T3

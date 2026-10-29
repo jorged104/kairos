@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "kairos",
+      "credentials": [{ "accessKey": "kairos-dev", "secretKey": "dev-only-kairos-s3-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
