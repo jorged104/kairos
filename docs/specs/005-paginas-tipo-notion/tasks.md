@@ -9,7 +9,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: soporte de RF-14 a RF-24, RF-34, RF-49 a RF-55, RF-59
   - Hecho cuando: la migración sube, baja y vuelve a subir en limpio; test de BD de que el trigger incrementa `page_version` solo si cambia `description`; sqlc genera sin errores; `go test ./...` en verde.
 
-- [ ] **T2 — Lista blanca de páginas** (`internal/richtext`)
+- [x] **T2 — Lista blanca de páginas** (`internal/richtext`)
   - Depende de: —
   - RF: RF-1 a RF-6, RF-45, RF-46, RF-57, RF-58
   - Hecho cuando: tests de `CleanPage` (nodos nuevos, `open` descartado, `src` rechazado, `fileId` ajeno rechazado, 21 niveles rechazados, texto con adjuntos) y de que `Clean` sigue rechazando los nodos nuevos.

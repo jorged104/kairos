@@ -1,7 +1,8 @@
-// Package richtext validates the descriptions of spec 004 (RF-70, RF-71). A
-// description is a TipTap/ProseMirror JSON document, never HTML: every node,
-// mark and attribute must be in the allowlist, and the stored copy is rebuilt
-// from the parsed tree so nothing outside it reaches the database.
+// Package richtext validates the descriptions of spec 004 (RF-70, RF-71) and
+// the pages of spec 005. A description is a TipTap/ProseMirror JSON document,
+// never HTML: every node, mark and attribute must be in the allowlist, and the
+// stored copy is rebuilt from the parsed tree so nothing outside it reaches the
+// database. Pages admit more blocks than the descriptions of objectives.
 package richtext
 
 import (
@@ -13,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
 
 	"openscum/internal/apperr"
 )
@@ -84,9 +87,81 @@ var markAttrs = map[string]map[string]attrRule{
 	},
 }
 
+// pageNodeAttrs adds the blocks of a page (spec 005, RF-1 to RF-6) to nodeAttrs.
+// The files and mentions are checked by the cleaner.
+var pageNodeAttrs = func() map[string]map[string]attrRule {
+	m := map[string]map[string]attrRule{
+		"taskList": {},
+		"taskItem": {"checked": boolean},
+		// Toggles always open folded (RF-4): their state is never stored.
+		"details":        {"open": dropBool},
+		"detailsSummary": {},
+		"detailsContent": {},
+		"callout":        {},
+		// The viewer builds src from fileId; the src of the editor is dropped.
+		"image": {
+			"fileId": uuidString, "alt": stringOrNull(200), "src": fileSrc,
+			"title": dropString, "width": dropNumber, "height": dropNumber,
+		},
+		"fileAttachment": {"fileId": uuidString, "name": dropString, "size": dropNumber},
+		// The label is resolved when reading (RF-27).
+		"mention": {
+			"kind": oneOf("user", "work_item", "milestone", "project"), "id": uuidString,
+			"label": dropString, "mentionSuggestionChar": dropString,
+		},
+	}
+	for k, v := range nodeAttrs {
+		m[k] = v
+	}
+	return m
+}()
+
+// File is a file of the page's owner.
+type File struct {
+	Name string
+	Size int64
+	Kind string // image or file
+}
+
+// Mention is a reference of a page to a user or another element.
+type Mention struct {
+	Kind string
+	ID   uuid.UUID
+}
+
+// Page is what CleanPage found in a page besides its text.
+type Page struct {
+	Files    []uuid.UUID
+	Mentions []Mention
+}
+
+type cleaner struct {
+	nodes map[string]map[string]attrRule
+	files map[uuid.UUID]File
+	page  Page
+	seen  map[uuid.UUID]bool
+}
+
 // Clean validates raw and returns the document to store and its plain text.
 // An empty or null document returns nil and "".
 func Clean(raw json.RawMessage) (json.RawMessage, string, error) {
+	return (&cleaner{nodes: nodeAttrs}).clean(raw)
+}
+
+// CleanPage validates a page (spec 005). files are the files of the page's
+// owner: an image or attachment of any other file is rejected, and the stored
+// name and size of an attachment come from its file. It also returns the
+// files and mentions of the page.
+func CleanPage(raw json.RawMessage, files map[uuid.UUID]File) (json.RawMessage, string, Page, error) {
+	c := &cleaner{nodes: pageNodeAttrs, files: files, seen: map[uuid.UUID]bool{}}
+	out, text, err := c.clean(raw)
+	if err != nil {
+		return nil, "", Page{}, err
+	}
+	return out, text, c.page, nil
+}
+
+func (c *cleaner) clean(raw json.RawMessage) (json.RawMessage, string, error) {
 	raw = bytes.TrimSpace(raw)
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil, "", nil
@@ -101,7 +176,7 @@ func Clean(raw json.RawMessage) (json.RawMessage, string, error) {
 		return nil, "", ErrInvalid.WithDetail("reason", "structure")
 	}
 	var text strings.Builder
-	if err := walk(&doc, 0, &text); err != nil {
+	if err := c.walk(&doc, 0, &text); err != nil {
 		return nil, "", err
 	}
 	plain := strings.TrimSpace(text.String())
@@ -118,16 +193,19 @@ func Clean(raw json.RawMessage) (json.RawMessage, string, error) {
 	return out, plain, nil
 }
 
-func walk(n *node, depth int, text *strings.Builder) error {
+func (c *cleaner) walk(n *node, depth int, text *strings.Builder) error {
 	if n == nil || depth > MaxDepth {
 		return ErrInvalid.WithDetail("reason", "depth")
 	}
-	rules, ok := nodeAttrs[n.Type]
+	rules, ok := c.nodes[n.Type]
 	if !ok || (depth > 0 && n.Type == "doc") {
 		return ErrInvalid.WithDetail("reason", "node")
 	}
 	var err error
 	if n.Attrs, err = checkAttrs(n.Attrs, rules); err != nil {
+		return err
+	}
+	if err := c.refs(n, text); err != nil {
 		return err
 	}
 	if n.Type == "text" {
@@ -153,16 +231,56 @@ func walk(n *node, depth int, text *strings.Builder) error {
 			return ErrInvalid.WithDetail("reason", "link")
 		}
 	}
-	for _, c := range n.Content {
-		if err := walk(c, depth+1, text); err != nil {
+	for _, k := range n.Content {
+		if err := c.walk(k, depth+1, text); err != nil {
 			return err
 		}
 	}
 	switch n.Type {
-	case "paragraph", "heading", "codeBlock", "tableCell", "tableHeader", "hardBreak":
+	case "paragraph", "heading", "codeBlock", "tableCell", "tableHeader", "hardBreak", "detailsSummary":
 		text.WriteString("\n")
 	}
 	return nil
+}
+
+// refs checks the files and mentions of a page node. An attachment takes its
+// name and size from its file, and the name goes to the searchable text (RF-46).
+func (c *cleaner) refs(n *node, text *strings.Builder) error {
+	switch n.Type {
+	case "image", "fileAttachment":
+		id, ok := attrUUID(n.Attrs, "fileId")
+		f, mine := c.files[id]
+		if !ok || !mine || (n.Type == "image") != (f.Kind == "image") {
+			return ErrInvalid.WithDetail("reason", "file")
+		}
+		if n.Type == "fileAttachment" {
+			name, _ := json.Marshal(f.Name)
+			size, _ := json.Marshal(f.Size)
+			n.Attrs["name"], n.Attrs["size"] = name, size
+			text.WriteString(f.Name + "\n")
+		}
+		if !c.seen[id] {
+			c.seen[id] = true
+			c.page.Files = append(c.page.Files, id)
+		}
+	case "mention":
+		id, ok := attrUUID(n.Attrs, "id")
+		var kind string
+		if !ok || json.Unmarshal(n.Attrs["kind"], &kind) != nil {
+			return ErrInvalid.WithDetail("reason", "mention")
+		}
+		c.page.Mentions = append(c.page.Mentions, Mention{Kind: kind, ID: id})
+	}
+	return nil
+}
+
+func attrUUID(attrs map[string]json.RawMessage, key string) (uuid.UUID, bool) {
+	var s string
+	if json.Unmarshal(attrs[key], &s) != nil {
+		return uuid.Nil, false
+	}
+	id, err := uuid.Parse(s)
+	return id, err == nil
 }
 
 // checkAttrs keeps the allowed attributes. Unknown attributes are dropped
@@ -257,6 +375,67 @@ func colwidth(v json.RawMessage) (bool, bool) {
 		}
 	}
 	return true, true
+}
+
+func oneOf(values ...string) attrRule {
+	return func(v json.RawMessage) (bool, bool) {
+		var s string
+		if json.Unmarshal(v, &s) != nil {
+			return false, false
+		}
+		for _, x := range values {
+			if s == x {
+				return true, true
+			}
+		}
+		return false, false
+	}
+}
+
+func boolean(v json.RawMessage) (bool, bool) {
+	var b bool
+	return json.Unmarshal(v, &b) == nil, true
+}
+
+func dropBool(v json.RawMessage) (bool, bool) {
+	var b *bool
+	return json.Unmarshal(v, &b) == nil, false
+}
+
+func dropNumber(v json.RawMessage) (bool, bool) {
+	var f *float64
+	return json.Unmarshal(v, &f) == nil, false
+}
+
+// uuidString accepts a uuid in its canonical form only.
+func uuidString(v json.RawMessage) (bool, bool) {
+	var s string
+	if json.Unmarshal(v, &s) != nil || len(s) != 36 {
+		return false, false
+	}
+	_, err := uuid.Parse(s)
+	return err == nil, true
+}
+
+func stringOrNull(max int) attrRule {
+	return func(v json.RawMessage) (bool, bool) {
+		if isNull(v) {
+			return true, false
+		}
+		var s string
+		return json.Unmarshal(v, &s) == nil && utf8.RuneCountInString(s) <= max, true
+	}
+}
+
+var fileSrcRe = regexp.MustCompile(`^/api/files/[0-9a-f-]{36}$`)
+
+// fileSrc accepts only the URL the viewer builds for a file, and drops it.
+func fileSrc(v json.RawMessage) (bool, bool) {
+	if isNull(v) {
+		return true, false
+	}
+	var s string
+	return json.Unmarshal(v, &s) == nil && fileSrcRe.MatchString(s), false
 }
 
 // dropString accepts a short string or null and never stores it.
