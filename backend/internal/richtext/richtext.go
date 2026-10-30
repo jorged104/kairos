@@ -133,10 +133,12 @@ type Mention struct {
 type Page struct {
 	Files    []uuid.UUID
 	Mentions []Mention
+	Threads  []uuid.UUID // the comment threads anchored in it (spec 006, RF-45)
 }
 
 type cleaner struct {
 	nodes map[string]map[string]attrRule
+	marks map[string]map[string]attrRule // markAttrs when nil
 	files map[uuid.UUID]File
 	page  Page
 	seen  map[uuid.UUID]bool
@@ -153,7 +155,7 @@ func Clean(raw json.RawMessage) (json.RawMessage, string, error) {
 // name and size of an attachment come from its file. It also returns the
 // files and mentions of the page.
 func CleanPage(raw json.RawMessage, files map[uuid.UUID]File) (json.RawMessage, string, Page, error) {
-	c := &cleaner{nodes: pageNodeAttrs, files: files, seen: map[uuid.UUID]bool{}}
+	c := &cleaner{nodes: pageNodeAttrs, marks: pageMarkAttrs, files: files, seen: map[uuid.UUID]bool{}}
 	out, text, err := c.clean(raw)
 	if err != nil {
 		return nil, "", Page{}, err
@@ -220,12 +222,26 @@ func (c *cleaner) walk(n *node, depth int, text *strings.Builder) error {
 		if m == nil {
 			return ErrInvalid.WithDetail("reason", "mark")
 		}
-		mr, ok := markAttrs[m.Type]
+		marks := c.marks
+		if marks == nil {
+			marks = markAttrs
+		}
+		mr, ok := marks[m.Type]
 		if !ok {
 			return ErrInvalid.WithDetail("reason", "mark")
 		}
 		if m.Attrs, err = checkAttrs(m.Attrs, mr); err != nil {
 			return err
+		}
+		if m.Type == CommentMark {
+			id, ok := attrUUID(m.Attrs, "threadId")
+			if !ok {
+				return ErrInvalid.WithDetail("reason", "mark")
+			}
+			if !c.seen[id] {
+				c.seen[id] = true
+				c.page.Threads = append(c.page.Threads, id)
+			}
 		}
 		if m.Type == "link" && m.Attrs["href"] == nil {
 			return ErrInvalid.WithDetail("reason", "link")
