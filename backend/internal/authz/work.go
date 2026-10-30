@@ -51,6 +51,10 @@ func (p *Principal) CanWriteWorkItems(pr ProjectRef) bool {
 		p.CanManageProject(pr)
 }
 
+// CanComment: comment on the work items one can read, viewers excepted
+// (spec 006, RF-23). Reading is checked with the project.
+func (p *Principal) CanComment() bool { return p.Has(WorkComment) }
+
 // CanDeleteWorkItem: the project managers, or the author while they can still
 // write in the project. Whether it has children is checked by the service.
 func (p *Principal) CanDeleteWorkItem(pr ProjectRef, authorID uuid.UUID) bool {
