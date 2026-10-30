@@ -1,34 +1,38 @@
 # Tareas 006 — Tallas, varios asignados y comentarios
 
-- [ ] **T1 — Esquema** (migración 00006, queries sqlc)
+- [x] **T1 — Esquema** (migración 00006, queries sqlc)
   - RF: RF-2, RF-4, RF-12, RF-16, RF-40
   - Hecho cuando: `make sqlc` limpio y test del trigger de compatibilidad de asignados.
-- [ ] **T2 — Tallas en el catálogo y en work items**
+- [x] **T2 — Tallas en el catálogo y en work items**
   - RF: RF-1 a RF-11, RF-56
   - Hecho cuando: apitest de tallas (crear, retirar, fijar peso, peso manual, plantilla).
-- [ ] **T3 — Varios asignados**
+- [x] **T3 — Varios asignados**
   - RF: RF-12 a RF-21
   - Hecho cuando: apitest de lista, límite, inválidos, filtro, eventos, auditoría y `PATCH` de un cliente anterior.
-- [ ] **T4 — Comentarios en la API**
+- [x] **T4 — Comentarios en la API**
   - RF: RF-22 a RF-43
   - Hecho cuando: apitest de hilos, respuestas, edición, borrado, moderación, resolver y reabrir, proyecto cerrado, archivos, y test de matriz.
-- [ ] **T5 — Anclajes en la API**
+- [x] **T5 — Anclajes en la API**
   - RF: RF-45, RF-46, RF-48, RF-51
   - Hecho cuando: tests de `richtext` (marca, `StripComments`) y apitest de anclar sin permiso de edición, rechazo si cambia otra cosa y «texto eliminado».
-- [ ] **T6 — Ficha: talla, peso y asignados**
+- [x] **T6 — Ficha: talla, peso y asignados**
   - RF: RF-10, RF-17, RF-18, RF-56
   - Hecho cuando: Vitest de la ficha y del árbol.
-- [ ] **T7 — Catálogo de tallas en la administración**
+- [x] **T7 — Catálogo de tallas en la administración**
   - RF: RF-1, RF-9
   - Hecho cuando: Vitest de la tabla de tallas.
-- [ ] **T8 — Comentarios en la ficha**
+- [x] **T8 — Comentarios en la ficha**
   - RF: RF-22 a RF-39, RF-43
   - Hecho cuando: Vitest de publicar, responder, resolver, plegar y modo lectura.
-- [ ] **T9 — Comentarios en la página**
+- [x] **T9 — Comentarios en la página**
   - RF: RF-44 a RF-55
   - Hecho cuando: Vitest de «Comentar» sobre la selección, resaltado solo de abiertos y marca que no se pega.
-- [ ] **T10 — Textos y rendimiento**
+- [x] **T10 — Textos y rendimiento**
   - RF: RNF
   - Hecho cuando: claves i18n y prueba de 200 comentarios en 50 hilos dentro de 300 ms.
+  - Resultado: mediana de 7 ms (`TestCommentsPerformance`). El bloque de la página pasa de 65,6 KB a 68,7 KB comprimido.
+  - Notas:
+    - Los archivos de los comentarios tienen como dueño `(work_item_comment, work item)`, sin atarse a un comentario: el comentario que los usa aún no existe al subirlos.
+    - La talla y el peso van entre las propiedades principales, así que «Más propiedades» pliega 6 en lugar de 7.
 - [ ] **T11 — Prueba manual (tú)**
   - Hecho cuando: la demo de la spec (pasos 1 a 5) funciona.
