@@ -136,18 +136,18 @@ func checkPriority(ctx context.Context, q *sqlc.Queries, id uuid.UUID) error {
 
 // checkSize returns a size of the catalog that can be chosen: a retired one
 // only stays where it already was (spec 006, RF-9).
-func checkSize(ctx context.Context, q *sqlc.Queries, id uuid.UUID) (sqlc.WorkItemSize, error) {
+func checkSize(ctx context.Context, q *sqlc.Queries, id uuid.UUID) error {
 	sz, err := q.GetWorkItemSize(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return sz, apperr.ErrValidation.WithDetail("field", "size_id")
+		return apperr.ErrValidation.WithDetail("field", "size_id")
 	}
 	if err != nil {
-		return sz, fmt.Errorf("leer talla: %w", err)
+		return fmt.Errorf("leer talla: %w", err)
 	}
 	if sz.RetiredAt != nil {
-		return sz, errSizeRetired
+		return errSizeRetired
 	}
-	return sz, nil
+	return nil
 }
 
 // checkAssignees returns the new list without repeats, at most MaxAssignees,
@@ -313,14 +313,10 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if req.Weight != nil {
 			weight = *req.Weight
 		}
-		// A size sets the weight unless one comes too (spec 006, RF-5).
+		// The size doesn't touch the weight (spec 006, RF-5).
 		if req.SizeID.ID != nil {
-			sz, err := checkSize(ctx, q, *req.SizeID.ID)
-			if err != nil {
+			if err := checkSize(ctx, q, *req.SizeID.ID); err != nil {
 				return err
-			}
-			if req.Weight == nil {
-				weight = sz.Weight
 			}
 		}
 		status, err := initialStatus(ctx, q, req.StatusID)
@@ -485,17 +481,15 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if req.Weight != nil {
 			weight = *req.Weight
 		}
-		// Choosing another size sets its weight; the same one keeps the weight sent (spec 006, RF-5, RF-6).
+		// The size doesn't touch the weight; a retired one only stays (spec 006, RF-5, RF-9).
 		sizeID := row.SizeID
 		if req.SizeID.Set {
 			sizeID = req.SizeID.ID
 		}
 		if sizeID != nil && !sameID(sizeID, row.SizeID) {
-			sz, err := checkSize(ctx, q, *sizeID)
-			if err != nil {
+			if err := checkSize(ctx, q, *sizeID); err != nil {
 				return err
 			}
-			weight = sz.Weight
 		}
 		switch change {
 		case closing:

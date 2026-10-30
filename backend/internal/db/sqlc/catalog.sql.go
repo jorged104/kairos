@@ -240,24 +240,18 @@ func (q *Queries) CreateTransition(ctx context.Context, arg CreateTransitionPara
 }
 
 const createWorkItemSize = `-- name: CreateWorkItemSize :one
-INSERT INTO work_item_sizes (name, name_normalized, weight, position)
-VALUES ($1, $2, $3, $4) RETURNING id, name, name_normalized, weight, position, retired_at, created_at, updated_at
+INSERT INTO work_item_sizes (name, name_normalized, position)
+VALUES ($1, $2, $3) RETURNING id, name, name_normalized, weight, position, retired_at, created_at, updated_at
 `
 
 type CreateWorkItemSizeParams struct {
 	Name           string
 	NameNormalized string
-	Weight         int16
 	Position       int32
 }
 
 func (q *Queries) CreateWorkItemSize(ctx context.Context, arg CreateWorkItemSizeParams) (WorkItemSize, error) {
-	row := q.db.QueryRow(ctx, createWorkItemSize,
-		arg.Name,
-		arg.NameNormalized,
-		arg.Weight,
-		arg.Position,
-	)
+	row := q.db.QueryRow(ctx, createWorkItemSize, arg.Name, arg.NameNormalized, arg.Position)
 	var i WorkItemSize
 	err := row.Scan(
 		&i.ID,
@@ -1087,7 +1081,7 @@ func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) (Sta
 
 const updateWorkItemSize = `-- name: UpdateWorkItemSize :one
 UPDATE work_item_sizes
-SET name = $2, name_normalized = $3, weight = $4, position = $5, updated_at = now()
+SET name = $2, name_normalized = $3, position = $4, updated_at = now()
 WHERE id = $1 RETURNING id, name, name_normalized, weight, position, retired_at, created_at, updated_at
 `
 
@@ -1095,7 +1089,6 @@ type UpdateWorkItemSizeParams struct {
 	ID             uuid.UUID
 	Name           string
 	NameNormalized string
-	Weight         int16
 	Position       int32
 }
 
@@ -1104,7 +1097,6 @@ func (q *Queries) UpdateWorkItemSize(ctx context.Context, arg UpdateWorkItemSize
 		arg.ID,
 		arg.Name,
 		arg.NameNormalized,
-		arg.Weight,
 		arg.Position,
 	)
 	var i WorkItemSize
