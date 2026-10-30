@@ -74,7 +74,7 @@ WITH RECURSIVE eff AS (
 )
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
        w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date, w.weight, bool_or(eff.direct)::boolean AS direct
+       w.depth, w.position, w.due_date, w.weight, w.size_id, bool_or(eff.direct)::boolean AS direct
 FROM eff JOIN work_items w ON w.id = eff.id LEFT JOIN users u ON u.id = w.assignee_id
 GROUP BY w.id, u.name
 ORDER BY w.depth, w.position, w.sequence_number;

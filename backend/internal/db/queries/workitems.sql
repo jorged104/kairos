@@ -11,8 +11,8 @@ UPDATE projects SET wi_counter = wi_counter + 1 WHERE id = $1 RETURNING wi_count
 -- name: CreateWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, assignee_id, start_date, due_date,
-                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight, size_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 RETURNING *;
 
 -- name: GetWorkItem :one
@@ -30,7 +30,7 @@ UPDATE work_items
 SET type_id = $3, status_id = $4, priority_id = $5, parent_id = $6, title = $7, description = $8,
     description_text = $9, assignee_id = $10, start_date = $11, due_date = $12, estimated_hours = $13,
     remaining_hours = $14, done_ratio = $15, position = $16, depth = $17, closed_at = $18, weight = $19,
-    version = version + 1, updated_at = now()
+    size_id = $20, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
 RETURNING *;
 
@@ -86,6 +86,27 @@ SELECT w.id, w.title, w.status_id, w.project_id, w.start_date, w.due_date, p.ide
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE w.id = ANY (sqlc.arg(ids)::uuid[]);
 
+-- Asignados (spec 006) -------------------------------------------------------
+
+-- name: ListWorkItemAssignees :many
+-- The assignees of some work items, in their order (RF-12).
+SELECT a.work_item_id, u.id, u.name FROM work_item_assignees a JOIN users u ON u.id = a.user_id
+WHERE a.work_item_id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY a.work_item_id, a.position, a.created_at;
+
+-- name: ClearWorkItemAssignees :exec
+DELETE FROM work_item_assignees WHERE work_item_id = $1;
+
+-- name: AddWorkItemAssignees :exec
+-- Writes the list before the row, so the compatibility trigger keeps it.
+INSERT INTO work_item_assignees (work_item_id, user_id, position)
+SELECT sqlc.arg(work_item_id)::uuid, u.id, u.pos::int - 1
+FROM unnest(sqlc.arg(user_ids)::uuid[]) WITH ORDINALITY AS u(id, pos)
+ON CONFLICT (work_item_id, user_id) DO UPDATE SET position = EXCLUDED.position;
+
+-- name: GetWorkItemSize :one
+SELECT * FROM work_item_sizes WHERE id = $1;
+
 -- name: StatusIsClosed :one
 SELECT is_closed FROM statuses WHERE id = $1;
 
@@ -131,7 +152,7 @@ WHERE d.to_id = $1 AND d.type = 'blocks' AND NOT s.is_closed;
 -- the one weighted by weight (RF-153); derived_done_ratio is the previous one.
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
        w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date, w.weight
+       w.depth, w.position, w.due_date, w.weight, w.size_id
 FROM work_items w LEFT JOIN users u ON u.id = w.assignee_id
 WHERE w.project_id = $1
 ORDER BY w.depth, w.position, w.sequence_number;
@@ -145,6 +166,6 @@ WITH RECURSIVE tree AS (
 )
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
        w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date, w.weight
+       w.depth, w.position, w.due_date, w.weight, w.size_id
 FROM work_items w JOIN tree ON tree.id = w.id LEFT JOIN users u ON u.id = w.assignee_id
 ORDER BY w.depth, w.position, w.sequence_number;

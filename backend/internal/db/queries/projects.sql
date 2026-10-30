@@ -163,8 +163,8 @@ SELECT v.* FROM work_item_custom_values v JOIN work_items w ON w.id = v.work_ite
 -- name: CopyWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, start_date, due_date,
-                        estimated_hours, remaining_hours, position, depth, weight)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                        estimated_hours, remaining_hours, position, depth, weight, size_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 RETURNING id;
 
 -- name: SetWorkItemCounter :exec

@@ -124,6 +124,25 @@ WHERE id = $1 RETURNING *;
 -- name: GetDefaultPriority :one
 SELECT * FROM priorities WHERE is_default;
 
+-- Tallas (spec 006, RF-1 a RF-3) ---------------------------------------------------
+
+-- name: ListWorkItemSizes :many
+SELECT * FROM work_item_sizes ORDER BY position, name;
+
+-- name: CreateWorkItemSize :one
+INSERT INTO work_item_sizes (name, name_normalized, weight, position)
+VALUES ($1, $2, $3, $4) RETURNING *;
+
+-- name: UpdateWorkItemSize :one
+UPDATE work_item_sizes
+SET name = $2, name_normalized = $3, weight = $4, position = $5, updated_at = now()
+WHERE id = $1 RETURNING *;
+
+-- name: SetWorkItemSizeRetired :one
+UPDATE work_item_sizes
+SET retired_at = CASE WHEN sqlc.arg(retired)::boolean THEN now() ELSE NULL END, updated_at = now()
+WHERE id = $1 RETURNING *;
+
 -- Flujos -------------------------------------------------------------------------
 
 -- name: ListTransitions :many

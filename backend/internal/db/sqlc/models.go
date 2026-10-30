@@ -386,6 +386,30 @@ type WorkItem struct {
 	AggWeightRatioSum int64
 	WeightedDoneRatio *int16
 	PageVersion       int32
+	SizeID            *uuid.UUID
+}
+
+type WorkItemAssignee struct {
+	WorkItemID uuid.UUID
+	UserID     uuid.UUID
+	Position   int32
+	CreatedAt  time.Time
+}
+
+type WorkItemComment struct {
+	ID         uuid.UUID
+	WorkItemID uuid.UUID
+	ThreadID   *uuid.UUID
+	AuthorID   uuid.UUID
+	Body       json.RawMessage
+	BodyText   string
+	Quote      *string
+	Anchored   bool
+	CreatedAt  time.Time
+	EditedAt   *time.Time
+	DeletedAt  *time.Time
+	ResolvedAt *time.Time
+	ResolvedBy *uuid.UUID
 }
 
 type WorkItemCustomValue struct {
@@ -403,6 +427,17 @@ type WorkItemDependency struct {
 	LagDays   int16
 	CreatedBy uuid.UUID
 	CreatedAt time.Time
+}
+
+type WorkItemSize struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Weight         int16
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type WorkItemType struct {
