@@ -41,8 +41,6 @@ export interface CatalogInput {
   is_closed?: boolean
   is_default?: boolean
   default_weight?: number
-  /** The weight of a size (spec 006). */
-  weight?: number
 }
 
 export const createCatalogItem = (kind: CatalogKind, input: CatalogInput) =>
@@ -242,7 +240,7 @@ export interface WorkItemUpdateInput {
   assignee_id: string | null
   /** Replaces the list of assignees; assignee_id is its first (spec 006). */
   assignee_ids: string[]
-  /** Choosing another size sets its weight (spec 006, RF-5). */
+  /** The size doesn't change the weight (spec 006, RF-5). */
   size_id: string | null
   start_date: string | null
   due_date: string | null

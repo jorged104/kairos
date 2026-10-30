@@ -75,9 +75,9 @@ const priorityOptions = computed<CellOption[]>(() =>
   catalog.value.priorities.filter((p) => !p.retired || p.id === wi.value?.priority_id).map((p) => ({ value: p.id, label: p.name })),
 )
 const people = computed(() => users.value.map((u) => ({ id: u.id, name: u.name })))
-// Choosing a size sets its weight; a retired one only stays where it is (spec 006, RF-5, RF-9).
+// A retired size only stays where it is (spec 006, RF-9).
 const sizeOptions = computed<CellOption[]>(() =>
-  catalog.value.sizes.filter((sz) => !sz.retired || sz.id === wi.value?.size_id).map((sz) => ({ value: sz.id, label: `${sz.name} · ${sz.weight}` })),
+  catalog.value.sizes.filter((sz) => !sz.retired || sz.id === wi.value?.size_id).map((sz) => ({ value: sz.id, label: sz.name })),
 )
 // A work item can't hang from itself or a descendant (RF-77).
 const parentOptions = computed<CellOption[]>(() => {

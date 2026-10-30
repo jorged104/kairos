@@ -65,11 +65,10 @@ export interface Priority {
   retired: boolean
 }
 
-/** An estimate of the catalog that sets the weight when chosen (spec 006, RF-1, RF-5). */
+/** An estimate of the catalog, independent of the weight (spec 006, RF-1, RF-5). */
 export interface Size {
   id: string
   name: string
-  weight: number
   position: number
   retired: boolean
 }

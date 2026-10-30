@@ -385,8 +385,7 @@
       "priorities": "Nueva prioridad",
       "work-item-sizes": "Nueva talla"
     },
-    "sizes": "Tallas",
-    "sizeWeight": "Peso"
+    "sizes": "Tallas"
   },
   "work": {
     "reload": "Recargar"
