@@ -14,6 +14,7 @@ import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
 import { patchWorkItem } from '@/features/workitems/patch'
+import AssigneesPicker from '@/features/work/AssigneesPicker.vue'
 import WorkItemSheet from '@/features/workitems/WorkItemSheet.vue'
 import { allParents, childrenOf, visibleRows } from '@/features/workitems/tree'
 import type { Project, WorkNode } from '@/types/work'
@@ -23,7 +24,7 @@ import type { Project, WorkNode } from '@/types/work'
 const props = defineProps<{ project: Project }>()
 const { t } = useI18n()
 const qc = useQueryClient()
-const { catalog, types, statuses, priorities } = useCatalog()
+const { catalog, types, statuses, priorities, sizes } = useCatalog()
 const { users } = usePeople()
 
 const { data: tree } = useQuery({ queryKey: ['tree', props.project.id], queryFn: () => projectTree(props.project.id) })
@@ -117,7 +118,7 @@ function addChild(id: string) {
 }
 
 // Cells save one field; the rest of the work item is read fresh (patchWorkItem).
-type Field = 'title' | 'type_id' | 'status_id' | 'priority_id' | 'assignee_id' | 'due_date' | 'weight'
+type Field = 'title' | 'type_id' | 'status_id' | 'priority_id' | 'size_id' | 'due_date' | 'weight'
 const cellValue = (field: Field, value: string) => (field === 'weight' ? Number(value) : field === 'title' ? value : value || null)
 function saver(n: WorkNode, field: Field) {
   return async (value: string) => {
@@ -135,7 +136,18 @@ const typeOptions = computed<CellOption[]>(() => enabledTypes.value.map((ty) => 
 const priorityOptions = computed<CellOption[]>(() =>
   catalog.value.priorities.filter((p) => !p.retired).map((p) => ({ value: p.id, label: p.name })),
 )
-const userOptions = computed<CellOption[]>(() => users.value.map((u) => ({ value: u.id, label: u.name })))
+const people = computed(() => users.value.map((u) => ({ id: u.id, name: u.name })))
+// Retired sizes only where they already are (spec 006, RF-9, RF-56).
+const sizeOptions = (n: WorkNode): CellOption[] =>
+  catalog.value.sizes.filter((sz) => !sz.retired || sz.id === n.size_id).map((sz) => ({ value: sz.id, label: sz.name }))
+const sizeName = (n: WorkNode) => (n.size_id ? (sizes.value.get(n.size_id)?.name ?? '') : '')
+function saveAssignees(n: WorkNode) {
+  return async (ids: string[]) => {
+    await patchWorkItem(n.id, { assignee_ids: ids, assignee_id: ids[0] ?? null })
+    qc.invalidateQueries({ queryKey: ['work-item', n.key] })
+    await refresh()
+  }
+}
 
 // The filtered list and the tree share the row layout.
 const shownRows = computed(() =>
@@ -145,7 +157,8 @@ const typeOf = (n: WorkNode) => types.value.get(n.type_id)
 const statusOf = (n: WorkNode) => statuses.value.get(n.status_id)
 const priorityName = (n: WorkNode) => priorities.value.get(n.priority_id)?.name ?? ''
 const indent = (level: number) => `${level * 1.25 + 0.5}rem`
-const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
+const canAdd = computed(() => writable.value && !filtering.value)
+const columns = computed(() => (canAdd.value ? 11 : 10))
 </script>
 
 <template>
@@ -180,11 +193,12 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
           <th class="w-32">{{ t('workItems.type') }}</th>
           <th class="w-36">{{ t('workItems.status') }}</th>
           <th class="w-28">{{ t('workItems.priority') }}</th>
-          <th class="w-44">{{ t('workItems.assignee') }}</th>
+          <th class="w-44">{{ t('workItems.assignees') }}</th>
+          <th class="w-20">{{ t('workItems.size') }}</th>
           <th class="w-20" :title="t('workItems.weightHint')">{{ t('workItems.weight') }}</th>
           <th class="w-36">{{ t('workItems.progress') }}</th>
           <th class="w-36">{{ t('workItems.due') }}</th>
-          <th v-if="columns === 10" class="w-10" />
+          <th v-if="canAdd" class="w-10" />
         </tr>
       </thead>
       <tbody>
@@ -257,15 +271,24 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
             >
               {{ priorityName(r.node) }}
             </EditableCell>
+            <td class="border-r px-2 align-middle">
+              <AssigneesPicker
+                :value="r.node.assignees"
+                :options="people"
+                :label="t('workItems.assignees')"
+                :editable="writable"
+                :save="saveAssignees(r.node)"
+              />
+            </td>
             <EditableCell
               kind="select"
-              :value="r.node.assignee?.id ?? ''"
-              :label="t('workItems.assignee')"
-              :options="userOptions"
-              :save="saver(r.node, 'assignee_id')"
+              :value="r.node.size_id ?? ''"
+              :label="t('workItems.size')"
+              :options="sizeOptions(r.node)"
+              :save="saver(r.node, 'size_id')"
               :editable="writable"
             >
-              <span :class="!r.node.assignee && 'text-muted-foreground'">{{ r.node.assignee?.name ?? t('workItems.unassigned') }}</span>
+              <span :class="!r.node.size_id && 'text-muted-foreground'">{{ sizeName(r.node) || t('common.none') }}</span>
             </EditableCell>
             <EditableCell
               kind="number"
@@ -278,7 +301,7 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
             />
             <td class="bg-muted/20 px-2"><ProgressBar :value="r.node.derived_done_ratio" /></td>
             <EditableCell kind="date" :value="r.node.due_date ?? ''" :label="t('workItems.due')" :save="saver(r.node, 'due_date')" :editable="writable" />
-            <td v-if="columns === 10" class="px-1 text-center">
+            <td v-if="canAdd" class="px-1 text-center">
               <button
                 type="button"
                 class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -291,7 +314,7 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
             </td>
           </tr>
           <QuickAddRow
-            v-if="columns === 10 && addingChild === r.node.id"
+            v-if="canAdd && addingChild === r.node.id"
             open
             :colspan="columns"
             :indent="indent(r.level + 1)"
@@ -306,7 +329,7 @@ const columns = computed(() => (writable.value && !filtering.value ? 10 : 9))
           </QuickAddRow>
         </template>
         <QuickAddRow
-          v-if="columns === 10"
+          v-if="canAdd"
           :colspan="columns"
           :label="t('workItems.newTitle')"
           :placeholder="t('workItems.newPlaceholder')"

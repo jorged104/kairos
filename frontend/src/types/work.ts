@@ -65,11 +65,21 @@ export interface Priority {
   retired: boolean
 }
 
+/** An estimate of the catalog that sets the weight when chosen (spec 006, RF-1, RF-5). */
+export interface Size {
+  id: string
+  name: string
+  weight: number
+  position: number
+  retired: boolean
+}
+
 export interface Catalog {
   methodologies: Methodology[]
   work_item_types: WorkItemType[]
   statuses: Status[]
   priorities: Priority[]
+  sizes: Size[]
 }
 
 export interface Transition {
@@ -206,7 +216,11 @@ export interface WorkNode {
   type_id: string
   status_id: string
   priority_id: string
+  /** The first of assignees, for previous clients. */
   assignee: Ref | null
+  /** Everyone working on it, all alike (spec 006, RF-12). */
+  assignees: Ref[]
+  size_id: string | null
   derived_done_ratio: number
   derived_estimated_hours: number
   derived_remaining_hours: number
@@ -261,7 +275,11 @@ export interface WorkItem {
   /** The page's mentions, on single reads. */
   refs?: MentionRefs
   author: Ref
+  /** The first of assignees, for previous clients. */
   assignee: Ref | null
+  /** Everyone working on it, all alike (spec 006, RF-12). */
+  assignees: Ref[]
+  size_id: string | null
   parent: WorkRef | null
   start_date: string | null
   due_date: string | null

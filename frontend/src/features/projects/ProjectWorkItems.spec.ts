@@ -14,16 +14,17 @@ const catalog: Catalog = {
   work_item_types: [{ id: 'ty', name: 'Bug', color: '#ef4444', position: 1, default_weight: 3, retired: false }],
   statuses: [{ id: 'st', name: 'Nuevo', color: '#3b82f6', position: 1, is_closed: false, is_default: true, retired: false }],
   priorities: [{ id: 'pr', name: 'Normal', color: '#3b82f6', position: 1, is_default: true, retired: false }],
+  sizes: [{ id: 'sz-m', name: 'M', weight: 3, position: 3, retired: false }],
 }
 
 const node: WorkNode = {
-  id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null,
+  id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null, assignees: [], size_id: null,
   derived_done_ratio: 0, derived_estimated_hours: 0, derived_remaining_hours: 0, depth: 0, position: 0, due_date: null, weight: 3,
 }
 
 const item: WorkItem = {
   id: 'w1', key: 'KAI-1', sequence_number: 1, project: { id: 'p1', identifier: 'KAI', name: 'Kairos' }, type_id: 'ty',
-  status_id: 'st', priority_id: 'pr', title: 'Login', description: null, author: { id: 'u', name: 'U' }, assignee: null,
+  status_id: 'st', priority_id: 'pr', title: 'Login', description: null, author: { id: 'u', name: 'U' }, assignee: null, assignees: [], size_id: null,
   parent: null, start_date: null, due_date: null, estimated_hours: 4, remaining_hours: 4, done_ratio: 20, weight: 3,
   derived: { estimated_hours: 4, remaining_hours: 4, done_ratio: 20 }, position: 0, depth: 0, child_count: 0, version: 7,
   closed_at: null, custom_values: {}, allowed_status_ids: [], dependencies: [], can: { write: true, delete: true },
