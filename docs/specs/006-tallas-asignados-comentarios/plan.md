@@ -12,6 +12,9 @@ con `coordsAtPos`, sin `extension-bubble-menu`.
 - **`work_item_sizes`:** `id`, `name`, `name_normalized`, `weight smallint CHECK 0..100`,
   `position`, `retired_at`, fechas; nombre único entre las activas. Se siembra con XS 1, S 2,
   M 3, L 5 y XL 8 (RF-2).
+  - Cambio 2026-10-30 (RF-57 a RF-59): el código deja de leer y escribir `weight`. La columna
+    se queda (con su valor por defecto) para la versión anterior de la API y se borrará en un
+    despliegue posterior.
 - **`work_items.size_id`:** nullable, FK a `work_item_sizes`.
 - **`work_item_assignees`:** `(work_item_id, user_id)` como PK, `position`, `created_at`; índice
   por `user_id` para el filtro (RF-19). Se rellena desde `assignee_id` (RF-16).
@@ -40,9 +43,10 @@ con `coordsAtPos`, sin `extension-bubble-menu`.
 - **`catalog`:** tallas con el mismo patrón que las prioridades (`mutate`, auditoría,
   `retire`/`restore`): rutas `/work-item-sizes`; `Catalog.sizes`.
 - **`workitems`:**
-  - `size_id` en las peticiones. Al cambiar de talla (o al crear con talla y sin peso), el peso
+  - `size_id` en las peticiones. ~~Al cambiar de talla (o al crear con talla y sin peso), el peso
     pasa a ser el de la talla e ignora el que llega (RF-5); si no cambia, el peso es el que
-    llega (RF-6). Una talla retirada solo se acepta si ya era la suya (RF-9).
+    llega (RF-6).~~ La talla no toca el peso (RF-59). Una talla retirada solo se acepta si ya
+    era la suya (RF-9).
   - `assignee_ids *[]uuid` en las peticiones. Si no llega, se usa `assignee_id` como lista de
     uno (clientes anteriores). Se validan los que se añaden (RF-14), sin duplicados, máximo 20
     (RF-13). Respuesta con `assignees: []Ref` y `assignee` (el primero) por compatibilidad.

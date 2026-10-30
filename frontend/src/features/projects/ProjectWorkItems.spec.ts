@@ -14,7 +14,7 @@ const catalog: Catalog = {
   work_item_types: [{ id: 'ty', name: 'Bug', color: '#ef4444', position: 1, default_weight: 3, retired: false }],
   statuses: [{ id: 'st', name: 'Nuevo', color: '#3b82f6', position: 1, is_closed: false, is_default: true, retired: false }],
   priorities: [{ id: 'pr', name: 'Normal', color: '#3b82f6', position: 1, is_default: true, retired: false }],
-  sizes: [{ id: 'sz-m', name: 'M', weight: 3, position: 3, retired: false }],
+  sizes: [{ id: 'sz-m', name: 'M', position: 3, retired: false }],
 }
 
 const node: WorkNode = {

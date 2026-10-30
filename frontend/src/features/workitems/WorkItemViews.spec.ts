@@ -21,8 +21,8 @@ const catalog: Catalog = {
     { id: 'pr2', name: 'Alta', color: '#ef4444', position: 2, is_default: false, retired: false },
   ],
   sizes: [
-    { id: 'sz-m', name: 'M', weight: 3, position: 3, retired: false },
-    { id: 'sz-l', name: 'L', weight: 5, position: 4, retired: true },
+    { id: 'sz-m', name: 'M', position: 3, retired: false },
+    { id: 'sz-l', name: 'L', position: 4, retired: true },
   ],
 }
 const node: WorkNode = {
@@ -188,7 +188,7 @@ describe('ficha del work item', () => {
   it('la talla fija el peso y no ofrece las retiradas (spec 006, RF-5, RF-9, RF-10)', async () => {
     const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
     const size = wrapper.find('#w-size')
-    expect(size.findAll('option').map((o) => o.text())).toEqual(['—', 'M · 3'])
+    expect(size.findAll('option').map((o) => o.text())).toEqual(['—', 'M'])
     await size.setValue('sz-m')
     await flushPromises()
     expect(JSON.parse(String((calls('PATCH')[0]![1] as RequestInit).body))).toMatchObject({ size_id: 'sz-m' })

@@ -130,12 +130,12 @@ SELECT * FROM priorities WHERE is_default;
 SELECT * FROM work_item_sizes ORDER BY position, name;
 
 -- name: CreateWorkItemSize :one
-INSERT INTO work_item_sizes (name, name_normalized, weight, position)
-VALUES ($1, $2, $3, $4) RETURNING *;
+INSERT INTO work_item_sizes (name, name_normalized, position)
+VALUES ($1, $2, $3) RETURNING *;
 
 -- name: UpdateWorkItemSize :one
 UPDATE work_item_sizes
-SET name = $2, name_normalized = $3, weight = $4, position = $5, updated_at = now()
+SET name = $2, name_normalized = $3, position = $4, updated_at = now()
 WHERE id = $1 RETURNING *;
 
 -- name: SetWorkItemSizeRetired :one

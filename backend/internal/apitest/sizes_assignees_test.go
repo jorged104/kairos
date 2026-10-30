@@ -3,6 +3,7 @@ package apitest
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -42,38 +43,35 @@ func TestSizesCatalog(t *testing.T) {
 		Sizes []struct {
 			ID      uuid.UUID `json:"id"`
 			Name    string    `json:"name"`
-			Weight  int       `json:"weight"`
 			Retired bool      `json:"retired"`
 		} `json:"sizes"`
 	}
 	s.member.Get("/api/catalog").Expect(t, http.StatusOK).JSON(t, &cat)
-	// XS to XL with 1, 2, 3, 5 and 8 (RF-2).
-	want := map[string]int{"XS": 1, "S": 2, "M": 3, "L": 5, "XL": 8}
-	if len(cat.Sizes) != 5 {
-		t.Fatalf("sizes = %+v, want 5", cat.Sizes)
-	}
+	// XS to XL, in that order (RF-2).
+	var names []string
 	for _, sz := range cat.Sizes {
-		if want[sz.Name] != sz.Weight {
-			t.Fatalf("size %s weighs %d, want %d", sz.Name, sz.Weight, want[sz.Name])
-		}
+		names = append(names, sz.Name)
+	}
+	if strings.Join(names, ",") != "XS,S,M,L,XL" {
+		t.Fatalf("sizes = %v, want XS to XL", names)
 	}
 
-	// Only admins manage them; names are unique and weights 0 to 100 (RF-1, RF-3).
-	s.lead.Post("/api/work-item-sizes", map[string]any{"name": "XXL", "weight": 13}).Expect(t, http.StatusForbidden)
-	var xxl struct {
-		ID     uuid.UUID `json:"id"`
-		Weight int       `json:"weight"`
+	// Only admins manage them; names are unique and they carry no weight (RF-1).
+	s.lead.Post("/api/work-item-sizes", map[string]any{"name": "XXL"}).Expect(t, http.StatusForbidden)
+	var xxl map[string]any
+	s.admin.Post("/api/work-item-sizes", map[string]any{"name": "XXL", "position": 6}).Expect(t, http.StatusCreated).JSON(t, &xxl)
+	if _, ok := xxl["weight"]; ok {
+		t.Fatalf("size = %v, want no weight", xxl)
 	}
-	s.admin.Post("/api/work-item-sizes", map[string]any{"name": "XXL", "weight": 13, "position": 6}).Expect(t, http.StatusCreated).JSON(t, &xxl)
-	s.admin.Post("/api/work-item-sizes", map[string]any{"name": " xxl ", "weight": 1}).Expect(t, http.StatusConflict, "catalog_name_conflict")
-	s.admin.Post("/api/work-item-sizes", map[string]any{"name": "Enorme", "weight": 101}).Expect(t, http.StatusBadRequest, "validation_failed")
-	s.admin.Do(http.MethodPatch, "/api/work-item-sizes/"+xxl.ID.String(), map[string]any{"name": "XXL", "weight": 21, "position": 6}).
+	id := xxl["id"].(string)
+	s.admin.Post("/api/work-item-sizes", map[string]any{"name": " xxl "}).Expect(t, http.StatusConflict, "catalog_name_conflict")
+	s.admin.Do(http.MethodPatch, "/api/work-item-sizes/"+id, map[string]any{"name": "XXXL", "position": 6}).
 		Expect(t, http.StatusOK).JSON(t, &xxl)
-	if xxl.Weight != 21 {
-		t.Fatalf("weight after patch = %d, want 21", xxl.Weight)
+	if xxl["name"] != "XXXL" {
+		t.Fatalf("name after patch = %v, want XXXL", xxl["name"])
 	}
-	s.admin.Post("/api/work-item-sizes/"+xxl.ID.String()+"/retire", nil).Expect(t, http.StatusOK)
-	if got := s.env.AuditActions(xxl.ID.String()); len(got) != 3 {
+	s.admin.Post("/api/work-item-sizes/"+id+"/retire", nil).Expect(t, http.StatusOK)
+	if got := s.env.AuditActions(id); len(got) != 3 {
 		t.Fatalf("audit = %v, want created, updated, retired", got)
 	}
 }
@@ -83,23 +81,20 @@ func TestWorkItemSize(t *testing.T) {
 	project := s.workProject(t)
 	m, l := s.env.CatalogID("work_item_sizes", "M"), s.env.CatalogID("work_item_sizes", "L")
 
-	// Creating with a size takes its weight; an explicit weight wins (RF-5).
+	// The size doesn't touch the weight: the type's default stays (RF-5).
 	wi := s.item(t, s.member, project, map[string]any{"size_id": m})
-	if got := s.sized(t, wi.ID); got.Weight != 3 || got.SizeID == nil || *got.SizeID != m {
-		t.Fatalf("created with M = %+v, want weight 3", got)
+	if got := s.sized(t, wi.ID); got.Weight != 1 || got.SizeID == nil || *got.SizeID != m {
+		t.Fatalf("created with M = %+v, want weight 1", got)
 	}
 	if got := s.sized(t, s.item(t, s.member, project, map[string]any{"size_id": m, "weight": 7}).ID); got.Weight != 7 {
 		t.Fatalf("created with M and weight 7 = %d", got.Weight)
 	}
 
-	// Choosing another size sets its weight (RF-5); a manual weight keeps the size (RF-6).
+	// Changing the size keeps the weight sent (RF-5, RF-6).
+	s.patch(s.member, s.get(t, wi.ID), map[string]any{"weight": 9}).Expect(t, http.StatusOK)
 	s.patch(s.member, s.get(t, wi.ID), map[string]any{"size_id": l}).Expect(t, http.StatusOK)
-	if got := s.sized(t, wi.ID); got.Weight != 5 {
-		t.Fatalf("weight after L = %d, want 5", got.Weight)
-	}
-	s.patch(s.member, s.get(t, wi.ID), map[string]any{"size_id": l, "weight": 9}).Expect(t, http.StatusOK)
 	if got := s.sized(t, wi.ID); got.Weight != 9 || *got.SizeID != l {
-		t.Fatalf("manual weight = %+v, want 9 with L", got)
+		t.Fatalf("after L = %+v, want 9 with L", got)
 	}
 	// A client that doesn't send the size keeps it.
 	s.patch(s.member, s.get(t, wi.ID), map[string]any{"title": "Otra"}).Expect(t, http.StatusOK)
@@ -112,12 +107,7 @@ func TestWorkItemSize(t *testing.T) {
 		t.Fatalf("after removing the size = %+v, want none and 9", got)
 	}
 
-	// The catalog's weight doesn't touch work items (RF-8).
 	s.patch(s.member, s.get(t, wi.ID), map[string]any{"size_id": m}).Expect(t, http.StatusOK)
-	s.admin.Do(http.MethodPatch, "/api/work-item-sizes/"+m.String(), map[string]any{"name": "M", "weight": 4, "position": 3}).Expect(t, http.StatusOK)
-	if got := s.sized(t, wi.ID); got.Weight != 3 {
-		t.Fatalf("weight after changing M = %d, want 3", got.Weight)
-	}
 
 	// A retired size stays where it is and can't be chosen (RF-9).
 	s.admin.Post("/api/work-item-sizes/"+l.String()+"/retire", nil).Expect(t, http.StatusOK)
