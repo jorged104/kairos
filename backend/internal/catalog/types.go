@@ -58,6 +58,15 @@ type Priority struct {
 	Retired   bool      `json:"retired"`
 }
 
+// Size estimates a work item and sets its weight when chosen (spec 006, RF-1, RF-5).
+type Size struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Weight   int16     `json:"weight"`
+	Position int32     `json:"position"`
+	Retired  bool      `json:"retired"`
+}
+
 type Transition struct {
 	FromStatusID uuid.UUID `json:"from_status_id" validate:"required"`
 	ToStatusID   uuid.UUID `json:"to_status_id" validate:"required"`
@@ -70,6 +79,7 @@ type Catalog struct {
 	Types         []Type        `json:"work_item_types"`
 	Statuses      []Status      `json:"statuses"`
 	Priorities    []Priority    `json:"priorities"`
+	Sizes         []Size        `json:"sizes"`
 }
 
 type methodologyRequest struct {
@@ -125,6 +135,14 @@ func (r *priorityRequest) Normalize() {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Color = strings.ToLower(strings.TrimSpace(r.Color))
 }
+
+type sizeRequest struct {
+	Name     string `json:"name" validate:"required,max=100"`
+	Weight   int16  `json:"weight" validate:"min=0,max=100"`
+	Position int32  `json:"position" validate:"min=0"`
+}
+
+func (r *sizeRequest) Normalize() { r.Name = strings.TrimSpace(r.Name) }
 
 type transitionsRequest struct {
 	Transitions []Transition `json:"transitions" validate:"max=500,dive"`

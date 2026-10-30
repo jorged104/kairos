@@ -134,6 +134,106 @@ func checkPriority(ctx context.Context, q *sqlc.Queries, id uuid.UUID) error {
 	return nil
 }
 
+// checkSize returns a size of the catalog that can be chosen: a retired one
+// only stays where it already was (spec 006, RF-9).
+func checkSize(ctx context.Context, q *sqlc.Queries, id uuid.UUID) (sqlc.WorkItemSize, error) {
+	sz, err := q.GetWorkItemSize(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return sz, apperr.ErrValidation.WithDetail("field", "size_id")
+	}
+	if err != nil {
+		return sz, fmt.Errorf("leer talla: %w", err)
+	}
+	if sz.RetiredAt != nil {
+		return sz, errSizeRetired
+	}
+	return sz, nil
+}
+
+// checkAssignees returns the new list without repeats, at most MaxAssignees,
+// with every person added able to work (spec 006, RF-13, RF-14). Who already
+// was in the list stays even if deactivated meanwhile (RF-15).
+func checkAssignees(ctx context.Context, q *sqlc.Queries, ids, current []uuid.UUID) ([]uuid.UUID, error) {
+	out := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	if len(out) > MaxAssignees {
+		return nil, errTooManyAssignees
+	}
+	for _, id := range out {
+		if slices.Contains(current, id) {
+			continue
+		}
+		if err := workcore.CheckWorker(ctx, q, id, errInvalidAssignee); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// assigneeIDs reads the list of a work item, in its order.
+func assigneeIDs(ctx context.Context, q *sqlc.Queries, id uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.ListWorkItemAssignees(ctx, []uuid.UUID{id})
+	if err != nil {
+		return nil, fmt.Errorf("leer asignados: %w", err)
+	}
+	out := make([]uuid.UUID, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.ID)
+	}
+	return out, nil
+}
+
+// assigneesOf reads the assignees of some work items, in their order.
+func assigneesOf(ctx context.Context, q *sqlc.Queries, ids []uuid.UUID) (map[uuid.UUID][]workcore.Ref, error) {
+	rows, err := q.ListWorkItemAssignees(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("leer asignados: %w", err)
+	}
+	out := make(map[uuid.UUID][]workcore.Ref, len(ids))
+	for _, r := range rows {
+		out[r.WorkItemID] = append(out[r.WorkItemID], workcore.Ref{ID: r.ID, Name: r.Name})
+	}
+	return out, nil
+}
+
+// setAssignees writes the list before the row: the compatibility trigger only
+// replaces it when assignee_id isn't in it.
+func setAssignees(ctx context.Context, q *sqlc.Queries, id uuid.UUID, ids []uuid.UUID) error {
+	if err := q.ClearWorkItemAssignees(ctx, id); err != nil {
+		return fmt.Errorf("quitar asignados: %w", err)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := q.AddWorkItemAssignees(ctx, sqlc.AddWorkItemAssigneesParams{WorkItemID: id, UserIds: ids}); err != nil {
+		return fmt.Errorf("guardar asignados: %w", err)
+	}
+	return nil
+}
+
+// first is the assignee_id the previous API reads: the first of the list.
+func first(ids []uuid.UUID) *uuid.UUID {
+	if len(ids) == 0 {
+		return nil
+	}
+	id := ids[0]
+	return &id
+}
+
+func diff(a, b []uuid.UUID) []uuid.UUID {
+	out := []uuid.UUID{}
+	for _, id := range a {
+		if !slices.Contains(b, id) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // checkParent validates a (new) parent for a work item of project whose
 // subtree is height levels deep and returns the new depth. The caller holds
 // the project tree lock.
@@ -213,6 +313,16 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if req.Weight != nil {
 			weight = *req.Weight
 		}
+		// A size sets the weight unless one comes too (spec 006, RF-5).
+		if req.SizeID.ID != nil {
+			sz, err := checkSize(ctx, q, *req.SizeID.ID)
+			if err != nil {
+				return err
+			}
+			if req.Weight == nil {
+				weight = sz.Weight
+			}
+		}
 		status, err := initialStatus(ctx, q, req.StatusID)
 		if err != nil {
 			return err
@@ -227,10 +337,15 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		} else if err := checkPriority(ctx, q, *priority); err != nil {
 			return err
 		}
-		if req.AssigneeID != nil {
-			if err := workcore.CheckWorker(ctx, q, *req.AssigneeID, errInvalidAssignee); err != nil {
-				return err
-			}
+		wanted := []uuid.UUID{}
+		if req.AssigneeIDs != nil {
+			wanted = *req.AssigneeIDs
+		} else if req.AssigneeID != nil {
+			wanted = []uuid.UUID{*req.AssigneeID}
+		}
+		assignees, err := checkAssignees(ctx, q, wanted, nil)
+		if err != nil {
+			return err
 		}
 		depth := int16(0)
 		if req.ParentID != nil {
@@ -252,12 +367,15 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		row, err := q.CreateWorkItem(ctx, sqlc.CreateWorkItemParams{
 			ProjectID: projectID, TypeID: req.TypeID, StatusID: status, PriorityID: *priority, ParentID: req.ParentID,
 			SequenceNumber: n, Title: req.Title, Description: desc, DescriptionText: text, AuthorID: p.UserID,
-			AssigneeID: req.AssigneeID, StartDate: workcore.ToTime(req.StartDate), DueDate: workcore.ToTime(req.DueDate),
+			AssigneeID: first(assignees), StartDate: workcore.ToTime(req.StartDate), DueDate: workcore.ToTime(req.DueDate),
 			EstimatedHours: req.EstimatedHours, RemainingHours: req.RemainingHours, DoneRatio: req.DoneRatio,
-			Position: req.Position, Depth: depth, Weight: weight,
+			Position: req.Position, Depth: depth, Weight: weight, SizeID: req.SizeID.ID,
 		})
 		if err != nil {
 			return fmt.Errorf("crear work item: %w", err)
+		}
+		if err := setAssignees(ctx, q, row.ID, assignees); err != nil {
+			return err
 		}
 		if err := applyValues(ctx, q, projectID, row.ID, req.TypeID, req.CustomValues); err != nil {
 			return err
@@ -265,8 +383,10 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err := q.RefreshWorkItemUp(ctx, row.ID); err != nil {
 			return fmt.Errorf("recalcular derivados: %w", err)
 		}
+		created := auditView(row, Key(project.Identifier, n))
+		created["assignee_ids"] = assignees
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.created", TargetType: "work_item",
-			TargetID: row.ID.String(), After: auditView(row, Key(project.Identifier, n))}); err != nil {
+			TargetID: row.ID.String(), After: created}); err != nil {
 			return err
 		}
 		if row, err = q.GetWorkItem(ctx, row.ID); err != nil {
@@ -334,10 +454,24 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return err
 			}
 		}
-		if req.AssigneeID != nil && !sameID(req.AssigneeID, row.AssigneeID) {
-			if err := workcore.CheckWorker(ctx, q, *req.AssigneeID, errInvalidAssignee); err != nil {
-				return err
+		current, err := assigneeIDs(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		// A previous client sends only assignee_id: unchanged keeps the whole list.
+		wanted := current
+		switch {
+		case req.AssigneeIDs != nil:
+			wanted = *req.AssigneeIDs
+		case !sameID(req.AssigneeID, first(current)):
+			wanted = []uuid.UUID{}
+			if req.AssigneeID != nil {
+				wanted = []uuid.UUID{*req.AssigneeID}
 			}
+		}
+		assignees, err := checkAssignees(ctx, q, wanted, current)
+		if err != nil {
+			return err
 		}
 
 		key := Key(project.Identifier, row.SequenceNumber)
@@ -350,6 +484,18 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		weight := row.Weight
 		if req.Weight != nil {
 			weight = *req.Weight
+		}
+		// Choosing another size sets its weight; the same one keeps the weight sent (spec 006, RF-5, RF-6).
+		sizeID := row.SizeID
+		if req.SizeID.Set {
+			sizeID = req.SizeID.ID
+		}
+		if sizeID != nil && !sameID(sizeID, row.SizeID) {
+			sz, err := checkSize(ctx, q, *sizeID)
+			if err != nil {
+				return err
+			}
+			weight = sz.Weight
 		}
 		switch change {
 		case closing:
@@ -383,12 +529,18 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if err := applyValues(ctx, q, project.ID, id, req.TypeID, req.CustomValues); err != nil {
 			return err
 		}
+		assigneesChanged := !slices.Equal(assignees, current)
+		if assigneesChanged {
+			if err := setAssignees(ctx, q, id, assignees); err != nil {
+				return err
+			}
+		}
 		updated, err := q.UpdateWorkItem(ctx, sqlc.UpdateWorkItemParams{
 			ID: id, Version: req.Version, TypeID: req.TypeID, StatusID: req.StatusID, PriorityID: req.PriorityID,
-			ParentID: req.ParentID, Title: req.Title, Description: desc, DescriptionText: text, AssigneeID: req.AssigneeID,
+			ParentID: req.ParentID, Title: req.Title, Description: desc, DescriptionText: text, AssigneeID: first(assignees),
 			StartDate: workcore.ToTime(req.StartDate), DueDate: workcore.ToTime(req.DueDate),
 			EstimatedHours: req.EstimatedHours, RemainingHours: remaining, DoneRatio: ratio, Position: req.Position,
-			Depth: row.Depth, ClosedAt: closedAt, Weight: weight,
+			Depth: row.Depth, ClosedAt: closedAt, Weight: weight, SizeID: sizeID,
 		})
 		if err != nil {
 			return fmt.Errorf("actualizar work item: %w", err)
@@ -408,14 +560,19 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			}
 		}
 		if change != unchanged && !project.IsTemplate {
-			if err := emitStatusEvent(ctx, q, p, updated, key, change); err != nil {
+			if err := emitStatusEvent(ctx, q, p, updated, assignees, key, change); err != nil {
 				return err
 			}
 		}
-		after := auditView(updated, key)
+		before, after := auditView(row, key), auditView(updated, key)
 		after["description_changed"] = richtext.Changed(row.Description, desc)
+		before["assignee_ids"], after["assignee_ids"] = current, assignees
+		if assigneesChanged {
+			// Who came in and who left (spec 006, RF-21).
+			after["assignees_added"], after["assignees_removed"] = diff(assignees, current), diff(current, assignees)
+		}
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.updated", TargetType: "work_item",
-			TargetID: id.String(), Before: auditView(row, key), After: after}); err != nil {
+			TargetID: id.String(), Before: before, After: after}); err != nil {
 			return err
 		}
 		if updated, err = q.GetWorkItem(ctx, id); err != nil {
@@ -496,8 +653,9 @@ func statusChange(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row 
 }
 
 // emitStatusEvent records work_item.closed or work_item.reopened (RF-116,
-// RF-117, RF-122) with the assignee and the weight at that moment (RF-155).
-func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem, key string, change closeChange) error {
+// RF-117, RF-122) with the assignees and the weight at that moment (RF-155,
+// spec 006 RF-20). assignee_id is the first, for the previous consumers.
+func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem, assignees []uuid.UUID, key string, change closeChange) error {
 	var typ string
 	switch change {
 	case closing:
@@ -510,7 +668,8 @@ func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, r
 	actor := p.UserID
 	return events.Emit(ctx, q, events.New{
 		Type: typ, ActorID: &actor, ProjectID: row.ProjectID, SubjectType: "work_item", SubjectID: row.ID,
-		Payload: map[string]any{"key": key, "status_id": row.StatusID, "assignee_id": row.AssigneeID, "type_id": row.TypeID, "weight": row.Weight},
+		Payload: map[string]any{"key": key, "status_id": row.StatusID, "assignee_id": row.AssigneeID, "assignee_ids": assignees,
+			"type_id": row.TypeID, "weight": row.Weight},
 	})
 }
 
@@ -601,6 +760,7 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		Description: row.Description, PageVersion: row.PageVersion, Author: workcore.Ref{ID: row.AuthorID},
 		StartDate: workcore.FromTime(row.StartDate), DueDate: workcore.FromTime(row.DueDate),
 		EstimatedHours: row.EstimatedHours, RemainingHours: row.RemainingHours, DoneRatio: row.DoneRatio, Weight: row.Weight,
+		SizeID: row.SizeID, Assignees: []workcore.Ref{},
 		Derived:  Derived{EstimatedHours: row.AggEstimated, RemainingHours: row.AggRemaining},
 		Position: row.Position, Depth: row.Depth, Version: row.Version, ClosedAt: row.ClosedAt,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, AllowedStatusIDs: []uuid.UUID{},
@@ -610,21 +770,21 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 	if row.WeightedDoneRatio != nil {
 		out.Derived.DoneRatio = *row.WeightedDoneRatio
 	}
-	people := []uuid.UUID{row.AuthorID}
-	if row.AssigneeID != nil {
-		people = append(people, *row.AssigneeID)
-	}
-	names, err := q.WorkItemPeople(ctx, people)
+	names, err := q.WorkItemPeople(ctx, []uuid.UUID{row.AuthorID})
 	if err != nil {
 		return out, fmt.Errorf("leer personas: %w", err)
 	}
 	for _, n := range names {
-		if n.ID == row.AuthorID {
-			out.Author.Name = n.Name
-		}
-		if row.AssigneeID != nil && n.ID == *row.AssigneeID {
-			out.Assignee = &workcore.Ref{ID: n.ID, Name: n.Name}
-		}
+		out.Author.Name = n.Name
+	}
+	byItem, err := assigneesOf(ctx, q, []uuid.UUID{row.ID})
+	if err != nil {
+		return out, err
+	}
+	if list := byItem[row.ID]; len(list) > 0 {
+		out.Assignees = list
+		first := list[0]
+		out.Assignee = &first
 	}
 	if row.ParentID != nil {
 		parents, err := refs(ctx, q, []uuid.UUID{*row.ParentID})
@@ -661,6 +821,6 @@ func auditView(r sqlc.WorkItem, key string) map[string]any {
 		"key": key, "title": r.Title, "type_id": r.TypeID, "status_id": r.StatusID, "priority_id": r.PriorityID,
 		"parent_id": r.ParentID, "assignee_id": r.AssigneeID, "start_date": workcore.FromTime(r.StartDate),
 		"due_date": workcore.FromTime(r.DueDate), "estimated_hours": r.EstimatedHours,
-		"remaining_hours": r.RemainingHours, "done_ratio": r.DoneRatio, "weight": r.Weight,
+		"remaining_hours": r.RemainingHours, "done_ratio": r.DoneRatio, "weight": r.Weight, "size_id": r.SizeID,
 	}
 }

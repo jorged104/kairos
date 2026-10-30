@@ -53,6 +53,10 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Patch("/priorities/{id}", update(h, h.svc.UpdatePriority))
 		r.Post("/priorities/{id}/retire", retire(h, h.svc.SetPriorityRetired, true))
 		r.Post("/priorities/{id}/restore", retire(h, h.svc.SetPriorityRetired, false))
+		r.Post("/work-item-sizes", create(h, h.svc.CreateSize))
+		r.Patch("/work-item-sizes/{id}", update(h, h.svc.UpdateSize))
+		r.Post("/work-item-sizes/{id}/retire", retire(h, h.svc.SetSizeRetired, true))
+		r.Post("/work-item-sizes/{id}/restore", retire(h, h.svc.SetSizeRetired, false))
 	})
 }
 
