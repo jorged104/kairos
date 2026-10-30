@@ -384,7 +384,7 @@ const updateWorkItemPage = `-- name: UpdateWorkItemPage :one
 
 UPDATE work_items SET description = $3, description_text = $4, version = version + 1, updated_at = now()
 WHERE id = $1 AND page_version = $2
-RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version
+RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id
 `
 
 type UpdateWorkItemPageParams struct {
@@ -439,6 +439,7 @@ func (q *Queries) UpdateWorkItemPage(ctx context.Context, arg UpdateWorkItemPage
 		&i.AggWeightRatioSum,
 		&i.WeightedDoneRatio,
 		&i.PageVersion,
+		&i.SizeID,
 	)
 	return i, err
 }

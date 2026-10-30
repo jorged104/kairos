@@ -24,7 +24,7 @@ func NewService(store *db.Store) *Service { return &Service{store: store} }
 
 // Get returns the whole catalog, retired elements included.
 func (s *Service) Get(ctx context.Context) (Catalog, error) {
-	out := Catalog{Methodologies: []Methodology{}, Types: []Type{}, Statuses: []Status{}, Priorities: []Priority{}}
+	out := Catalog{Methodologies: []Methodology{}, Types: []Type{}, Statuses: []Status{}, Priorities: []Priority{}, Sizes: []Size{}}
 	ms, err := s.store.ListMethodologies(ctx)
 	if err != nil {
 		return out, fmt.Errorf("listar metodologías: %w", err)
@@ -62,6 +62,13 @@ func (s *Service) Get(ctx context.Context) (Catalog, error) {
 	}
 	for _, pr := range prios {
 		out.Priorities = append(out.Priorities, toPriority(pr))
+	}
+	sizes, err := s.store.ListWorkItemSizes(ctx)
+	if err != nil {
+		return out, fmt.Errorf("listar tallas: %w", err)
+	}
+	for _, sz := range sizes {
+		out.Sizes = append(out.Sizes, toSize(sz))
 	}
 	return out, nil
 }
@@ -415,6 +422,36 @@ func AllowedTargets(ctx context.Context, q *sqlc.Queries, p *authz.Principal, ty
 	return ids, nil
 }
 
+// Tallas (spec 006, RF-1 a RF-3, RF-8, RF-9) ----------------------------------------------
+// Changing a size's weight leaves the work items that have it as they are (RF-8).
+
+func sizeID(sz Size) uuid.UUID { return sz.ID }
+
+func (s *Service) CreateSize(ctx context.Context, p *authz.Principal, req sizeRequest) (Size, error) {
+	return mutate(ctx, s, p, "size", "created", sizeID, func(q *sqlc.Queries) (Size, error) {
+		r, err := q.CreateWorkItemSize(ctx, sqlc.CreateWorkItemSizeParams{
+			Name: req.Name, NameNormalized: NormalizeName(req.Name), Weight: req.Weight, Position: req.Position,
+		})
+		return toSize(r), err
+	})
+}
+
+func (s *Service) UpdateSize(ctx context.Context, p *authz.Principal, id uuid.UUID, req sizeRequest) (Size, error) {
+	return mutate(ctx, s, p, "size", "updated", sizeID, func(q *sqlc.Queries) (Size, error) {
+		r, err := q.UpdateWorkItemSize(ctx, sqlc.UpdateWorkItemSizeParams{
+			ID: id, Name: req.Name, NameNormalized: NormalizeName(req.Name), Weight: req.Weight, Position: req.Position,
+		})
+		return toSize(r), err
+	})
+}
+
+func (s *Service) SetSizeRetired(ctx context.Context, p *authz.Principal, id uuid.UUID, retired bool) (Size, error) {
+	return mutate(ctx, s, p, "size", retiredAction(retired), sizeID, func(q *sqlc.Queries) (Size, error) {
+		r, err := q.SetWorkItemSizeRetired(ctx, sqlc.SetWorkItemSizeRetiredParams{ID: id, Retired: retired})
+		return toSize(r), err
+	})
+}
+
 // Conversiones --------------------------------------------------------------------------------
 
 func toMethodology(r sqlc.Methodology) Methodology {
@@ -436,4 +473,8 @@ func toStatus(r sqlc.Status) Status {
 
 func toPriority(r sqlc.Priority) Priority {
 	return Priority{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, IsDefault: r.IsDefault, Retired: r.RetiredAt != nil}
+}
+
+func toSize(r sqlc.WorkItemSize) Size {
+	return Size{ID: r.ID, Name: r.Name, Weight: r.Weight, Position: r.Position, Retired: r.RetiredAt != nil}
 }

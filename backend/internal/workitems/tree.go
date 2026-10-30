@@ -46,7 +46,7 @@ func (s *Service) Tree(ctx context.Context, p *authz.Principal, projectID uuid.U
 	for _, r := range rows {
 		out = append(out, NodeFrom(project.Identifier, sqlc.WorkItemDescendantsRow(r)))
 	}
-	return out, nil
+	return out, fillAll(ctx, s.store.Queries, out)
 }
 
 // Descendants returns every descendant of a work item in one query (RF-79).
@@ -63,7 +63,7 @@ func (s *Service) Descendants(ctx context.Context, p *authz.Principal, id uuid.U
 	for _, r := range rows {
 		out = append(out, NodeFrom(project.Identifier, r))
 	}
-	return out, nil
+	return out, fillAll(ctx, s.store.Queries, out)
 }
 
 // NodeFrom builds a tree row; identifier is the project identifier.
@@ -72,6 +72,7 @@ func NodeFrom(identifier string, r sqlc.WorkItemDescendantsRow) Node {
 		ID: r.ID, ParentID: r.ParentID, Key: Key(identifier, r.SequenceNumber), Title: r.Title, TypeID: r.TypeID,
 		StatusID: r.StatusID, PriorityID: r.PriorityID, Estimated: r.AggEstimated, Remaining: r.AggRemaining,
 		Depth: r.Depth, Position: r.Position, DueDate: workcore.FromTime(r.DueDate), Weight: r.Weight,
+		SizeID: r.SizeID, Assignees: []workcore.Ref{},
 	}
 	if r.DerivedDoneRatio != nil {
 		n.DoneRatio = *r.DerivedDoneRatio
@@ -80,6 +81,42 @@ func NodeFrom(identifier string, r sqlc.WorkItemDescendantsRow) Node {
 		n.Assignee = &workcore.Ref{ID: *r.AssigneeID, Name: *r.AssigneeName}
 	}
 	return n
+}
+
+// FillAssignees sets the assignees of some rows in one query (RF-12, RF-18).
+// Assignee stays as the first of them, for the previous clients.
+func FillAssignees(ctx context.Context, q *sqlc.Queries, nodes []*Node) error {
+	if len(nodes) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(nodes))
+	for i, n := range nodes {
+		ids[i] = n.ID
+	}
+	byItem, err := assigneesOf(ctx, q, ids)
+	if err != nil {
+		return err
+	}
+	for _, n := range nodes {
+		n.Assignees = byItem[n.ID]
+		if n.Assignees == nil {
+			n.Assignees = []workcore.Ref{}
+		}
+		n.Assignee = nil
+		if len(n.Assignees) > 0 {
+			first := n.Assignees[0]
+			n.Assignee = &first
+		}
+	}
+	return nil
+}
+
+func fillAll(ctx context.Context, q *sqlc.Queries, nodes []Node) error {
+	ptrs := make([]*Node, len(nodes))
+	for i := range nodes {
+		ptrs[i] = &nodes[i]
+	}
+	return FillAssignees(ctx, q, ptrs)
 }
 
 var psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
@@ -115,16 +152,17 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 			where = append(where, sq.Eq{col: id})
 		}
 	}
+	// A work item matches by any of its assignees (RF-19).
 	switch v := query.Get("assignee_id"); v {
 	case "":
 	case "none":
-		where = append(where, sq.Eq{"w.assignee_id": nil})
+		where = append(where, sq.Expr("NOT EXISTS (SELECT 1 FROM work_item_assignees a WHERE a.work_item_id = w.id)"))
 	default:
 		id, err := uuid.Parse(v)
 		if err != nil {
 			return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "assignee_id")
 		}
-		where = append(where, sq.Eq{"w.assignee_id": id})
+		where = append(where, sq.Expr("EXISTS (SELECT 1 FROM work_item_assignees a WHERE a.work_item_id = w.id AND a.user_id = ?)", id))
 	}
 	switch v := query.Get("closed"); v {
 	case "":
@@ -158,7 +196,7 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 	listSQL, args, err := base.Columns(
 		"w.id", "w.parent_id", "w.sequence_number", "w.title", "w.type_id", "w.status_id", "w.priority_id",
 		"w.assignee_id", "u.name", "w.weighted_done_ratio", "w.agg_estimated", "w.agg_remaining",
-		"w.depth", "w.position", "w.due_date", "w.weight",
+		"w.depth", "w.position", "w.due_date", "w.weight", "w.size_id",
 	).LeftJoin("users u ON u.id = w.assignee_id").OrderBy("w.sequence_number").
 		Limit(uint64(page.Size)).Offset(uint64(page.Offset())).ToSql()
 	if err != nil {
@@ -174,11 +212,15 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 		var r sqlc.WorkItemDescendantsRow
 		var due *time.Time
 		if err := rows.Scan(&r.ID, &r.ParentID, &r.SequenceNumber, &r.Title, &r.TypeID, &r.StatusID, &r.PriorityID,
-			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position, &due, &r.Weight); err != nil {
+			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position, &due, &r.Weight, &r.SizeID); err != nil {
 			return Page{}, fmt.Errorf("leer work item: %w", err)
 		}
 		r.DueDate = due
 		out.Items = append(out.Items, NodeFrom(project.Identifier, r))
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return Page{}, err
+	}
+	rows.Close()
+	return out, fillAll(ctx, s.store.Queries, out.Items)
 }

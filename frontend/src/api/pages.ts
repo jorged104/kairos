@@ -8,6 +8,8 @@ export type PageOwnerKind = 'work-items' | 'milestones' | 'projects'
 export interface PageOwner {
   kind: PageOwnerKind
   id: string
+  /** Where its files go when not to its page, as for comments (spec 006). */
+  filesPath?: string
 }
 
 export interface SavedPage {
@@ -71,7 +73,7 @@ export const fileUrl = (id: string) => `/api/files/${id}`
 export function uploadPageFile(o: PageOwner, file: File, onProgress: (ratio: number) => void): Promise<PageFile> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${ownerPath(o)}/files`)
+    xhr.open('POST', o.filesPath ?? `${ownerPath(o)}/files`)
     xhr.withCredentials = true
     xhr.responseType = 'json'
     xhr.upload.onprogress = (e) => {

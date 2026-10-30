@@ -25,6 +25,14 @@ func TestWorkPermissionsByRole(t *testing.T) {
 	if got := PermissionsFor([]Role{RoleViewer}); len(got) != 3 {
 		t.Errorf("viewer permissions = %v, want only reads and own password", got)
 	}
+	for _, r := range []Role{RoleAdmin, RoleLead, RoleMember} {
+		if !slices.Contains(PermissionsFor([]Role{r}), WorkComment) {
+			t.Errorf("%s cannot comment (spec 006, RF-23)", r)
+		}
+	}
+	if slices.Contains(PermissionsFor([]Role{RoleViewer}), WorkComment) {
+		t.Error("viewer can comment")
+	}
 	if slices.Contains(PermissionsFor([]Role{RoleMember}), TemplatesUse) {
 		t.Error("member can use templates")
 	}

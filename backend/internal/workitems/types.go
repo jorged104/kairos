@@ -50,7 +50,9 @@ type WorkItem struct {
 	PageVersion      int32                         `json:"page_version"`   // compared by the autosave (spec 005)
 	Refs             map[string]mentions.Ref       `json:"refs,omitempty"` // the page's mentions, on single reads (RF-27)
 	Author           workcore.Ref                  `json:"author"`
-	Assignee         *workcore.Ref                 `json:"assignee"`
+	Assignee         *workcore.Ref                 `json:"assignee"` // the first of Assignees, for previous clients
+	Assignees        []workcore.Ref                `json:"assignees"`
+	SizeID           *uuid.UUID                    `json:"size_id"`
 	Parent           *Ref                          `json:"parent"`
 	StartDate        *workcore.Date                `json:"start_date"`
 	DueDate          *workcore.Date                `json:"due_date"`
@@ -100,6 +102,8 @@ type Node struct {
 	StatusID   uuid.UUID      `json:"status_id"`
 	PriorityID uuid.UUID      `json:"priority_id"`
 	Assignee   *workcore.Ref  `json:"assignee"`
+	Assignees  []workcore.Ref `json:"assignees"`
+	SizeID     *uuid.UUID     `json:"size_id"`
 	DoneRatio  int16          `json:"derived_done_ratio"`
 	Estimated  float64        `json:"derived_estimated_hours"`
 	Remaining  float64        `json:"derived_remaining_hours"`
@@ -126,6 +130,10 @@ type createRequest struct {
 	CustomValues   customfields.Values `json:"custom_values" validate:"max=200"`
 	// Absent takes the default weight of the type (create) or keeps it (update), RF-151.
 	Weight *int16 `json:"weight"`
+	// The list of assignees (spec 006, RF-12); absent uses assignee_id.
+	AssigneeIDs *[]uuid.UUID `json:"assignee_ids"`
+	// Absent keeps the size; null removes it (spec 006, RF-4).
+	SizeID optionalID `json:"size_id"`
 }
 
 func (r *createRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }
@@ -149,9 +157,37 @@ type updateRequest struct {
 	CustomValues   customfields.Values `json:"custom_values" validate:"max=200"`
 	// Absent takes the default weight of the type (create) or keeps it (update), RF-151.
 	Weight *int16 `json:"weight"`
+	// The list of assignees (spec 006, RF-12); absent uses assignee_id.
+	AssigneeIDs *[]uuid.UUID `json:"assignee_ids"`
+	// Absent keeps the size; null removes it (spec 006, RF-4).
+	SizeID optionalID `json:"size_id"`
 }
 
 func (r *updateRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }
+
+// optionalID tells an absent field (keep) from null (clear), for clients
+// that don't know the field yet.
+type optionalID struct {
+	Set bool
+	ID  *uuid.UUID
+}
+
+func (o *optionalID) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.ID = nil
+		return nil
+	}
+	var id uuid.UUID
+	if err := json.Unmarshal(b, &id); err != nil {
+		return err
+	}
+	o.ID = &id
+	return nil
+}
+
+// MaxAssignees bounds the list of a work item (spec 006, RF-13).
+const MaxAssignees = 20
 
 type dependencyRequest struct {
 	ToID    uuid.UUID `json:"to_id" validate:"required"`
@@ -160,17 +196,19 @@ type dependencyRequest struct {
 }
 
 var (
-	errDateRange       = apperr.New(http.StatusBadRequest, "invalid_date_range", "La fecha de fin es anterior a la de inicio")
-	errOutOfRange      = apperr.New(http.StatusBadRequest, "field_out_of_range", "Valor fuera de rango")
-	errInvalidAssignee = apperr.New(http.StatusBadRequest, "invalid_assignee", "El asignado debe estar activo y no ser solo observador")
-	errTypeNotEnabled  = apperr.New(http.StatusBadRequest, "type_not_enabled", "El tipo no está activo en el proyecto")
-	errCrossProject    = apperr.New(http.StatusBadRequest, "cross_project", "El elemento pertenece a otro proyecto")
-	errCycle           = apperr.New(http.StatusConflict, "work_item_cycle", "Un work item no puede colgar de sí mismo ni de un descendiente")
-	errTooDeep         = apperr.New(http.StatusConflict, "work_item_too_deep", "La jerarquía admite como máximo 10 niveles")
-	errHasChildren     = apperr.New(http.StatusConflict, "has_children", "El work item tiene hijos")
-	errTransition      = apperr.New(http.StatusConflict, "transition_not_allowed", "El flujo no permite ese cambio de estado")
-	errBlocked         = apperr.New(http.StatusConflict, "blocked_by_open_item", "Lo bloquea un work item abierto")
-	errDepConflict     = apperr.New(http.StatusConflict, "dependency_conflict", "La dependencia ya existe")
-	errDepCycle        = apperr.New(http.StatusConflict, "dependency_cycle", "La dependencia cerraría un ciclo")
-	errDepHierarchy    = apperr.New(http.StatusBadRequest, "dependency_hierarchy", "No se admiten dependencias con uno mismo, ancestros ni descendientes")
+	errDateRange        = apperr.New(http.StatusBadRequest, "invalid_date_range", "La fecha de fin es anterior a la de inicio")
+	errOutOfRange       = apperr.New(http.StatusBadRequest, "field_out_of_range", "Valor fuera de rango")
+	errInvalidAssignee  = apperr.New(http.StatusBadRequest, "invalid_assignee", "El asignado debe estar activo y no ser solo observador")
+	errTooManyAssignees = apperr.New(http.StatusBadRequest, "too_many_assignees", "Un work item admite como máximo 20 asignados")
+	errSizeRetired      = apperr.New(http.StatusBadRequest, "size_retired", "La talla está retirada")
+	errTypeNotEnabled   = apperr.New(http.StatusBadRequest, "type_not_enabled", "El tipo no está activo en el proyecto")
+	errCrossProject     = apperr.New(http.StatusBadRequest, "cross_project", "El elemento pertenece a otro proyecto")
+	errCycle            = apperr.New(http.StatusConflict, "work_item_cycle", "Un work item no puede colgar de sí mismo ni de un descendiente")
+	errTooDeep          = apperr.New(http.StatusConflict, "work_item_too_deep", "La jerarquía admite como máximo 10 niveles")
+	errHasChildren      = apperr.New(http.StatusConflict, "has_children", "El work item tiene hijos")
+	errTransition       = apperr.New(http.StatusConflict, "transition_not_allowed", "El flujo no permite ese cambio de estado")
+	errBlocked          = apperr.New(http.StatusConflict, "blocked_by_open_item", "Lo bloquea un work item abierto")
+	errDepConflict      = apperr.New(http.StatusConflict, "dependency_conflict", "La dependencia ya existe")
+	errDepCycle         = apperr.New(http.StatusConflict, "dependency_cycle", "La dependencia cerraría un ciclo")
+	errDepHierarchy     = apperr.New(http.StatusBadRequest, "dependency_hierarchy", "No se admiten dependencias con uno mismo, ancestros ni descendientes")
 )

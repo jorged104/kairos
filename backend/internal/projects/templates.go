@@ -281,7 +281,7 @@ func (s *Service) copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Pri
 			SequenceNumber: int32(i + 1), Title: w.Title, Description: w.Description, DescriptionText: w.DescriptionText,
 			AuthorID: p.UserID, StartDate: shiftDate(w.StartDate, shift), DueDate: shiftDate(w.DueDate, shift),
 			EstimatedHours: w.EstimatedHours, RemainingHours: w.EstimatedHours, Position: w.Position, Depth: w.Depth,
-			Weight: w.Weight, // RF-157
+			Weight: w.Weight, SizeID: w.SizeID, // RF-157; spec 006, RF-11
 		})
 		if err != nil {
 			return fmt.Errorf("copiar work item: %w", err)

@@ -69,6 +69,7 @@ const (
 	// scope; ":owner" = the project or objective owner; ":participant" = see
 	// Principal.IsParticipant.
 	WorkRead                  Permission = "work:read"
+	WorkComment               Permission = "work:comment" // spec 006: everyone but viewers (RF-23)
 	TemplatesUse              Permission = "templates:use"
 	TemplatesManage           Permission = "templates:manage"
 	CatalogManage             Permission = "catalog:manage"
@@ -94,19 +95,19 @@ var rolePermissions = map[Role][]Permission{
 		DirectoryRead, UsersReadFullAll, UsersCreateAll, UsersUpdateAll, UsersStatusAll,
 		UsersOffboard, RolesAssignAll, TeamMembersAll, TeamsManage, AttributesManage,
 		IdpMappingsManage, PasswordsSet, AuditRead, SelfPassword,
-		WorkRead, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
+		WorkRead, WorkComment, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
 		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,
 		RolesAssignBasic, TeamMembersTeam, SelfPassword,
-		WorkRead, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner,
+		WorkRead, WorkComment, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner,
 		WorkItemsWriteTeam, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
 		ObjectivesCreateTeam, ObjectivesManageTeam, ObjectivesManageOwner,
 	},
 	RoleMember: {
 		DirectoryRead, SelfPassword,
-		WorkRead, ProjectsManageOwner, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
+		WorkRead, WorkComment, ProjectsManageOwner, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
 		ObjectivesManageOwner,
 	},
 	RoleViewer: {DirectoryRead, SelfPassword, WorkRead},

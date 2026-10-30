@@ -239,6 +239,39 @@ func (q *Queries) CreateTransition(ctx context.Context, arg CreateTransitionPara
 	return err
 }
 
+const createWorkItemSize = `-- name: CreateWorkItemSize :one
+INSERT INTO work_item_sizes (name, name_normalized, weight, position)
+VALUES ($1, $2, $3, $4) RETURNING id, name, name_normalized, weight, position, retired_at, created_at, updated_at
+`
+
+type CreateWorkItemSizeParams struct {
+	Name           string
+	NameNormalized string
+	Weight         int16
+	Position       int32
+}
+
+func (q *Queries) CreateWorkItemSize(ctx context.Context, arg CreateWorkItemSizeParams) (WorkItemSize, error) {
+	row := q.db.QueryRow(ctx, createWorkItemSize,
+		arg.Name,
+		arg.NameNormalized,
+		arg.Weight,
+		arg.Position,
+	)
+	var i WorkItemSize
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Weight,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createWorkItemType = `-- name: CreateWorkItemType :one
 INSERT INTO work_item_types (name, name_normalized, color, position, default_weight)
 VALUES ($1, $2, $3, $4, coalesce($5::smallint, 1)) RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight
@@ -627,6 +660,41 @@ func (q *Queries) ListTransitions(ctx context.Context, typeID uuid.UUID) ([]Work
 	return items, nil
 }
 
+const listWorkItemSizes = `-- name: ListWorkItemSizes :many
+
+SELECT id, name, name_normalized, weight, position, retired_at, created_at, updated_at FROM work_item_sizes ORDER BY position, name
+`
+
+// Tallas (spec 006, RF-1 a RF-3) ---------------------------------------------------
+func (q *Queries) ListWorkItemSizes(ctx context.Context) ([]WorkItemSize, error) {
+	rows, err := q.db.Query(ctx, listWorkItemSizes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItemSize
+	for rows.Next() {
+		var i WorkItemSize
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.NameNormalized,
+			&i.Weight,
+			&i.Position,
+			&i.RetiredAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkItemTypes = `-- name: ListWorkItemTypes :many
 
 SELECT id, name, name_normalized, color, position, retired_at, created_at, updated_at, default_weight FROM work_item_types ORDER BY position, name
@@ -766,6 +834,33 @@ func (q *Queries) SetStatusRetired(ctx context.Context, arg SetStatusRetiredPara
 		&i.Color,
 		&i.IsClosed,
 		&i.IsDefault,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setWorkItemSizeRetired = `-- name: SetWorkItemSizeRetired :one
+UPDATE work_item_sizes
+SET retired_at = CASE WHEN $2::boolean THEN now() ELSE NULL END, updated_at = now()
+WHERE id = $1 RETURNING id, name, name_normalized, weight, position, retired_at, created_at, updated_at
+`
+
+type SetWorkItemSizeRetiredParams struct {
+	ID      uuid.UUID
+	Retired bool
+}
+
+func (q *Queries) SetWorkItemSizeRetired(ctx context.Context, arg SetWorkItemSizeRetiredParams) (WorkItemSize, error) {
+	row := q.db.QueryRow(ctx, setWorkItemSizeRetired, arg.ID, arg.Retired)
+	var i WorkItemSize
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Weight,
 		&i.Position,
 		&i.RetiredAt,
 		&i.CreatedAt,
@@ -982,6 +1077,42 @@ func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) (Sta
 		&i.Color,
 		&i.IsClosed,
 		&i.IsDefault,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateWorkItemSize = `-- name: UpdateWorkItemSize :one
+UPDATE work_item_sizes
+SET name = $2, name_normalized = $3, weight = $4, position = $5, updated_at = now()
+WHERE id = $1 RETURNING id, name, name_normalized, weight, position, retired_at, created_at, updated_at
+`
+
+type UpdateWorkItemSizeParams struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Weight         int16
+	Position       int32
+}
+
+func (q *Queries) UpdateWorkItemSize(ctx context.Context, arg UpdateWorkItemSizeParams) (WorkItemSize, error) {
+	row := q.db.QueryRow(ctx, updateWorkItemSize,
+		arg.ID,
+		arg.Name,
+		arg.NameNormalized,
+		arg.Weight,
+		arg.Position,
+	)
+	var i WorkItemSize
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Weight,
 		&i.Position,
 		&i.RetiredAt,
 		&i.CreatedAt,

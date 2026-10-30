@@ -54,3 +54,30 @@ describe('catálogo de tipos', () => {
     wrapper.unmount()
   })
 })
+
+describe('catálogo de tallas (spec 006)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('edita el peso de una talla y crea otra sin color (RF-1)', async () => {
+    const fetch = vi.fn((_url: string, _init?: RequestInit) => json({}))
+    vi.stubGlobal('fetch', fetch)
+    const m = { id: 'sz', name: 'M', weight: 3, position: 3, retired: false }
+    const wrapper = mount(NamedCatalog, {
+      props: { kind: 'work-item-sizes', title: 'Tallas', items: [m], sized: true },
+      global: { plugins: [createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('td[aria-label=Color]').exists()).toBe(false)
+    const cell = wrapper.find('td[aria-label=Peso]')
+    expect(cell.text()).toBe('3')
+    await cell.trigger('click')
+    await flushPromises()
+    await cell.find('input').setValue('4')
+    await cell.find('input').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    const [url, init] = fetch.mock.calls.find(([, i]) => i?.method === 'PATCH')!
+    expect(url).toBe('/api/work-item-sizes/sz')
+    expect(JSON.parse(String(init!.body))).toEqual({ name: 'M', position: 3, weight: 4 })
+    wrapper.unmount()
+  })
+})

@@ -6,17 +6,19 @@ import { createCatalogItem, setCatalogRetired, updateCatalogItem, type CatalogIn
 import { EditableCell, GridTable, QuickAddRow } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 
-// One list of the catalog: work item types, statuses or priorities (RF-3 to RF-10),
-// edited cell by cell and with a quick row to add (RF-139, RF-140).
+// One list of the catalog: work item types, statuses, priorities or sizes
+// (RF-3 to RF-10, spec 006 RF-1), edited cell by cell and with a quick row to
+// add (RF-139, RF-140).
 interface Item {
   id: string
   name: string
-  color: string
+  color?: string
   position: number
   retired: boolean
   is_closed?: boolean
   is_default?: boolean
   default_weight?: number
+  weight?: number
 }
 
 const props = defineProps<{
@@ -27,6 +29,8 @@ const props = defineProps<{
   defaultable?: boolean
   /** Work item types carry the default weight of new work items (RF-150, RF-156). */
   weighted?: boolean
+  /** Sizes have no color and carry the weight they set (spec 006, RF-1, RF-5). */
+  sized?: boolean
 }>()
 const emit = defineEmits<{ error: [unknown] }>()
 
@@ -34,15 +38,18 @@ const { t } = useI18n()
 const qc = useQueryClient()
 const done = () => qc.invalidateQueries({ queryKey: ['catalog'] })
 
-const input = (item: Item): CatalogInput => ({
-  name: item.name, color: item.color, position: item.position, is_closed: item.is_closed, is_default: item.is_default,
-  default_weight: item.default_weight,
-})
-type Field = 'name' | 'color' | 'position' | 'is_closed' | 'is_default' | 'default_weight'
+const input = (item: Item): CatalogInput =>
+  props.sized
+    ? { name: item.name, position: item.position, weight: item.weight }
+    : {
+        name: item.name, color: item.color, position: item.position, is_closed: item.is_closed, is_default: item.is_default,
+        default_weight: item.default_weight,
+      }
+type Field = 'name' | 'color' | 'position' | 'is_closed' | 'is_default' | 'default_weight' | 'weight'
 function saver(item: Item, field: Field) {
   return async (value: string) => {
     const v =
-      field === 'position' || field === 'default_weight'
+      field === 'position' || field === 'default_weight' || field === 'weight'
         ? Number(value)
         : field === 'is_closed' || field === 'is_default'
           ? value === 'true'
@@ -55,6 +62,10 @@ function saver(item: Item, field: Field) {
 const newColor = ref('#64748b')
 const newWeight = ref(1)
 async function create(name: string) {
+  if (props.sized) {
+    await createCatalogItem(props.kind, { name, position: props.items.length + 1, weight: Number(newWeight.value) })
+    return done()
+  }
   await createCatalogItem(props.kind, {
     name, color: newColor.value, position: props.items.length + 1, is_closed: false, is_default: false,
     ...(props.weighted ? { default_weight: Number(newWeight.value) } : {}),
@@ -77,7 +88,8 @@ const columns = 4 + (props.closable ? 1 : 0) + (props.defaultable ? 1 : 0) + (pr
       <thead>
         <tr>
           <th>{{ t('catalog.name') }}</th>
-          <th class="w-36">{{ t('catalog.color') }}</th>
+          <th v-if="!sized" class="w-36">{{ t('catalog.color') }}</th>
+          <th v-else class="w-32" :title="t('workItems.weightHint')">{{ t('catalog.sizeWeight') }}</th>
           <th class="w-20">{{ t('catalog.position') }}</th>
           <th v-if="closable" class="w-24">{{ t('catalog.closed') }}</th>
           <th v-if="defaultable" class="w-24">{{ t('catalog.default') }}</th>
@@ -90,7 +102,16 @@ const columns = 4 + (props.closable ? 1 : 0) + (props.defaultable ? 1 : 0) + (pr
           <EditableCell :value="item.name" :label="t('catalog.name')" :save="saver(item, 'name')" :editable="!item.retired" required>
             <span :class="{ 'text-muted-foreground line-through': item.retired }">{{ item.name }}</span>
           </EditableCell>
-          <EditableCell kind="color" :value="item.color" :label="t('catalog.color')" :save="saver(item, 'color')" :editable="!item.retired" />
+          <EditableCell v-if="!sized" kind="color" :value="item.color ?? ''" :label="t('catalog.color')" :save="saver(item, 'color')" :editable="!item.retired" />
+          <EditableCell
+            v-else
+            kind="number"
+            :value="String(item.weight ?? 1)"
+            :label="t('catalog.sizeWeight')"
+            :save="saver(item, 'weight')"
+            :editable="!item.retired"
+            required
+          />
           <EditableCell kind="number" :value="String(item.position)" :label="t('catalog.position')" :save="saver(item, 'position')" :editable="!item.retired" required />
           <EditableCell
             v-if="closable"
@@ -124,9 +145,9 @@ const columns = 4 + (props.closable ? 1 : 0) + (props.defaultable ? 1 : 0) + (pr
           </td>
         </tr>
         <QuickAddRow :colspan="columns" :label="t(`catalog.new.${kind}`)" :placeholder="t('catalog.name')" :submit="create">
-          <input v-model="newColor" type="color" class="size-6 cursor-pointer rounded border-0 bg-transparent p-0" :aria-label="t('catalog.color')" />
+          <input v-if="!sized" v-model="newColor" type="color" class="size-6 cursor-pointer rounded border-0 bg-transparent p-0" :aria-label="t('catalog.color')" />
           <input
-            v-if="weighted"
+            v-if="weighted || sized"
             v-model="newWeight"
             type="number"
             min="0"

@@ -1,13 +1,30 @@
 <script setup lang="ts">
-import { AlertTriangle, Check, CircleDot, LoaderCircle } from '@lucide/vue'
-import { ref, shallowRef } from 'vue'
+import { useStyleTag } from '@vueuse/core'
+import { AlertTriangle, Check, CircleDot, LoaderCircle, MessageSquarePlus } from '@lucide/vue'
+import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave } from 'vue-router'
+import { ApiError } from '@/api/client'
+import type { AnchorInput } from '@/api/comments'
 import type { PageOwner, SavedPage } from '@/api/pages'
 import { Button } from '@/components/ui/button'
-import PageEditor from '@/features/richtext/PageEditor.vue'
+import CommentEditor from '@/features/comments/CommentEditor.vue'
+import PageEditor, { type TextSelection } from '@/features/richtext/PageEditor.vue'
+import { pageForSave } from '@/features/richtext/pageExtensions'
 import type { MentionRefs, RichDoc } from '@/types/work'
 import { usePageAutosave } from './usePageAutosave'
+
+/** What a work item's page needs to comment on its text (spec 006, RF-44 to RF-55). */
+export interface PageCommenting {
+  workItemId: string
+  canComment: boolean
+  /** Threads whose text is highlighted: the open ones (RF-49). */
+  openThreads: string[]
+  /** Publishes an anchored thread and returns the page with its anchor. */
+  anchor: (input: AnchorInput, body: RichDoc) => Promise<SavedPage>
+  /** Shows the threads of a clicked highlight (RF-47). */
+  show: (ids: string[], rect: DOMRect) => void
+}
 
 // The page of a work item, milestone or project, saved as it is written
 // (RF-31 to RF-36). Who can't edit it reads it (RF-13).
@@ -19,6 +36,7 @@ const props = defineProps<{
   editable: boolean
   /** Reads the owner again, to take someone else's version after a conflict. */
   reload: () => Promise<{ description: RichDoc; page_version: number; refs?: MentionRefs }>
+  commenting?: PageCommenting
 }>()
 const emit = defineEmits<{ saved: [SavedPage] }>()
 const { t } = useI18n()
@@ -44,6 +62,58 @@ async function takeTheirs() {
   autosave.adopt(fresh.page_version, fresh.refs ?? {})
   copied.value = false
 }
+
+// Comments on the page's text (spec 006). The highlight is a style sheet of
+// the open threads, so resolving one removes it without touching the page.
+const pageEditor = ref<InstanceType<typeof PageEditor> | null>(null)
+const selection = ref<TextSelection | null>(null)
+const composing = ref<TextSelection | null>(null)
+const anchoring = ref(false)
+const ID = /^[0-9a-f-]{36}$/i
+useStyleTag(
+  computed(() => {
+    const ids = (props.commenting?.openThreads ?? []).filter((id) => ID.test(id))
+    return ids.length ? ids.map((id) => `.page-comment[data-comment="${id}"]`).join(',') + '{background-color:var(--comment-highlight);border-bottom:2px solid var(--comment-underline);cursor:pointer}' : ''
+  }),
+)
+
+function onSelect(s: TextSelection | null) {
+  if (!composing.value) selection.value = s
+}
+function startComment() {
+  composing.value = selection.value
+  selection.value = null
+}
+
+// The anchor goes on the saved page: pending changes are saved first and the
+// editor waits for the answer, so no keystroke is lost (RF-45, RF-46).
+async function publishAnchored(body: RichDoc) {
+  const c = composing.value
+  const editor = pageEditor.value
+  if (!c || !editor || !props.commenting) return
+  await autosave.flush()
+  if (autosave.status.value === 'conflict') throw new ApiError('page_conflict', 409)
+  const current = editor.editor?.state.doc.textBetween(c.from, c.to, ' ').trim()
+  if (current !== c.quote) throw new ApiError('anchor_page_changed', 409)
+  const threadId = crypto.randomUUID()
+  const page = editor.markedDoc(threadId, c.from, c.to)
+  anchoring.value = true
+  try {
+    const saved = await props.commenting.anchor(
+      { thread_id: threadId, quote: c.quote, page: page && pageForSave(page), page_version: autosave.pageVersion.value },
+      body,
+    )
+    editor.applyMark(threadId, c.from, c.to)
+    autosave.adopt(saved.page_version, saved.refs)
+    emit('saved', saved)
+    composing.value = null
+  } finally {
+    anchoring.value = false
+  }
+}
+
+const below = (r: DOMRect) => ({ top: `${r.bottom + 8}px`, left: `${Math.max(8, Math.min(r.left, window.innerWidth - 400))}px` })
+const above = (r: DOMRect) => ({ top: `${Math.max(8, r.top - 40)}px`, left: `${Math.max(8, Math.min(r.right - 40, window.innerWidth - 140))}px` })
 
 onBeforeRouteLeave(() => autosave.flush())
 defineExpose({ flush: autosave.flush, hasChanges: autosave.hasChanges })
@@ -83,11 +153,39 @@ defineExpose({ flush: autosave.flush, hasChanges: autosave.hasChanges })
       </span>
     </div>
     <PageEditor
+      ref="pageEditor"
       :doc="shown"
       :refs="autosave.refs.value"
-      :editable="editable && autosave.status.value !== 'conflict'"
+      :editable="editable && autosave.status.value !== 'conflict' && !anchoring"
       :owner="owner"
+      :commentable="!!commenting?.canComment"
       @change="autosave.change"
+      @select="onSelect"
+      @comment-click="(ids, rect) => commenting?.show(ids, rect)"
     />
+    <Teleport to="body">
+      <Button
+        v-if="selection && commenting?.canComment"
+        size="sm"
+        class="fixed z-50 shadow-lg"
+        :style="above(selection.rect)"
+        data-testid="comment-selection"
+        @mousedown.prevent
+        @click="startComment"
+      >
+        <MessageSquarePlus aria-hidden="true" />{{ t('comments.comment') }}
+      </Button>
+      <div
+        v-if="composing && commenting"
+        class="fixed z-50 flex w-96 max-w-[calc(100vw-1rem)] flex-col gap-2 rounded-lg border bg-popover p-2 shadow-xl"
+        :style="below(composing.rect)"
+        role="dialog"
+        :aria-label="t('comments.comment')"
+        data-testid="comment-anchor-popover"
+      >
+        <p class="line-clamp-2 border-l-2 border-amber-400 pl-2 text-sm text-muted-foreground">{{ composing.quote }}</p>
+        <CommentEditor :work-item-id="commenting.workItemId" :submit="publishAnchored" autofocus @cancel="composing = null" />
+      </div>
+    </Teleport>
   </section>
 </template>

@@ -419,16 +419,23 @@ func (s *Service) WorkItems(ctx context.Context, p *authz.Principal, id uuid.UUI
 		return nil, fmt.Errorf("work items del hito: %w", err)
 	}
 	out := make([]Item, 0, len(rows))
+	nodes := make([]*workitems.Node, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, Item{
 			Node: workitems.NodeFrom(project.Identifier, sqlc.WorkItemDescendantsRow{
 				ID: r.ID, ParentID: r.ParentID, SequenceNumber: r.SequenceNumber, Title: r.Title, TypeID: r.TypeID,
 				StatusID: r.StatusID, PriorityID: r.PriorityID, AssigneeID: r.AssigneeID, AssigneeName: r.AssigneeName,
 				DerivedDoneRatio: r.DerivedDoneRatio, AggEstimated: r.AggEstimated, AggRemaining: r.AggRemaining,
-				Depth: r.Depth, Position: r.Position, DueDate: r.DueDate, Weight: r.Weight,
+				Depth: r.Depth, Position: r.Position, DueDate: r.DueDate, Weight: r.Weight, SizeID: r.SizeID,
 			}),
 			Inherited: !r.Direct,
 		})
+	}
+	for i := range out {
+		nodes = append(nodes, &out[i].Node)
+	}
+	if err := workitems.FillAssignees(ctx, s.store.Queries, nodes); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

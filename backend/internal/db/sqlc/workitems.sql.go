@@ -13,6 +13,33 @@ import (
 	"github.com/google/uuid"
 )
 
+const addWorkItemAssignees = `-- name: AddWorkItemAssignees :exec
+INSERT INTO work_item_assignees (work_item_id, user_id, position)
+SELECT $1::uuid, u.id, u.pos::int - 1
+FROM unnest($2::uuid[]) WITH ORDINALITY AS u(id, pos)
+ON CONFLICT (work_item_id, user_id) DO UPDATE SET position = EXCLUDED.position
+`
+
+type AddWorkItemAssigneesParams struct {
+	WorkItemID uuid.UUID
+	UserIds    []uuid.UUID
+}
+
+// Writes the list before the row, so the compatibility trigger keeps it.
+func (q *Queries) AddWorkItemAssignees(ctx context.Context, arg AddWorkItemAssigneesParams) error {
+	_, err := q.db.Exec(ctx, addWorkItemAssignees, arg.WorkItemID, arg.UserIds)
+	return err
+}
+
+const clearWorkItemAssignees = `-- name: ClearWorkItemAssignees :exec
+DELETE FROM work_item_assignees WHERE work_item_id = $1
+`
+
+func (q *Queries) ClearWorkItemAssignees(ctx context.Context, workItemID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearWorkItemAssignees, workItemID)
+	return err
+}
+
 const countWorkItemChildren = `-- name: CountWorkItemChildren :one
 SELECT count(*) FROM work_items WHERE parent_id = $1
 `
@@ -63,9 +90,9 @@ func (q *Queries) CreateDependency(ctx context.Context, arg CreateDependencyPara
 const createWorkItem = `-- name: CreateWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, assignee_id, start_date, due_date,
-                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version
+                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight, size_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id
 `
 
 type CreateWorkItemParams struct {
@@ -89,6 +116,7 @@ type CreateWorkItemParams struct {
 	Depth           int16
 	ClosedAt        *time.Time
 	Weight          int16
+	SizeID          *uuid.UUID
 }
 
 func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) (WorkItem, error) {
@@ -113,6 +141,7 @@ func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) 
 		arg.Depth,
 		arg.ClosedAt,
 		arg.Weight,
+		arg.SizeID,
 	)
 	var i WorkItem
 	err := row.Scan(
@@ -150,6 +179,7 @@ func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) 
 		&i.AggWeightRatioSum,
 		&i.WeightedDoneRatio,
 		&i.PageVersion,
+		&i.SizeID,
 	)
 	return i, err
 }
@@ -218,7 +248,7 @@ func (q *Queries) GetDependency(ctx context.Context, id uuid.UUID) (WorkItemDepe
 }
 
 const getWorkItem = `-- name: GetWorkItem :one
-SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version FROM work_items WHERE id = $1
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id FROM work_items WHERE id = $1
 `
 
 func (q *Queries) GetWorkItem(ctx context.Context, id uuid.UUID) (WorkItem, error) {
@@ -259,12 +289,13 @@ func (q *Queries) GetWorkItem(ctx context.Context, id uuid.UUID) (WorkItem, erro
 		&i.AggWeightRatioSum,
 		&i.WeightedDoneRatio,
 		&i.PageVersion,
+		&i.SizeID,
 	)
 	return i, err
 }
 
 const getWorkItemByKey = `-- name: GetWorkItemByKey :one
-SELECT w.id, w.project_id, w.type_id, w.status_id, w.priority_id, w.parent_id, w.sequence_number, w.title, w.description, w.description_text, w.author_id, w.assignee_id, w.start_date, w.due_date, w.estimated_hours, w.remaining_hours, w.done_ratio, w.position, w.depth, w.agg_estimated, w.agg_remaining, w.agg_count, w.agg_ratio_sum, w.agg_est_ratio_sum, w.derived_done_ratio, w.version, w.closed_at, w.created_at, w.updated_at, w.weight, w.agg_weight, w.agg_weight_ratio_sum, w.weighted_done_ratio, w.page_version FROM work_items w JOIN projects p ON p.id = w.project_id
+SELECT w.id, w.project_id, w.type_id, w.status_id, w.priority_id, w.parent_id, w.sequence_number, w.title, w.description, w.description_text, w.author_id, w.assignee_id, w.start_date, w.due_date, w.estimated_hours, w.remaining_hours, w.done_ratio, w.position, w.depth, w.agg_estimated, w.agg_remaining, w.agg_count, w.agg_ratio_sum, w.agg_est_ratio_sum, w.derived_done_ratio, w.version, w.closed_at, w.created_at, w.updated_at, w.weight, w.agg_weight, w.agg_weight_ratio_sum, w.weighted_done_ratio, w.page_version, w.size_id FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE p.identifier = $1 AND w.sequence_number = $2
 `
 
@@ -311,12 +342,13 @@ func (q *Queries) GetWorkItemByKey(ctx context.Context, arg GetWorkItemByKeyPara
 		&i.AggWeightRatioSum,
 		&i.WeightedDoneRatio,
 		&i.PageVersion,
+		&i.SizeID,
 	)
 	return i, err
 }
 
 const getWorkItemForUpdate = `-- name: GetWorkItemForUpdate :one
-SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version FROM work_items WHERE id = $1 FOR UPDATE
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id FROM work_items WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetWorkItemForUpdate(ctx context.Context, id uuid.UUID) (WorkItem, error) {
@@ -357,6 +389,27 @@ func (q *Queries) GetWorkItemForUpdate(ctx context.Context, id uuid.UUID) (WorkI
 		&i.AggWeightRatioSum,
 		&i.WeightedDoneRatio,
 		&i.PageVersion,
+		&i.SizeID,
+	)
+	return i, err
+}
+
+const getWorkItemSize = `-- name: GetWorkItemSize :one
+SELECT id, name, name_normalized, weight, position, retired_at, created_at, updated_at FROM work_item_sizes WHERE id = $1
+`
+
+func (q *Queries) GetWorkItemSize(ctx context.Context, id uuid.UUID) (WorkItemSize, error) {
+	row := q.db.QueryRow(ctx, getWorkItemSize, id)
+	var i WorkItemSize
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Weight,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -384,6 +437,41 @@ func (q *Queries) ListDependencies(ctx context.Context, fromID uuid.UUID) ([]Wor
 			&i.CreatedBy,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkItemAssignees = `-- name: ListWorkItemAssignees :many
+
+SELECT a.work_item_id, u.id, u.name FROM work_item_assignees a JOIN users u ON u.id = a.user_id
+WHERE a.work_item_id = ANY ($1::uuid[])
+ORDER BY a.work_item_id, a.position, a.created_at
+`
+
+type ListWorkItemAssigneesRow struct {
+	WorkItemID uuid.UUID
+	ID         uuid.UUID
+	Name       string
+}
+
+// Asignados (spec 006) -------------------------------------------------------
+// The assignees of some work items, in their order (RF-12).
+func (q *Queries) ListWorkItemAssignees(ctx context.Context, ids []uuid.UUID) ([]ListWorkItemAssigneesRow, error) {
+	rows, err := q.db.Query(ctx, listWorkItemAssignees, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkItemAssigneesRow
+	for rows.Next() {
+		var i ListWorkItemAssigneesRow
+		if err := rows.Scan(&i.WorkItemID, &i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -456,7 +544,7 @@ const projectWorkItemTree = `-- name: ProjectWorkItemTree :many
 
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
        w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date, w.weight
+       w.depth, w.position, w.due_date, w.weight, w.size_id
 FROM work_items w LEFT JOIN users u ON u.id = w.assignee_id
 WHERE w.project_id = $1
 ORDER BY w.depth, w.position, w.sequence_number
@@ -479,6 +567,7 @@ type ProjectWorkItemTreeRow struct {
 	Position         int32
 	DueDate          *time.Time
 	Weight           int16
+	SizeID           *uuid.UUID
 }
 
 // Árbol ------------------------------------------------------------------------
@@ -510,6 +599,7 @@ func (q *Queries) ProjectWorkItemTree(ctx context.Context, projectID uuid.UUID) 
 			&i.Position,
 			&i.DueDate,
 			&i.Weight,
+			&i.SizeID,
 		); err != nil {
 			return nil, err
 		}
@@ -565,9 +655,9 @@ UPDATE work_items
 SET type_id = $3, status_id = $4, priority_id = $5, parent_id = $6, title = $7, description = $8,
     description_text = $9, assignee_id = $10, start_date = $11, due_date = $12, estimated_hours = $13,
     remaining_hours = $14, done_ratio = $15, position = $16, depth = $17, closed_at = $18, weight = $19,
-    version = version + 1, updated_at = now()
+    size_id = $20, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
-RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version
+RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id
 `
 
 type UpdateWorkItemParams struct {
@@ -590,6 +680,7 @@ type UpdateWorkItemParams struct {
 	Depth           int16
 	ClosedAt        *time.Time
 	Weight          int16
+	SizeID          *uuid.UUID
 }
 
 func (q *Queries) UpdateWorkItem(ctx context.Context, arg UpdateWorkItemParams) (WorkItem, error) {
@@ -613,6 +704,7 @@ func (q *Queries) UpdateWorkItem(ctx context.Context, arg UpdateWorkItemParams) 
 		arg.Depth,
 		arg.ClosedAt,
 		arg.Weight,
+		arg.SizeID,
 	)
 	var i WorkItem
 	err := row.Scan(
@@ -650,6 +742,7 @@ func (q *Queries) UpdateWorkItem(ctx context.Context, arg UpdateWorkItemParams) 
 		&i.AggWeightRatioSum,
 		&i.WeightedDoneRatio,
 		&i.PageVersion,
+		&i.SizeID,
 	)
 	return i, err
 }
@@ -692,7 +785,7 @@ WITH RECURSIVE tree AS (
 )
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
        w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
-       w.depth, w.position, w.due_date, w.weight
+       w.depth, w.position, w.due_date, w.weight, w.size_id
 FROM work_items w JOIN tree ON tree.id = w.id LEFT JOIN users u ON u.id = w.assignee_id
 ORDER BY w.depth, w.position, w.sequence_number
 `
@@ -714,6 +807,7 @@ type WorkItemDescendantsRow struct {
 	Position         int32
 	DueDate          *time.Time
 	Weight           int16
+	SizeID           *uuid.UUID
 }
 
 // Every descendant of a work item, in one query (RF-79).
@@ -743,6 +837,7 @@ func (q *Queries) WorkItemDescendants(ctx context.Context, parentID *uuid.UUID) 
 			&i.Position,
 			&i.DueDate,
 			&i.Weight,
+			&i.SizeID,
 		); err != nil {
 			return nil, err
 		}

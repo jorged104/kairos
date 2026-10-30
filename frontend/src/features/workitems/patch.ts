@@ -9,7 +9,8 @@ import type { WorkItem } from '@/types/work'
 export function toUpdateInput(w: WorkItem): WorkItemUpdateInput {
   return {
     version: w.version, type_id: w.type_id, status_id: w.status_id, priority_id: w.priority_id, title: w.title,
-    parent_id: w.parent?.id ?? null, assignee_id: w.assignee?.id ?? null,
+    parent_id: w.parent?.id ?? null, assignee_id: w.assignees[0]?.id ?? null,
+    assignee_ids: w.assignees.map((a) => a.id), size_id: w.size_id,
     start_date: w.start_date, due_date: w.due_date, estimated_hours: w.estimated_hours,
     remaining_hours: w.remaining_hours, done_ratio: w.done_ratio, position: w.position, weight: w.weight,
     custom_values: { ...w.custom_values },

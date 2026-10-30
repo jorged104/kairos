@@ -328,7 +328,12 @@
     "file_too_large": "El archivo supera 10 MB.",
     "file_type_not_allowed": "Tipo de archivo no admitido. Admite PNG, JPG, GIF, WebP, PDF, Word, Excel, PowerPoint, TXT, CSV y ZIP.",
     "storage_unavailable": "El almacenamiento de archivos no está disponible. Inténtalo más tarde.",
-    "page_conflict": "Otra persona cambió esta página mientras escribías."
+    "page_conflict": "Otra persona cambió esta página mientras escribías.",
+    "comment_empty": "El comentario está vacío",
+    "comment_too_long": "El comentario supera los 10 000 caracteres",
+    "anchor_page_changed": "La página cambió mientras comentabas: vuelve a seleccionar el texto",
+    "too_many_assignees": "Un work item admite como máximo 20 asignados",
+    "size_retired": "La talla está retirada"
   },
   "richtext": {
     "bold": "Negrita",
@@ -377,8 +382,11 @@
       "methodologies": "Nueva metodología",
       "work-item-types": "Nuevo tipo",
       "statuses": "Nuevo estado",
-      "priorities": "Nueva prioridad"
-    }
+      "priorities": "Nueva prioridad",
+      "work-item-sizes": "Nueva talla"
+    },
+    "sizes": "Tallas",
+    "sizeWeight": "Peso"
   },
   "work": {
     "reload": "Recargar"
@@ -539,7 +547,12 @@
     "key": "Clave",
     "newChild": "Nuevo hijo de {key}",
     "newChildPlaceholder": "Título del hijo de {key} y Enter",
-    "newPlaceholder": "Escribe un título y pulsa Enter"
+    "newPlaceholder": "Escribe un título y pulsa Enter",
+    "assignees": "Asignados",
+    "size": "Talla",
+    "searchPeople": "Buscar personas",
+    "maxAssignees": "Como máximo {max} asignados",
+    "done": "Listo"
   },
   "objectives": {
     "title": "Objetivos",
@@ -676,5 +689,24 @@
     "resizePanel": "Cambiar el ancho del panel (doble clic: mitad de la pantalla)",
     "fullWidth": "Ancho completo",
     "exitFullWidth": "Salir del ancho completo"
+  },
+  "comments": {
+    "title": "Comentarios",
+    "comment": "Comentar",
+    "placeholder": "Escribe un comentario…",
+    "replyPlaceholder": "Responde…",
+    "hint": "Ctrl+Enter para publicar",
+    "publish": "Comentar",
+    "reply": "Responder",
+    "delete": "Borrar",
+    "edited": "(editado)",
+    "deleted": "Comentario eliminado",
+    "resolve": "Resolver",
+    "reopen": "Reabrir",
+    "resolvedBy": "Resuelto por {name}",
+    "resolved": "{count} hilo resuelto | {count} hilos resueltos",
+    "textDeleted": "texto eliminado",
+    "tooLong": "Supera los 10 000 caracteres",
+    "none": "Sin comentarios"
   }
 }

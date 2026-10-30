@@ -11,8 +11,14 @@ import type { CellOption } from '@/components/data-table/types'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
-import PageSection from '@/features/pages/PageSection.vue'
+import { onClickOutside } from '@vueuse/core'
+import { createComment } from '@/api/comments'
+import CommentThread from '@/features/comments/CommentThread.vue'
+import CommentsSection from '@/features/comments/CommentsSection.vue'
+import { useComments } from '@/features/comments/useComments'
+import PageSection, { type PageCommenting } from '@/features/pages/PageSection.vue'
 import { useFullWidth } from '@/features/pages/useFullWidth'
+import AssigneesPicker from '@/features/work/AssigneesPicker.vue'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
@@ -68,11 +74,11 @@ const statusOptions = computed<CellOption[]>(() =>
 const priorityOptions = computed<CellOption[]>(() =>
   catalog.value.priorities.filter((p) => !p.retired || p.id === wi.value?.priority_id).map((p) => ({ value: p.id, label: p.name })),
 )
-const assigneeOptions = computed<CellOption[]>(() => {
-  const people = users.value.map((u) => ({ value: u.id, label: u.name }))
-  const a = wi.value?.assignee
-  return a && !people.some((u) => u.value === a.id) ? [{ value: a.id, label: a.name }, ...people] : people
-})
+const people = computed(() => users.value.map((u) => ({ id: u.id, name: u.name })))
+// Choosing a size sets its weight; a retired one only stays where it is (spec 006, RF-5, RF-9).
+const sizeOptions = computed<CellOption[]>(() =>
+  catalog.value.sizes.filter((sz) => !sz.retired || sz.id === wi.value?.size_id).map((sz) => ({ value: sz.id, label: `${sz.name} · ${sz.weight}` })),
+)
 // A work item can't hang from itself or a descendant (RF-77).
 const parentOptions = computed<CellOption[]>(() => {
   if (!wi.value || !tree.value) return wi.value?.parent ? [{ value: wi.value.parent.id, label: wi.value.parent.key }] : []
@@ -108,7 +114,8 @@ const orNull = (v: string) => v || null
 const hours = (v: string) => (v === '' ? null : Number(v))
 const changeStatus = (statusId: string) => saveField({ status_id: statusId }).catch(() => undefined)
 
-// The main properties are always shown; the rest fold away, as in Notion (RF-68).
+// The main properties are always shown, size and weight among them (spec 006,
+// RF-10); the rest fold away, as in Notion (RF-68).
 const moreProperties = ref(false)
 
 // Custom fields as text in the fields, typed for the API.
@@ -162,6 +169,27 @@ async function reloadPage() {
 
 const fullWidth = useFullWidth()
 
+// Comments: the list below the properties (spec 006, RF-22) and the threads
+// of a highlight in the page, floating next to it (RF-47).
+const { list: comments, apply: applyComments, openAnchors } = useComments(() => id.value)
+const popover = ref<{ ids: string[]; rect: DOMRect } | null>(null)
+const popoverEl = ref<HTMLElement | null>(null)
+const popoverThreads = computed(() => (comments.value?.threads ?? []).filter((th) => popover.value?.ids.includes(th.id)))
+onClickOutside(popoverEl, () => (popover.value = null))
+const commenting = computed<PageCommenting>(() => ({
+  workItemId: id.value,
+  canComment: !!comments.value?.can_comment,
+  openThreads: openAnchors.value,
+  anchor: async (input, body) => {
+    const r = applyComments(await createComment(id.value, body, { anchor: input }))
+    return r.page!
+  },
+  show: (ids, rect) => {
+    if (ids.some((x) => openAnchors.value.includes(x))) popover.value = { ids, rect }
+  },
+}))
+const popoverAt = (r: DOMRect) => ({ top: `${r.bottom + 8}px`, left: `${Math.max(8, Math.min(r.left, window.innerWidth - 424))}px` })
+
 /** Closes the panel once the page has saved what is pending (RF-32). */
 async function close() {
   await pageSection.value?.flush()
@@ -169,7 +197,12 @@ async function close() {
 }
 // Escape closes the panel unless a menu, a search or a field took it first (RF-42).
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('[data-testid=suggestions], [data-testid=block-menu]')) void close()
+  if (e.key !== 'Escape' || e.defaultPrevented) return
+  if (popover.value) {
+    popover.value = null
+    return
+  }
+  if (!document.querySelector('[data-testid=suggestions], [data-testid=block-menu], [data-testid=comment-anchor-popover]')) void close()
 }
 onMounted(() => props.panel && window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => {
@@ -266,17 +299,15 @@ defineExpose({ close })
             </dd>
           </div>
           <div class="flex flex-col">
-            <dt><label for="w-assignee" class="text-muted-foreground">{{ t('workItems.assignee') }}</label></dt>
+            <dt><label for="w-assignees" class="text-muted-foreground">{{ t('workItems.assignees') }}</label></dt>
             <dd>
-              <InlineField
-                id="w-assignee"
-                kind="select"
-                :value="wi.assignee?.id ?? ''"
-                :label="t('workItems.assignee')"
-                :options="assigneeOptions"
-                :empty-label="t('workItems.unassigned')"
+              <AssigneesPicker
+                id="w-assignees"
+                :value="wi.assignees"
+                :options="people"
+                :label="t('workItems.assignees')"
                 :editable="writable"
-                :save="(v) => saveField({ assignee_id: orNull(v) })"
+                :save="(ids) => saveField({ assignee_ids: ids, assignee_id: ids[0] ?? null })"
               />
             </dd>
           </div>
@@ -296,6 +327,40 @@ defineExpose({ close })
             <dt><label for="w-due" class="text-muted-foreground">{{ t('workItems.due') }}</label></dt>
             <dd>
               <InlineField id="w-due" kind="date" :value="wi.due_date ?? ''" :label="t('workItems.due')" :editable="writable" :save="(v) => saveField({ due_date: orNull(v) })" />
+            </dd>
+          </div>
+          <div class="flex flex-col">
+            <dt><label for="w-size" class="text-muted-foreground">{{ t('workItems.size') }}</label></dt>
+            <dd>
+              <InlineField
+                id="w-size"
+                kind="select"
+                :value="wi.size_id ?? ''"
+                :label="t('workItems.size')"
+                :options="sizeOptions"
+                :editable="writable"
+                :save="(v) => saveField({ size_id: orNull(v) })"
+              />
+            </dd>
+          </div>
+          <div class="flex flex-col">
+            <dt>
+              <label for="w-weight" class="text-muted-foreground" :title="t('workItems.weightHint')">
+                {{ t('workItems.weight') }}<span v-if="wi.weight === 0"> · {{ t('workItems.tracking') }}</span>
+              </label>
+            </dt>
+            <dd>
+              <InlineField
+                id="w-weight"
+                kind="number"
+                :min="0"
+                :max="100"
+                :value="String(wi.weight)"
+                :label="t('workItems.weight')"
+                :editable="writable"
+                required
+                :save="(v) => saveField({ weight: Number(v) })"
+              />
             </dd>
           </div>
           <template v-if="moreProperties">
@@ -372,26 +437,6 @@ defineExpose({ close })
                 />
               </dd>
             </div>
-            <div class="flex flex-col">
-              <dt>
-                <label for="w-weight" class="text-muted-foreground" :title="t('workItems.weightHint')">
-                  {{ t('workItems.weight') }}<span v-if="wi.weight === 0"> · {{ t('workItems.tracking') }}</span>
-                </label>
-              </dt>
-              <dd>
-                <InlineField
-                  id="w-weight"
-                  kind="number"
-                  :min="0"
-                  :max="100"
-                  :value="String(wi.weight)"
-                  :label="t('workItems.weight')"
-                  :editable="writable"
-                  required
-                  :save="(v) => saveField({ weight: Number(v) })"
-                />
-              </dd>
-            </div>
             <div v-for="f in itemFields" :key="f.id" class="flex flex-col">
               <dt><label :for="`wf-${f.id}`" class="text-muted-foreground">{{ f.name }}{{ f.required ? ' *' : '' }}</label></dt>
               <dd>
@@ -416,7 +461,7 @@ defineExpose({ close })
           @click="moreProperties = !moreProperties"
         >
           <component :is="moreProperties ? ChevronDown : ChevronRight" class="size-4" aria-hidden="true" />
-          {{ moreProperties ? t('workItems.lessProperties') : t('workItems.moreProperties', { count: 7 + itemFields.length }) }}
+          {{ moreProperties ? t('workItems.lessProperties') : t('workItems.moreProperties', { count: 6 + itemFields.length }) }}
         </button>
         <div class="grid gap-2 sm:grid-cols-2">
           <div>
@@ -432,6 +477,8 @@ defineExpose({ close })
         </div>
       </section>
 
+      <CommentsSection :work-item-id="wi.id" />
+
       <PageSection
         :key="wi.id"
         ref="pageSection"
@@ -441,8 +488,30 @@ defineExpose({ close })
         :refs="wi.refs"
         :editable="writable"
         :reload="reloadPage"
+        :commenting="commenting"
         @saved="onPageSaved"
       />
+      <Teleport to="body">
+        <div
+          v-if="popover && popoverThreads.length && comments"
+          ref="popoverEl"
+          class="fixed z-50 flex max-h-[60vh] w-[26rem] max-w-[calc(100vw-1rem)] flex-col gap-2 overflow-y-auto rounded-lg border bg-popover p-2 shadow-xl"
+          :style="popoverAt(popover.rect)"
+          role="dialog"
+          :aria-label="t('comments.title')"
+          data-testid="comment-popover"
+        >
+          <CommentThread
+            v-for="th in popoverThreads"
+            :key="th.id"
+            :thread="th"
+            :refs="comments.refs"
+            :work-item-id="wi.id"
+            :can-comment="comments.can_comment"
+            :apply="applyComments"
+          />
+        </div>
+      </Teleport>
     </template>
   </div>
 </template>

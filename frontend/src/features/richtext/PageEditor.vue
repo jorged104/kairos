@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { listUsers } from '@/api/admin'
 import { searchMentions, type PageOwner } from '@/api/pages'
 import type { MentionRefs, RichDoc } from '@/types/work'
+import { COMMENT_MARK, threadsAt, withoutComments } from './commentMark'
 import FileBlock from './FileBlock.vue'
 import { pageExtensions, type PageContext } from './pageExtensions'
 import type { SuggestionItem } from './suggestionRender'
@@ -16,15 +17,32 @@ import { FILE_TYPES, IMAGE_TYPES, startUploads } from './uploads'
 
 // A page of spec 005: blocks inserted with /, dragged by their handle and
 // converted, duplicated or deleted from its menu (RF-7 to RF-12). Without
-// editable it is the read view (RF-13).
+// editable it is the read view (RF-13). Compact, without handles, it writes
+// comments (spec 006).
 const props = defineProps<{
   doc: RichDoc
   refs?: MentionRefs
   editable: boolean
   /** Whose page it is: files are uploaded to it. Needed when editable. */
   owner?: PageOwner
+  compact?: boolean
+  placeholder?: string
+  /** Reports the selected text, to comment on it (spec 006, RF-44). */
+  commentable?: boolean
 }>()
-const emit = defineEmits<{ change: [JSONContent] }>()
+/** A piece of selected text and where it ends on screen. */
+export interface TextSelection {
+  from: number
+  to: number
+  quote: string
+  rect: DOMRect
+}
+const emit = defineEmits<{
+  change: [JSONContent]
+  select: [TextSelection | null]
+  /** A click on commented text: its threads and where (RF-47). */
+  commentClick: [ids: string[], rect: DOMRect]
+}>()
 const { t } = useI18n()
 
 const refs = computed(() => props.refs ?? {})
@@ -60,6 +78,7 @@ const ctx: PageContext = {
     if (editor.value && props.owner) startUploads(editor.value, props.owner, files, pos)
   },
   uploadView: FileBlock,
+  placeholder: props.placeholder ? () => props.placeholder! : undefined,
 }
 
 // Read only, the checkboxes of task lists can't be ticked (RF-13).
@@ -75,8 +94,61 @@ const editor = useEditor({
   editable: props.editable,
   onCreate: ({ editor }) => syncCheckboxes(editor),
   onTransaction: ({ editor }) => syncCheckboxes(editor),
-  onUpdate: ({ editor }) => emit('change', editor.getJSON()),
+  // An anchor added after its comment was saved is no change to autosave.
+  onUpdate: ({ editor, transaction }) => {
+    if (!transaction.getMeta(ANCHOR_META)) emit('change', editor.getJSON())
+  },
+  editorProps: {
+    handleClick: (view, pos, event) => {
+      const ids = threadsAt(view.state, pos)
+      if (ids.length) emit('commentClick', ids, (event.target as HTMLElement).getBoundingClientRect())
+      return false
+    },
+  },
 })
+
+const ANCHOR_META = 'kairosAnchor'
+
+// The selection is read from the browser, so it works read-only too (RF-46).
+function reportSelection() {
+  const e = editor.value
+  if (!props.commentable || !e) return
+  const sel = window.getSelection()
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !e.view.dom.contains(sel.anchorNode) || !e.view.dom.contains(sel.focusNode)) {
+    emit('select', null)
+    return
+  }
+  try {
+    const a = e.view.posAtDOM(sel.anchorNode!, sel.anchorOffset)
+    const b = e.view.posAtDOM(sel.focusNode!, sel.focusOffset)
+    const from = Math.min(a, b)
+    const to = Math.max(a, b)
+    const quote = e.state.doc.textBetween(from, to, ' ').trim()
+    if (!quote) {
+      emit('select', null)
+      return
+    }
+    emit('select', { from, to, quote: quote.slice(0, 1000), rect: sel.getRangeAt(0).getBoundingClientRect() })
+  } catch {
+    emit('select', null)
+  }
+}
+
+/** The document with thread's anchor over from-to, without applying it. */
+function markedDoc(threadId: string, from: number, to: number): JSONContent | null {
+  const e = editor.value
+  if (!e) return null
+  const type = e.schema.marks[COMMENT_MARK]!
+  return e.state.tr.addMark(from, to, type.create({ threadId })).doc.toJSON()
+}
+
+/** Applies the anchor once saved, out of the history and the autosave. */
+function applyMark(threadId: string, from: number, to: number) {
+  const e = editor.value
+  if (!e) return
+  const type = e.schema.marks[COMMENT_MARK]!
+  e.view.dispatch(e.state.tr.addMark(from, to, type.create({ threadId })).setMeta('addToHistory', false).setMeta(ANCHOR_META, true))
+}
 
 watch(
   () => props.doc,
@@ -144,7 +216,8 @@ function duplicate() {
   const e = editor.value
   const at = current.value
   if (!e || !at) return
-  e.chain().focus().insertContentAt(at.pos + at.node.nodeSize, at.node.toJSON()).run()
+  // The copy doesn't take the block's comments with it (spec 006, RF-53).
+  e.chain().focus().insertContentAt(at.pos + at.node.nodeSize, withoutComments(at.node.toJSON())).run()
   closeMenu()
 }
 
@@ -157,12 +230,18 @@ function remove() {
   closeMenu()
 }
 
-defineExpose({ editor })
+defineExpose({ editor, markedDoc, applyMark })
 </script>
 
 <template>
-  <div class="page relative" :class="{ 'page-readonly': !editable }" data-testid="page">
-    <DragHandle v-if="editor && editable && !touch" :editor="editor" :on-node-change="onNodeChange" class="page-handle">
+  <div
+    class="page relative"
+    :class="{ 'page-readonly': !editable, 'page-compact': compact }"
+    data-testid="page"
+    @mouseup="reportSelection"
+    @keyup="reportSelection"
+  >
+    <DragHandle v-if="editor && editable && !touch && !compact" :editor="editor" :on-node-change="onNodeChange" class="page-handle">
       <div class="relative">
         <button
           type="button"
