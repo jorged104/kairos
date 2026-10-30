@@ -10,6 +10,7 @@ import { VueNodeViewRenderer, type JSONContent } from '@tiptap/vue-3'
 import type { Component } from 'vue'
 import { fileUrl } from '@/api/pages'
 import type { MentionRefs } from '@/types/work'
+import { CommentMark } from './commentMark'
 import { richTextExtensions } from './extensions'
 import MentionView from './MentionView.vue'
 import { suggestionRenderer, type SuggestionItem } from './suggestionRender'
@@ -40,6 +41,8 @@ export interface PageContext {
   upload: (files: File[], pos: number) => void
   /** Renders the placeholder of an upload in progress (FileBlock). */
   uploadView: Component
+  /** The help of an empty editor; the page's by default. */
+  placeholder?: () => string
 }
 
 const Callout = Node.create({
@@ -271,9 +274,10 @@ export function pageExtensions(ctx: PageContext): Extensions {
     pageMention(ctx),
     slashCommand(ctx),
     fileDrop(ctx),
+    CommentMark,
     // The help of an empty page, only for who can edit it.
     Placeholder.configure({
-      placeholder: ({ editor }) => (editor.isEmpty ? ctx.t('page.placeholder') : ''),
+      placeholder: ({ editor }) => (editor.isEmpty ? (ctx.placeholder?.() ?? ctx.t('page.placeholder')) : ''),
       showOnlyWhenEditable: true,
     }),
   ]

@@ -47,6 +47,9 @@
 
 :root {
   --radius: 0.625rem;
+  /* Commented text of a page (spec 006, RF-45). */
+  --comment-highlight: oklch(0.95 0.08 90 / 0.7);
+  --comment-underline: oklch(0.8 0.16 80);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -81,6 +84,8 @@
 }
 
 .dark {
+  --comment-highlight: oklch(0.45 0.08 80 / 0.45);
+  --comment-underline: oklch(0.7 0.14 80);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -173,4 +178,9 @@
     @apply pointer-events-none float-left h-0 text-muted-foreground;
   }
   .page-readonly .page-content li[data-checked] input { @apply cursor-not-allowed; }
+  /* Comments are written and read with the page's blocks, compact (spec 006). */
+  .page-compact .page-content .ProseMirror { @apply min-h-0 py-0.5; }
+  .page-compact:not(.page-readonly) .page-content .ProseMirror { @apply min-h-12; }
+  .page-compact.page-readonly .page-content p { @apply my-0.5; }
+  .page-comment-flash { @apply ring-2 ring-amber-400 rounded-sm transition-shadow; }
 }

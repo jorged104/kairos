@@ -20,14 +20,18 @@ const catalog: Catalog = {
     { id: 'pr', name: 'Normal', color: '#3b82f6', position: 1, is_default: true, retired: false },
     { id: 'pr2', name: 'Alta', color: '#ef4444', position: 2, is_default: false, retired: false },
   ],
+  sizes: [
+    { id: 'sz-m', name: 'M', weight: 3, position: 3, retired: false },
+    { id: 'sz-l', name: 'L', weight: 5, position: 4, retired: true },
+  ],
 }
 const node: WorkNode = {
-  id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login con SSO', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null,
+  id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login con SSO', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null, assignees: [], size_id: null,
   derived_done_ratio: 0, derived_estimated_hours: 0, derived_remaining_hours: 0, depth: 0, position: 0, due_date: null, weight: 1,
 }
 const item: WorkItem = {
   id: 'w1', key: 'KAI-1', sequence_number: 1, project: { id: 'p1', identifier: 'KAI', name: 'Kairos' }, type_id: 'ty',
-  status_id: 'st', priority_id: 'pr', title: 'Login con SSO', author: { id: 'u', name: 'U' }, assignee: null,
+  status_id: 'st', priority_id: 'pr', title: 'Login con SSO', author: { id: 'u', name: 'U' }, assignee: null, assignees: [], size_id: null,
   description: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Criterios de aceptación' }] }] },
   page_version: 3, refs: {},
   parent: null, start_date: null, due_date: null, estimated_hours: null, remaining_hours: null, done_ratio: 0, weight: 1,
@@ -54,6 +58,8 @@ beforeEach(() => {
       }
       if (init?.method === 'DELETE') return Promise.resolve(new Response(null, { status: 204 }))
       if (url.endsWith('/tree')) return json({ items: [node] })
+      if (url.startsWith('/api/users')) return json({ items: [{ id: 'u2', name: 'Luis Gómez' }], total: 1, page: 1, page_size: 100 })
+      if (url.endsWith('/comments')) return json({ threads: [], refs: {}, can_comment: true })
       if (url.endsWith('/api/catalog')) return json(catalog)
       if (url.includes('/api/work-items/by-key/KAI-1')) return json(current)
       if (url.endsWith('/api/projects/p1')) return json(project)
@@ -166,17 +172,50 @@ describe('ficha del work item', () => {
   it('muestra las propiedades principales y pliega las demás tras «Más propiedades» (RF-68, RF-69)', async () => {
     const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
     const props = wrapper.find('[data-testid=properties]')
-    for (const id of ['w-status', 'w-assignee', 'w-priority', 'w-start', 'w-due']) expect(props.find(`#${id}`).exists()).toBe(true)
-    for (const id of ['w-type', 'w-parent', 'w-est', 'w-rem', 'w-ratio', 'w-weight']) expect(props.find(`#${id}`).exists()).toBe(false)
+    for (const id of ['w-status', 'w-assignees', 'w-priority', 'w-start', 'w-due', 'w-size', 'w-weight']) expect(props.find(`#${id}`).exists()).toBe(true)
+    for (const id of ['w-type', 'w-parent', 'w-est', 'w-rem', 'w-ratio']) expect(props.find(`#${id}`).exists()).toBe(false)
     const toggle = props.find('[data-testid=more-properties]')
     expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(toggle.text()).toBe('Más propiedades (7)')
+    expect(toggle.text()).toBe('Más propiedades (6)')
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('true')
-    for (const id of ['w-type', 'w-parent', 'w-est', 'w-rem', 'w-ratio', 'w-weight']) expect(props.find(`#${id}`).exists()).toBe(true)
+    for (const id of ['w-type', 'w-parent', 'w-est', 'w-rem', 'w-ratio']) expect(props.find(`#${id}`).exists()).toBe(true)
     expect(props.text()).toContain('Autor')
     await toggle.trigger('click')
     expect(props.find('#w-type').exists()).toBe(false)
+  })
+
+  it('la talla fija el peso y no ofrece las retiradas (spec 006, RF-5, RF-9, RF-10)', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const size = wrapper.find('#w-size')
+    expect(size.findAll('option').map((o) => o.text())).toEqual(['—', 'M · 3'])
+    await size.setValue('sz-m')
+    await flushPromises()
+    expect(JSON.parse(String((calls('PATCH')[0]![1] as RequestInit).body))).toMatchObject({ size_id: 'sz-m' })
+  })
+
+  it('asigna a varias personas y guarda al cerrar la lista (spec 006, RF-12, RF-17)', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const panel = wrapper.find('[data-testid=item-panel]')
+    await panel.find('[data-testid=assignees]').trigger('click')
+    const menu = panel.find('[data-testid=assignees-menu]')
+    expect(menu.text()).toContain('Luis Gómez')
+    await menu.find('input[type=checkbox]').setValue(true)
+    expect(calls('PATCH')).toHaveLength(0) // saved when the list closes
+    await menu.find('[data-testid=assignees-done]').trigger('click')
+    await flushPromises()
+    expect(JSON.parse(String((calls('PATCH')[0]![1] as RequestInit).body))).toMatchObject({ assignee_ids: ['u2'], assignee_id: 'u2' })
+  })
+
+  it('los comentarios van entre las propiedades y la página (spec 006, RF-22)', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const html = wrapper.find('[data-testid=item-panel]').html()
+    const props = html.indexOf('data-testid="properties"')
+    const comments = html.indexOf('data-testid="comments"')
+    const page = html.indexOf('data-testid="page"')
+    expect(props).toBeGreaterThan(-1)
+    expect(comments).toBeGreaterThan(props)
+    expect(page).toBeGreaterThan(comments)
   })
 
   it('se borra con la papelera de arriba a la izquierda, pulsando dos veces', async () => {
