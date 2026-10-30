@@ -2,12 +2,14 @@
 
 **Estado:** Aprobada (2026-10-29). Las dudas se cerraron con las respuestas propuestas («Dale, implementa»).
 
+**Cambio:** 2026-10-30. La talla deja de estar ligada al peso: las tallas no tienen peso y elegir una no cambia el del work item (RF-57 a RF-59 sustituyen a RF-1 a RF-3 y RF-5 a RF-8).
+
 ## Contexto y objetivo
 Hoy un work item tiene un peso (spec 004, RF-149 a RF-156), pero no hay una forma rápida y
 común de estimarlo: cada persona escribe un número. Además solo admite un asignado, aunque
 muchas tareas las hacen varias personas a la vez. Y la conversación sobre una tarea vive fuera
 de Kairos (chat, correo), separada del work item y de su página, así que se pierde el porqué de
-las decisiones. Esta spec añade **tallas** (XS a XL) que fijan el peso, **varios asignados** por
+las decisiones. Esta spec añade **tallas** (XS a XL), independientes del peso, **varios asignados** por
 work item, todos con el mismo papel, y **comentarios**: hilos con respuestas que se pueden
 resolver, en la ficha justo debajo de las propiedades, como en Notion, y también anclados a un
 trozo de texto de la página.
@@ -19,14 +21,14 @@ trozo de texto de la página.
 - **Administrador del sistema:** configura las tallas del catálogo.
 
 ## Conceptos
-- **Talla:** una estimación de tamaño del catálogo (XS, S, M, L, XL…), con un orden y un peso asociado.
+- **Talla:** una estimación de tamaño del catálogo (XS, S, M, L, XL…), con un orden y sin peso.
 - **Asignados:** la lista de personas que trabajan en un work item. Ninguna es principal.
 - **Hilo:** un comentario raíz y sus respuestas. Puede estar abierto o resuelto.
 - **Comentario anclado:** un hilo asociado a un trozo de texto de la página del work item, que se ve resaltado en ella.
 
 ## Historias de usuario
-- H1: Como participante quiero elegir una talla para estimar sin discutir un número, y que el peso se rellene solo.
-- H2: Como administrador quiero definir las tallas y su peso para que todo el equipo estime con la misma escala.
+- H1: Como participante quiero elegir una talla para estimar sin discutir un número.
+- H2: Como administrador quiero definir las tallas para que todo el equipo estime con la misma escala.
 - H3: Como participante quiero asignar un work item a varias personas para reflejar que lo hacen juntas.
 - H4: Como participante quiero encontrar los work items en los que estoy asignado aunque haya más personas.
 - H5: Como colaborador quiero comentar un work item justo debajo de sus propiedades para dejar la conversación junto a la tarea.
@@ -36,14 +38,14 @@ trozo de texto de la página.
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### Tallas
-- RF-1: EL SISTEMA permitirá a un administrador crear, renombrar, reordenar y retirar tallas en el catálogo, cada una con un nombre único (ignorando mayúsculas y espacios exteriores) y un peso entero de 0 a 100.
-- RF-2: EL SISTEMA creará el catálogo con las tallas XS, S, M, L y XL, de pesos 1, 2, 3, 5 y 8.
-- RF-3: SI el peso de una talla no es un entero de 0 a 100, ENTONCES EL SISTEMA rechazará el cambio.
+- ~~RF-1: EL SISTEMA permitirá a un administrador crear, renombrar, reordenar y retirar tallas en el catálogo, cada una con un nombre único (ignorando mayúsculas y espacios exteriores) y un peso entero de 0 a 100.~~ Sustituida por RF-57.
+- ~~RF-2: EL SISTEMA creará el catálogo con las tallas XS, S, M, L y XL, de pesos 1, 2, 3, 5 y 8.~~ Sustituida por RF-58.
+- ~~RF-3: SI el peso de una talla no es un entero de 0 a 100, ENTONCES EL SISTEMA rechazará el cambio.~~ Sin peso en las tallas (RF-57).
 - RF-4: EL SISTEMA guardará de cada work item una talla opcional del catálogo.
-- RF-5: CUANDO el usuario elija una talla para un work item, EL SISTEMA pondrá como peso del work item el peso de esa talla.
-- RF-6: CUANDO el usuario cambie a mano el peso de un work item con talla, EL SISTEMA conservará la talla y el peso nuevo.
-- RF-7: CUANDO el usuario quite la talla de un work item, EL SISTEMA conservará su peso.
-- RF-8: CUANDO cambie el peso de una talla en el catálogo, EL SISTEMA no cambiará el peso de los work items existentes con esa talla.
+- ~~RF-5: CUANDO el usuario elija una talla para un work item, EL SISTEMA pondrá como peso del work item el peso de esa talla.~~ Sustituida por RF-59.
+- ~~RF-6: CUANDO el usuario cambie a mano el peso de un work item con talla, EL SISTEMA conservará la talla y el peso nuevo.~~ Sustituida por RF-59.
+- ~~RF-7: CUANDO el usuario quite la talla de un work item, EL SISTEMA conservará su peso.~~ Sustituida por RF-59.
+- ~~RF-8: CUANDO cambie el peso de una talla en el catálogo, EL SISTEMA no cambiará el peso de los work items existentes con esa talla.~~ Sin peso en las tallas (RF-57).
 - RF-9: SI una talla está retirada, ENTONCES EL SISTEMA no la ofrecerá para work items nuevos ni cambios, y la seguirá mostrando en los work items que ya la tienen.
 - RF-10: EL SISTEMA mostrará la talla y el peso entre las propiedades principales de la ficha del work item, siempre a la vista (cambia RF-68 de la spec 005).
 - RF-56: EL SISTEMA mostrará la talla en una columna del árbol, editable en la celda como las demás (RF-139 de la spec 004).
@@ -99,6 +101,11 @@ trozo de texto de la página.
 - RF-54: SI dos trozos comentados se solapan, ENTONCES EL SISTEMA resaltará los dos y, al hacer clic en el solape, ofrecerá elegir el hilo.
 - RF-55: MIENTRAS el usuario solo tenga el rol `viewer`, EL SISTEMA le mostrará el resaltado y el hilo sin opción de comentar.
 
+### Talla sin peso (cambio 2026-10-30)
+- RF-57: EL SISTEMA permitirá a un administrador crear, renombrar, reordenar y retirar tallas en el catálogo, cada una con un nombre único (ignorando mayúsculas y espacios exteriores) y sin peso.
+- RF-58: EL SISTEMA creará el catálogo con las tallas XS, S, M, L y XL, en ese orden.
+- RF-59: CUANDO el usuario elija, cambie o quite la talla de un work item, EL SISTEMA conservará el peso del work item.
+
 ## Requisitos no funcionales
 - **Rendimiento** (entorno local): la ficha de un work item con 200 comentarios en 50 hilos carga sus comentarios en < 300 ms. Publicar un comentario responde en < 200 ms. La página con 50 trozos comentados se pinta dentro del límite de 1 s de la spec 005.
 - **Seguridad:** los comentarios se sanean en el servidor con la misma lista blanca que las descripciones y nunca se guarda ni se pinta HTML (ADR 0003). Los archivos de los comentarios se sirven con las mismas comprobaciones que los de las páginas (spec 005, RF-23 y RF-24). Las operaciones comprueban permisos, nunca nombres de rol.
@@ -107,7 +114,7 @@ trozo de texto de la página.
 - **Idioma:** español por defecto; todos los textos y errores nuevos salen del catálogo de i18n.
 
 ## Casos límite
-- **Talla elegida y luego peso a mano:** la talla queda y el peso es el manual (RF-6). Para volver al peso de la talla se elige otra y luego la misma.
+- **Talla y peso:** son independientes; cambiar uno no toca el otro (RF-59).
 - **Talla retirada:** se ve en los work items que la tienen y no se ofrece (RF-9).
 - **Work item sin asignados:** válido; en el árbol se ve «Sin asignar».
 - **Misma persona dos veces:** la lista no admite duplicados; añadirla de nuevo no cambia nada.
@@ -132,14 +139,14 @@ trozo de texto de la página.
 - Todos los RF con tests en verde: API (permisos por rol en el test de matriz, conversión del asignado único, eventos con todos los asignados, comentarios y anclajes) y frontend (ficha, árbol y página).
 - Prueba de rendimiento con 200 comentarios en 50 hilos dentro de los umbrales.
 - Demo manual:
-  1. Configurar las tallas, poner M a un work item y ver su peso.
+  1. Configurar las tallas, poner M a un work item y ver que su peso no cambia.
   2. Asignar a tres personas y filtrar por una de ellas.
   3. Comentar, responder, resolver y reabrir un hilo.
   4. Seleccionar texto de la página, comentarlo, borrar el texto y ver «texto eliminado».
   5. Entrar como `viewer` y comprobar que solo lee.
 
 ## Decisiones tomadas con el usuario (2026-10-29)
-- **Tallas:** fijan el peso al elegirlas; el peso se puede retocar después (RF-5, RF-6). Pesos iniciales 1, 2, 3, 5 y 8 (RF-2). Columna editable en el árbol (RF-56).
+- **Tallas:** ~~fijan el peso al elegirlas; el peso se puede retocar después (RF-5, RF-6). Pesos iniciales 1, 2, 3, 5 y 8 (RF-2).~~ Independientes del peso (2026-10-30, RF-57 a RF-59). Columna editable en el árbol (RF-56).
 - **Asignados:** todos iguales, sin principal, con un máximo de 20 (RF-12, RF-13).
 - **Comentarios:** hilos con un nivel de respuestas que se resuelven y se reabren (RF-28, RF-36 a RF-38). Comentan todos los roles menos `viewer` (RF-23). Quien gestiona el proyecto puede borrar los de otros (RF-34). En proyectos cerrados o archivados, solo lectura (RF-39).
 - **Comentarios en la página:** anclados a un trozo de texto (RF-44 a RF-55).

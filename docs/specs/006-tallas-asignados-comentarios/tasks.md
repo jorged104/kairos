@@ -34,5 +34,8 @@
   - Notas:
     - Los archivos de los comentarios tienen como dueño `(work_item_comment, work item)`, sin atarse a un comentario: el comentario que los usa aún no existe al subirlos.
     - La talla y el peso van entre las propiedades principales, así que «Más propiedades» pliega 6 en lugar de 7.
+- [x] **T12 — Talla sin peso** (cambio 2026-10-30)
+  - RF: RF-57 a RF-59
+  - Hecho cuando: apitest de tallas sin peso y de peso conservado al cambiar la talla; Vitest del catálogo de tallas y de la ficha.
 - [ ] **T11 — Prueba manual (tú)**
   - Hecho cuando: la demo de la spec (pasos 1 a 5) funciona.
