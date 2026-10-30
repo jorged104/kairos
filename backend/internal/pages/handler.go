@@ -107,8 +107,7 @@ func (h *Handler) upload(kind string) http.HandlerFunc {
 			apperr.Write(w, h.logger, apperr.ErrNotFound)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, files.MaxBytes+multipartSlack)
-		name, data, err := readFile(r)
+		name, data, err := ReadUpload(w, r)
 		if err != nil {
 			apperr.Write(w, h.logger, err)
 			return
@@ -122,7 +121,10 @@ func (h *Handler) upload(kind string) http.HandlerFunc {
 	}
 }
 
-func readFile(r *http.Request) (string, []byte, error) {
+// ReadUpload reads the one file of an upload, at most files.MaxBytes, also
+// for the files of comments (spec 006).
+func ReadUpload(w http.ResponseWriter, r *http.Request) (string, []byte, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, files.MaxBytes+multipartSlack)
 	mr, err := r.MultipartReader()
 	if err != nil {
 		return "", nil, apperr.ErrValidation.WithDetail("field", "file")

@@ -1,6 +1,7 @@
 package apitest
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -90,6 +91,22 @@ func managers(status int) map[string]int {
 
 func writers(status int) map[string]int {
 	return map[string]int{"admin": status, "lead:in": status, "owner": status, "participant": status}
+}
+
+// commenters: every role but viewer, in any project they can read (spec 006, RF-23).
+func commenters(status int) map[string]int {
+	out := workAll(status)
+	delete(out, "viewer")
+	return out
+}
+
+// comment adds a thread by c to a new work item of project.
+func (m *workMatrix) comment(project uuid.UUID, c *Client) (wi, root uuid.UUID) {
+	var res commentsResult
+	wi = m.workItem(project).ID
+	c.Post("/api/work-items/"+wi.String()+"/comments", map[string]any{"body": json.RawMessage(paragraph("hola"))}).
+		Expect(m.t, http.StatusCreated).JSON(m.t, &res)
+	return wi, res.Comments.Threads[len(res.Comments.Threads)-1].ID
 }
 
 var workOps = []workOp{
@@ -204,6 +221,31 @@ var workOps = []workOp{
 	{"guardar página de proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/page", map[string]any{"page": nil, "page_version": 1})
 	}, managers(200)},
+	{"leer comentarios", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/work-items/" + m.workItem(m.project(a)).ID.String() + "/comments")
+	}, workAll(200)},
+	{"comentar", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/work-items/"+m.workItem(m.project(a)).ID.String()+"/comments", map[string]any{"body": json.RawMessage(paragraph("hola"))})
+	}, commenters(201)},
+	{"responder comentario", func(m *workMatrix, c *Client, a string) *Response {
+		wi, root := m.comment(m.project(a), m.admin)
+		return c.Post("/api/work-items/"+wi.String()+"/comments", map[string]any{"body": json.RawMessage(paragraph("sí")), "thread_id": root})
+	}, commenters(201)},
+	{"editar comentario ajeno", func(m *workMatrix, c *Client, a string) *Response {
+		_, root := m.comment(m.project(a), m.admin)
+		return c.Do(http.MethodPatch, "/api/comments/"+root.String(), map[string]any{"body": json.RawMessage(paragraph("otro"))})
+	}, map[string]int{"admin": 200}},
+	{"borrar comentario de participante", func(m *workMatrix, c *Client, a string) *Response {
+		_, root := m.comment(m.project(a), m.As(m.actors["participant"]))
+		return c.Do(http.MethodDelete, "/api/comments/"+root.String(), nil)
+	}, map[string]int{"admin": 200, "lead:in": 200, "owner": 200, "participant": 200}},
+	{"resolver hilo", func(m *workMatrix, c *Client, a string) *Response {
+		_, root := m.comment(m.project(a), m.admin)
+		return c.Post("/api/comments/"+root.String()+"/resolve", nil)
+	}, commenters(200)},
+	{"subir archivo a comentario", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Upload("/api/work-items/"+m.workItem(m.project(a)).ID.String()+"/comment-files", "a.png", pngData)
+	}, commenters(201)},
 	{"buscar menciones", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/mentions?q=x") }, workAll(200)},
 	{"descargar archivo", func(m *workMatrix, c *Client, a string) *Response {
 		var f fileDTO

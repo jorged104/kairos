@@ -701,8 +701,11 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 			return fmt.Errorf("borrar work item: %w", err)
 		}
 		// Its files stop being served; they stay in the storage (RF-51, RF-52).
-		if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: "work_item", OwnerID: id}); err != nil {
-			return fmt.Errorf("marcar archivos: %w", err)
+		// Its comments go with it; their files are marked too (spec 006, RF-40).
+		for _, kind := range []string{"work_item", "work_item_comment"} {
+			if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: kind, OwnerID: id}); err != nil {
+				return fmt.Errorf("marcar archivos: %w", err)
+			}
 		}
 		if row.ParentID != nil {
 			if err := q.RefreshWorkItemUp(ctx, *row.ParentID); err != nil {
