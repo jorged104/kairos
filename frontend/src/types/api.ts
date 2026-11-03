@@ -28,6 +28,7 @@ export type Permission =
   | 'idp_mappings:manage'
   | 'passwords:set'
   | 'audit:read'
+  | 'portfolio:manage'
   | 'self:password'
   // Spec 004.
   | 'work:read'

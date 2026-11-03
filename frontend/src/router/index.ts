@@ -54,6 +54,7 @@ export const routes = [
       },
       { path: 'account', name: 'account', component: () => import('@/pages/AccountPage.vue') },
       { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
+      { path: 'portfolio', name: 'portfolio', component: () => import('@/pages/PortfolioPage.vue') },
       {
         path: 'projects/new',
         name: 'project-new',
