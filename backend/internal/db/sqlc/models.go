@@ -107,6 +107,17 @@ type KeyResultWorkItem struct {
 	WorkItemID  uuid.UUID
 }
 
+type Label struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type LocalCredential struct {
 	UserID       uuid.UUID
 	PasswordHash string
@@ -427,6 +438,12 @@ type WorkItemDependency struct {
 	LagDays   int16
 	CreatedBy uuid.UUID
 	CreatedAt time.Time
+}
+
+type WorkItemLabel struct {
+	WorkItemID uuid.UUID
+	LabelID    uuid.UUID
+	CreatedAt  time.Time
 }
 
 type WorkItemSize struct {

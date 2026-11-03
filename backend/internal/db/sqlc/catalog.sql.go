@@ -82,6 +82,39 @@ func (q *Queries) CountTransitions(ctx context.Context, typeID uuid.UUID) (int64
 	return count, err
 }
 
+const createLabel = `-- name: CreateLabel :one
+INSERT INTO labels (name, name_normalized, color, position)
+VALUES ($1, $2, $3, $4) RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at
+`
+
+type CreateLabelParams struct {
+	Name           string
+	NameNormalized string
+	Color          string
+	Position       int32
+}
+
+func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label, error) {
+	row := q.db.QueryRow(ctx, createLabel,
+		arg.Name,
+		arg.NameNormalized,
+		arg.Color,
+		arg.Position,
+	)
+	var i Label
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createMethodology = `-- name: CreateMethodology :one
 INSERT INTO methodologies (name, name_normalized, position) VALUES ($1, $2, $3) RETURNING id, name, name_normalized, position, retired_at, created_at, updated_at
 `
@@ -481,6 +514,41 @@ func (q *Queries) GetWorkItemType(ctx context.Context, id uuid.UUID) (WorkItemTy
 	return i, err
 }
 
+const listLabels = `-- name: ListLabels :many
+
+SELECT id, name, name_normalized, color, position, retired_at, created_at, updated_at FROM labels ORDER BY position, name
+`
+
+// Etiquetas (spec 007) ------------------------------------------------------------
+func (q *Queries) ListLabels(ctx context.Context) ([]Label, error) {
+	rows, err := q.db.Query(ctx, listLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Label
+	for rows.Next() {
+		var i Label
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.NameNormalized,
+			&i.Color,
+			&i.Position,
+			&i.RetiredAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMethodologies = `-- name: ListMethodologies :many
 
 SELECT id, name, name_normalized, position, retired_at, created_at, updated_at FROM methodologies ORDER BY position, name
@@ -725,6 +793,33 @@ func (q *Queries) ListWorkItemTypes(ctx context.Context) ([]WorkItemType, error)
 	return items, nil
 }
 
+const setLabelRetired = `-- name: SetLabelRetired :one
+UPDATE labels
+SET retired_at = CASE WHEN $2::boolean THEN now() ELSE NULL END, updated_at = now()
+WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at
+`
+
+type SetLabelRetiredParams struct {
+	ID      uuid.UUID
+	Retired bool
+}
+
+func (q *Queries) SetLabelRetired(ctx context.Context, arg SetLabelRetiredParams) (Label, error) {
+	row := q.db.QueryRow(ctx, setLabelRetired, arg.ID, arg.Retired)
+	var i Label
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const setMethodologyRetired = `-- name: SetMethodologyRetired :one
 UPDATE methodologies
 SET retired_at = CASE WHEN $2::boolean THEN now() ELSE NULL END, updated_at = now()
@@ -927,6 +1022,42 @@ func (q *Queries) TransitionExists(ctx context.Context, arg TransitionExistsPara
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const updateLabel = `-- name: UpdateLabel :one
+UPDATE labels
+SET name = $2, name_normalized = $3, color = $4, position = $5, updated_at = now()
+WHERE id = $1 RETURNING id, name, name_normalized, color, position, retired_at, created_at, updated_at
+`
+
+type UpdateLabelParams struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	Position       int32
+}
+
+func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label, error) {
+	row := q.db.QueryRow(ctx, updateLabel,
+		arg.ID,
+		arg.Name,
+		arg.NameNormalized,
+		arg.Color,
+		arg.Position,
+	)
+	var i Label
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateMethodology = `-- name: UpdateMethodology :one

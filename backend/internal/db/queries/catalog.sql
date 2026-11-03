@@ -143,6 +143,25 @@ UPDATE work_item_sizes
 SET retired_at = CASE WHEN sqlc.arg(retired)::boolean THEN now() ELSE NULL END, updated_at = now()
 WHERE id = $1 RETURNING *;
 
+-- Etiquetas (spec 007) ------------------------------------------------------------
+
+-- name: ListLabels :many
+SELECT * FROM labels ORDER BY position, name;
+
+-- name: CreateLabel :one
+INSERT INTO labels (name, name_normalized, color, position)
+VALUES ($1, $2, $3, $4) RETURNING *;
+
+-- name: UpdateLabel :one
+UPDATE labels
+SET name = $2, name_normalized = $3, color = $4, position = $5, updated_at = now()
+WHERE id = $1 RETURNING *;
+
+-- name: SetLabelRetired :one
+UPDATE labels
+SET retired_at = CASE WHEN sqlc.arg(retired)::boolean THEN now() ELSE NULL END, updated_at = now()
+WHERE id = $1 RETURNING *;
+
 -- Flujos -------------------------------------------------------------------------
 
 -- name: ListTransitions :many
