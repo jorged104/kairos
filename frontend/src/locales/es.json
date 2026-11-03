@@ -13,7 +13,8 @@
     "projects": "Proyectos",
     "objectives": "Objetivos",
     "catalog": "Catálogo",
-    "portfolio": "Portafolio"
+    "portfolio": "Portafolio",
+    "tracking": "Seguimiento"
   },
   "common": {
     "save": "Guardar",
@@ -1059,5 +1060,52 @@
       "byEffort": "Pesa su esfuerzo: {n}",
       "manual": "Peso fijado a mano (su esfuerzo es {n}); vacío para volver al esfuerzo"
     }
+  },
+  "tracking": {
+    "title": "Seguimiento",
+    "filters": "Filtros",
+    "program": "Programa",
+    "anyProgram": "Cualquier programa",
+    "projects": "Proyectos",
+    "searchProject": "Buscar por nombre o identificador",
+    "owners": "Responsables",
+    "addOwner": "Añadir un responsable",
+    "ownerChip": "Responsable: {name}",
+    "remove": "Quitar {name}",
+    "clear": "Quitar los filtros",
+    "mine": "Sin filtros: tus proyectos activos.",
+    "all": "Sin filtros: no tienes proyectos, así que se siguen todos los activos.",
+    "limit": "Se siguen los {shown} primeros por nombre; {left} más quedan fuera: afina el filtro.",
+    "empty": "Ningún proyecto activo cumple los filtros.",
+    "projectsCount": "Proyectos",
+    "milestonesCount": "Hitos",
+    "met": "{n} cumplidos",
+    "real": "Avance real",
+    "plan": "Planificado hoy",
+    "milestones": "Calendario de hitos",
+    "noMilestones": "Sin hitos",
+    "planReal": "plan {plan}, real {real}",
+    "target": "Fecha objetivo: {date}",
+    "states": {
+      "done": "Finalizado",
+      "running": "En ejecución",
+      "at_risk": "En riesgo",
+      "late": "Atrasado",
+      "future": "Futuro",
+      "no_data": "Sin datos"
+    },
+    "tasks": "Tareas",
+    "columns": {
+      "late": "Atrasadas",
+      "in_progress": "En proceso",
+      "done": "Terminadas",
+      "upcoming": "Próximas"
+    },
+    "lateDetail": "Real {ratio} % · fin {due} · {count} día de atraso | Real {ratio} % · fin {due} · {count} días de atraso",
+    "progressDetail": "Real {ratio} % · fin {due}",
+    "doneDetail": "Cerrada el {date}",
+    "upcomingDetail": "Empieza {start} · fin {due}",
+    "noTasks": "Ninguna.",
+    "more": "y {n} más"
   }
 }

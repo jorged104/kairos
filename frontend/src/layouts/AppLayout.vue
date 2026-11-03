@@ -22,6 +22,7 @@ const links = computed(() =>
     { to: '/', label: t('nav.status') },
     { to: '/projects', label: t('nav.projects'), perm: 'work:read' as Permission },
     { to: '/portfolio', label: t('nav.portfolio'), perm: 'work:read' as Permission },
+    { to: '/tracking', label: t('nav.tracking'), perm: 'work:read' as Permission },
     { to: '/objectives', label: t('nav.objectives'), perm: 'work:read' as Permission },
     { to: '/users', label: t('nav.users') },
     { to: '/teams', label: t('nav.teams') },
