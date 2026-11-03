@@ -64,7 +64,18 @@ const editable = (m: Milestone) => m.can.manage && active.value
     <tbody>
       <tr v-for="m in milestones ?? []" :key="m.id" class="hover:bg-muted/30" data-testid="milestone-row">
         <EditableCell :value="m.name" :label="t('milestones.name')" :save="saver(m, 'name')" :editable="editable(m)" required>
-          <RouterLink :to="`/milestones/${m.id}`" class="font-medium hover:underline" @click.stop>{{ m.name }}</RouterLink>
+          <span class="flex flex-wrap items-center gap-x-3">
+            <RouterLink :to="`/milestones/${m.id}`" class="font-medium hover:underline" @click.stop>{{ m.name }}</RouterLink>
+            <RouterLink
+              v-if="m.can.link_work_items"
+              :to="{ path: `/milestones/${m.id}`, query: { add: '1' } }"
+              class="text-xs text-muted-foreground hover:underline"
+              data-testid="milestone-add-tasks-link"
+              @click.stop
+            >
+              {{ t('milestones.addTasks') }}
+            </RouterLink>
+          </span>
         </EditableCell>
         <td class="bg-muted/20 px-2">
           <span class="flex flex-wrap gap-1">

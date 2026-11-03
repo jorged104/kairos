@@ -217,7 +217,8 @@ export interface Milestone {
     weight: number
     weight_closed: number
   }
-  can: { manage: boolean }
+  /** link_work_items: whoever edits work items links them (spec 004, RF-161). */
+  can: { manage: boolean; link_work_items: boolean }
 }
 
 /** A row of the work item tree (RF-130). */

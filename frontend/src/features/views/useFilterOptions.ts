@@ -36,7 +36,10 @@ export function useFilterOptions(project: () => Project | undefined) {
     priority_id: active(catalog.value.priorities),
     size_id: [{ value: 'none', label: t('filters.noSize') }, ...active(catalog.value.sizes)],
     label_id: active(catalog.value.labels),
-    milestone_id: (milestones.value ?? []).filter((m) => m.status !== 'cancelado').map((m) => ({ value: m.id, label: m.name })),
+    milestone_id: [
+      { value: 'none', label: t('filters.noMilestone') },
+      ...(milestones.value ?? []).filter((m) => m.status !== 'cancelado').map((m) => ({ value: m.id, label: m.name })),
+    ],
     assignee_id: [
       { value: 'me', label: t('filters.me') },
       { value: 'none', label: t('workItems.unassigned') },

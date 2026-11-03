@@ -206,6 +206,13 @@ export const linkMilestoneWorkItem = (id: string, workItemId: string) =>
 export const unlinkMilestoneWorkItem = (id: string, workItemId: string) =>
   api<void>(`/api/milestones/${id}/work-items/${workItemId}`, { method: 'DELETE' })
 
+/** Several at once, all or none (spec 004, RF-164, RF-168). */
+export const linkMilestoneWorkItems = (id: string, workItemIds: string[]) =>
+  api<{ linked: number }>(`/api/milestones/${id}/work-items`, { method: 'POST', body: { work_item_ids: workItemIds } })
+
+export const unlinkMilestoneWorkItems = (id: string, workItemIds: string[]) =>
+  api<{ unlinked: number }>(`/api/milestones/${id}/work-items/unlink`, { method: 'POST', body: { work_item_ids: workItemIds } })
+
 // Work items (RF-61 to RF-96, RF-129, RF-130, RF-133).
 
 export const projectTree = (projectId: string) =>
