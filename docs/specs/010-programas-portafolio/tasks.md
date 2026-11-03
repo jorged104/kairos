@@ -1,14 +1,14 @@
 # Tareas 010 — Programas y portafolio
 
-- [ ] **T1 — Esquema y permiso** (migración 00010, sqlc, `portfolio:manage`)
+- [x] **T1 — Esquema y permiso** (migración 00010, sqlc, `portfolio:manage`)
   - Hecho cuando: `make sqlc` limpio y matriz de `authz` actualizada.
-- [ ] **T2 — Marcar programas y pesos**
+- [x] **T2 — Marcar programas y pesos**
   - RF: RF-1 a RF-10
   - Hecho cuando: apitest de permisos, plantilla, conflicto, rango y auditoría; fila de matriz.
-- [ ] **T3 — Cálculo del agregado**
+- [x] **T3 — Cálculo del agregado**
   - RF: RF-11 a RF-20, RF-24
   - Hecho cuando: tests de tabla del paquete `portfolio` en verde.
-- [ ] **T4 — Portafolio y Resumen del programa (API)**
+- [x] **T4 — Portafolio y Resumen del programa (API)**
   - RF: RF-21 a RF-29, RF-39, RF-40
   - Hecho cuando: apitest del portafolio y del Resumen del programa.
 - [ ] **T5 — Frontend del portafolio**
