@@ -81,8 +81,9 @@ func TestSubtreePlans(t *testing.T) {
 		{ID: child, ParentID: &root, Weight: 1, Due: ptr("2026-03-01")},
 		{ID: other, ParentID: &root, Weight: 3, Due: ptr("2026-03-20")},
 	}
-	got := SubtreePlans(items, today)
-	if f := got[root]; !f.HasPlan || f.Plan != 25 {
+	items[1].Ratio = 100
+	got := SubtreePlans(items, today, DefaultSettings())
+	if f := got[root]; !f.HasPlan || f.Plan != 25 || f.Real != 20 || f.Level != OnTrack {
 		t.Fatalf("root = %+v", f)
 	}
 	if f := got[child]; f.Plan != 100 {

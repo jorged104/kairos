@@ -78,9 +78,17 @@ type sums struct {
 	weight, weighted float64 // over the ones with a planned end
 	count            int
 	fractions        float64
+	// Over all, for the real progress.
+	allWeight, allWeighted float64
+	all                    int
+	ratios                 float64
 }
 
 func (s *sums) add(it Item, today time.Time) {
+	s.allWeight += float64(it.Weight)
+	s.allWeighted += float64(it.Weight * it.Ratio)
+	s.all++
+	s.ratios += float64(it.Ratio)
 	f, ok := Fraction(it.Start, it.Due, today)
 	if !ok {
 		return
@@ -92,7 +100,8 @@ func (s *sums) add(it Item, today time.Time) {
 }
 
 func (s sums) merge(o sums) sums {
-	return sums{s.weight + o.weight, s.weighted + o.weighted, s.count + o.count, s.fractions + o.fractions}
+	return sums{s.weight + o.weight, s.weighted + o.weighted, s.count + o.count, s.fractions + o.fractions,
+		s.allWeight + o.allWeight, s.allWeighted + o.allWeighted, s.all + o.all, s.ratios + o.ratios}
 }
 
 // plan is weighted by weight; when all weigh 0 it is the simple mean, as the
@@ -106,6 +115,17 @@ func (s sums) plan() (float64, bool) {
 	default:
 		return clamp(100 * s.fractions / float64(s.count)), true
 	}
+}
+
+// derived is the real progress of a subtree, as weighted_done_ratio.
+func (s sums) derived() float64 {
+	switch {
+	case s.allWeight > 0:
+		return clamp(s.allWeighted / s.allWeight)
+	case s.all > 0:
+		return clamp(s.ratios / float64(s.all))
+	}
+	return 0
 }
 
 // Plan of a set of work items: a project or a milestone (RF-20 to RF-22).
@@ -131,9 +151,9 @@ func Real(items []Item) float64 {
 	return clamp(wr / w)
 }
 
-// SubtreePlans is the plan of each work item over itself and its
-// descendants, as its derived progress (RF-19).
-func SubtreePlans(items []Item, today time.Time) map[uuid.UUID]Figures {
+// SubtreePlans is the plan and the derived progress of each work item over
+// itself and its descendants (RF-19), with its level.
+func SubtreePlans(items []Item, today time.Time, set Settings) map[uuid.UUID]Figures {
 	children := map[uuid.UUID][]int{}
 	for i, it := range items {
 		if it.ParentID != nil {
@@ -157,8 +177,9 @@ func SubtreePlans(items []Item, today time.Time) map[uuid.UUID]Figures {
 	}
 	out := make(map[uuid.UUID]Figures, len(items))
 	for i, it := range items {
-		p, ok := walk(i).plan()
-		out[it.ID] = Figures{HasPlan: ok, Plan: p}
+		w := walk(i)
+		p, ok := w.plan()
+		out[it.ID] = Make(p, ok, w.derived(), set)
 	}
 	return out
 }

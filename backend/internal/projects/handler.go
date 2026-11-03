@@ -45,6 +45,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Delete("/projects/{id}/members/{userId}", h.removeMember)
 		r.Get("/projects/{id}/assignment-suggestions", h.suggestions)
 		r.Get("/projects/{id}/overview", h.overview)
+		r.Get("/projects/{id}/schedule", h.schedule)
+		r.Post("/projects/{id}/baseline", h.baseline)
 		r.Put("/projects/{id}/column-limits/{statusId}", h.columnLimit)
 	})
 	r.With(auth.RequirePermission(authz.TemplatesUse, h.logger)).Get("/templates", h.templates)
@@ -162,17 +164,54 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	today := time.Now().UTC()
-	if v := r.URL.Query().Get("today"); v != "" {
-		t, err := time.Parse(time.DateOnly, v)
-		if err != nil {
-			apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "today"))
-			return
-		}
-		today = t
+	today, ok := h.today(w, r)
+	if !ok {
+		return
 	}
 	out, err := h.svc.Overview(r.Context(), authz.FromContext(r.Context()), id, today)
 	h.reply(w, http.StatusOK, out, err)
+}
+
+// schedule is the baseline and the plan of each work item (spec 009).
+func (h *Handler) schedule(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	today, ok := h.today(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.Schedule(r.Context(), authz.FromContext(r.Context()), id, today)
+	h.reply(w, http.StatusOK, out, err)
+}
+
+func (h *Handler) baseline(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	var req baselineRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	out, err := h.svc.SetBaseline(r.Context(), authz.FromContext(r.Context()), id, req)
+	h.reply(w, http.StatusCreated, out, err)
+}
+
+// today is the caller's date from ?today=YYYY-MM-DD, or the server's.
+func (h *Handler) today(w http.ResponseWriter, r *http.Request) (time.Time, bool) {
+	v := r.URL.Query().Get("today")
+	if v == "" {
+		return time.Now().UTC(), true
+	}
+	t, err := time.Parse(time.DateOnly, v)
+	if err != nil {
+		apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "today"))
+		return t, false
+	}
+	return t, true
 }
 
 func (h *Handler) columnLimit(w http.ResponseWriter, r *http.Request) {
