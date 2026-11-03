@@ -261,6 +261,8 @@ type Project struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	PageVersion       int32
+	IsProgram         bool
+	PortfolioWeight   *int32
 }
 
 type ProjectBaseline struct {
