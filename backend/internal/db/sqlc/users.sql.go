@@ -89,7 +89,7 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (name, email, email_normalized, status)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, email, email_normalized, status, created_at, updated_at
+RETURNING id, name, email, email_normalized, status, created_at, updated_at, weekly_capacity
 `
 
 type CreateUserParams struct {
@@ -115,6 +115,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WeeklyCapacity,
 	)
 	return i, err
 }
@@ -170,7 +171,7 @@ func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (UserI
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, name, email, email_normalized, status, created_at, updated_at FROM users WHERE id = $1
+SELECT id, name, email, email_normalized, status, created_at, updated_at, weekly_capacity FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -184,12 +185,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WeeklyCapacity,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, email_normalized, status, created_at, updated_at FROM users WHERE email_normalized = $1
+SELECT id, name, email, email_normalized, status, created_at, updated_at, weekly_capacity FROM users WHERE email_normalized = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, emailNormalized string) (User, error) {
@@ -203,12 +205,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, emailNormalized string) (U
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WeeklyCapacity,
 	)
 	return i, err
 }
 
 const getUserForUpdate = `-- name: GetUserForUpdate :one
-SELECT id, name, email, email_normalized, status, created_at, updated_at FROM users WHERE id = $1 FOR UPDATE
+SELECT id, name, email, email_normalized, status, created_at, updated_at, weekly_capacity FROM users WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetUserForUpdate(ctx context.Context, id uuid.UUID) (User, error) {
@@ -222,6 +225,7 @@ func (q *Queries) GetUserForUpdate(ctx context.Context, id uuid.UUID) (User, err
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WeeklyCapacity,
 	)
 	return i, err
 }
@@ -317,7 +321,7 @@ func (q *Queries) LockAdmins(ctx context.Context) error {
 }
 
 const setUserStatus = `-- name: SetUserStatus :one
-UPDATE users SET status = $2, updated_at = now() WHERE id = $1 RETURNING id, name, email, email_normalized, status, created_at, updated_at
+UPDATE users SET status = $2, updated_at = now() WHERE id = $1 RETURNING id, name, email, email_normalized, status, created_at, updated_at, weekly_capacity
 `
 
 type SetUserStatusParams struct {
@@ -336,6 +340,7 @@ func (q *Queries) SetUserStatus(ctx context.Context, arg SetUserStatusParams) (U
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WeeklyCapacity,
 	)
 	return i, err
 }
@@ -344,7 +349,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET name = $2, email = $3, email_normalized = $4, updated_at = now()
 WHERE id = $1
-RETURNING id, name, email, email_normalized, status, created_at, updated_at
+RETURNING id, name, email, email_normalized, status, created_at, updated_at, weekly_capacity
 `
 
 type UpdateUserProfileParams struct {
@@ -370,6 +375,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WeeklyCapacity,
 	)
 	return i, err
 }
