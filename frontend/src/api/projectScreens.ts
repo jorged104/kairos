@@ -1,3 +1,4 @@
+import type { PortfolioCard } from './portfolio'
 import type { Figures, Level } from './schedule'
 import type { Project, Ref, WorkNode } from '@/types/work'
 import { localDate } from './metrics'
@@ -116,6 +117,8 @@ export interface Overview {
   risks: { id: string; key: string; title: string; reason: 'overdue' | 'blocked' | 'behind'; days: number; deviation: number; gap: number; level?: Level; due_date: string | null; assignees: Ref[] }[]
   load: Member[]
   history: { day: string; progress: number }[]
+  /** The aggregate and the direct children of a program (spec 010, RF-39, RF-40). */
+  program?: PortfolioCard
 }
 
 export const getOverview = (projectId: string) => api<Overview>(`/api/projects/${projectId}/overview`, { query: { today: localDate() } })

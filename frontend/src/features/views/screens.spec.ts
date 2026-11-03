@@ -134,6 +134,27 @@ describe('pestañas del proyecto (spec 008)', () => {
     expect(ov.find('[data-testid=overview-overdue]').attributes('href')).toContain('overdue=true')
   })
 
+  it('el Resumen de un programa muestra su agregado y sus proyectos (spec 010, RF-39, RF-40)', async () => {
+    const f = (plan: number, real: number, level: 'late' | 'on_track') => ({ has_plan: true, plan, real, gap: real - plan, level })
+    overview.program = {
+      program: { id: 'p1', identifier: 'KAI', name: 'Kairos', lifecycle: 'activo', is_program: true, weight: 3, figures: f(80, 60, 'late') },
+      projects: 2, below_plan: 1,
+      rows: [
+        { id: 'c1', identifier: 'C1', name: 'Uno', lifecycle: 'activo', is_program: false, weight: 1, figures: f(50, 50, 'on_track') },
+        { id: 'c2', identifier: 'C2', name: 'Dos', lifecycle: 'activo', is_program: false, weight: 2, figures: f(90, 60, 'late') },
+      ],
+    }
+    try {
+      const { wrapper } = await renderPage()
+      const card = wrapper.find('[data-testid=overview-program]')
+      expect(card.text()).toContain('2 proyectos · 1 bajo plan')
+      expect(card.text()).toContain('Atrasado')
+      expect(card.findAll('[data-testid=portfolio-row-link]').map((x) => x.text())).toEqual(['Dos', 'Uno'])
+    } finally {
+      delete overview.program
+    }
+  })
+
   it('muestra la línea base y pide el motivo para volver a fijarla (spec 009, RF-2, RF-5, RF-6)', async () => {
     const { wrapper } = await renderPage()
     const panel = wrapper.find('[data-testid=baseline]')

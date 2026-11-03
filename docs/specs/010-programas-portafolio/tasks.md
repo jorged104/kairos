@@ -11,10 +11,10 @@
 - [x] **T4 — Portafolio y Resumen del programa (API)**
   - RF: RF-21 a RF-29, RF-39, RF-40
   - Hecho cuando: apitest del portafolio y del Resumen del programa.
-- [ ] **T5 — Frontend del portafolio**
+- [x] **T5 — Frontend del portafolio**
   - RF: RF-21 a RF-38
   - Hecho cuando: Vitest de tarjetas, filtro, orden y enlaces.
-- [ ] **T6 — Frontend: datos del proyecto y Resumen del programa**
+- [x] **T6 — Frontend: datos del proyecto y Resumen del programa**
   - RF: RF-8, RF-39, RF-40
   - Hecho cuando: Vitest de los controles del administrador y de la tabla en el Resumen.
 - [ ] **T7 — Prueba manual** (tú)
