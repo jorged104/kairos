@@ -48,7 +48,10 @@ const project: Project = {
 
 const metrics = {
   today: '2026-03-06',
-  schedule: { has_plan: true, expected: 60, actual: 20, deviation: -40, state: 'behind' },
+  schedule: {
+    has_plan: true, expected: 60, actual: 20, deviation: -40, state: 'late', plan: 60, real: 20, gap: -40,
+    in_baseline: true, base_start: '2026-03-01', base_due: '2026-03-08', changed: true, shift_days: 2,
+  },
   contribution: { tracking: false, parent: null, project: { no_weight: false, percent: 60, points: 12 } },
   times: { closed: false, lead_days: null, cycle_days: null, age_days: 10, in_progress_days: null, in_status_days: 2.5, missing: false },
   due: { state: 'overdue', days: 3 },
@@ -263,8 +266,10 @@ describe('ficha del work item', () => {
     await flushPromises()
     const list = first.wrapper.find('[data-testid=metrics-list]')
     expect(String(vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('/metrics'))![0])).toMatch(/today=\d{4}-\d{2}-\d{2}/)
-    expect(list.find('[data-testid=metric-schedule]').text()).toContain('Retrasada')
-    expect(list.find('[data-testid=metric-schedule]').text()).toContain('esperado 60 %')
+    // Against the baseline (spec 009, RF-12, RF-43).
+    expect(list.find('[data-testid=metric-schedule]').text()).toContain('Atrasado')
+    expect(list.find('[data-testid=metric-schedule]').text()).toContain('Plan 60 % · Real 20 % · Brecha -40 pp')
+    expect(list.find('[data-testid=metric-baseline]').text()).toContain('+2 días respecto a la línea base')
     expect(list.find('[data-testid=metric-due]').text()).toContain('Vencida, 3 días de retraso')
     expect(list.find('[data-testid=metric-blocked]').text()).toContain('KAI-9')
     expect(list.find('[data-testid=metric-blocked]').text()).toContain('una tarea sin acceso')

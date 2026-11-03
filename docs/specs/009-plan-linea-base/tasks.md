@@ -14,7 +14,7 @@
 - [x] **T5 — Resumen, hitos, riesgos y métricas**
   - RF: RF-23 a RF-25, RF-33 a RF-35, RF-43 a RF-47
   - Hecho cuando: apitest del Resumen y de las métricas con plan, brecha y nivel.
-- [ ] **T6 — Frontend: semáforo, Resumen y ficha**
+- [x] **T6 — Frontend: semáforo, Resumen y ficha**
   - RF: RF-5, RF-6, RF-11, RF-12, RF-35, RF-43 a RF-47
   - Hecho cuando: Vitest del Resumen con línea base y de las métricas.
 - [ ] **T7 — Frontend: cronograma y administración del semáforo**

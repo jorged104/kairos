@@ -498,14 +498,14 @@
   },
   "metrics": {
     "title": "Métricas",
-    "schedule": "Avance frente al plazo",
+    "schedule": "Avance frente al plan",
     "noPlan": "Sin plazo",
     "states": {
       "ahead": "Adelantada",
       "on_track": "Al día",
       "behind": "Retrasada"
     },
-    "progressVsExpected": "avance {actual} %, esperado {expected} %",
+    "progressVsExpected": "real {actual} %, plan {expected} %",
     "points": "{n} puntos",
     "contribution": "Aporte",
     "toParent": "Al padre",
@@ -615,8 +615,8 @@
     "firstTask": "Crea la primera",
     "progress": "Avance del proyecto",
     "deviation": "{n} pts frente al plan",
-    "expected": "Esperado hoy: {n} %, ponderado por peso",
-    "noPlan": "Sin plazo: faltan las fechas del proyecto",
+    "expected": "Plan de hoy: {n} %, según las fechas y los pesos de las tareas",
+    "noPlan": "Sin plazo: ninguna tarea tiene fecha fin y el proyecto no tiene fechas",
     "tasks": "Tareas",
     "closedOf": "de {total} cerradas",
     "attention": "Necesitan atención",
@@ -641,7 +641,7 @@
     "reasons": {
       "overdue": "Vencida {count} día | Vencida {count} días",
       "blocked": "Bloqueada",
-      "behind": "Retrasada {n} pts"
+      "behind": "{level}, {gap} pp"
     },
     "load": "Carga del equipo",
     "manageTeam": "Gestionar",
@@ -981,5 +981,53 @@
     "textDeleted": "texto eliminado",
     "tooLong": "Supera los 10 000 caracteres",
     "none": "Sin comentarios"
+  },
+  "schedule": {
+    "levels": {
+      "ahead": "Adelantado",
+      "on_track": "En tiempo",
+      "at_risk": "En riesgo",
+      "late": "Atrasado"
+    },
+    "figures": "Plan {plan} % · Real {real} % · Brecha {gap} pp",
+    "gap": "{gap} pp",
+    "noPlan": "Sin plazo",
+    "baseline": {
+      "title": "Línea base",
+      "none": "Sin línea base: el plan usa las fechas actuales de las tareas.",
+      "current": "Versión {version} · {date} · {author}",
+      "noReason": "Sin motivo",
+      "set": "Fijar línea base",
+      "reset": "Volver a fijar",
+      "reason": "Motivo del cambio",
+      "reasonPlaceholder": "Por qué cambia el plan",
+      "confirm": "Fijar",
+      "versions": "Versiones anteriores",
+      "outside": "Fuera de línea base",
+      "dates": "Línea base: {start} → {end}",
+      "shift": "{n} días respecto a la línea base",
+      "bar": "Línea base de {key}: del {start} al {end}"
+    },
+    "settings": {
+      "title": "Semáforo",
+      "help": "Clasifica la brecha (real menos plan, en puntos) de proyectos, hitos y tareas.",
+      "upper": "Adelantado desde (pp)",
+      "risk": "En riesgo por debajo de (pp)",
+      "late": "Atrasado por debajo de (pp)",
+      "name": "Nombre de «{level}»",
+      "color": "Color de «{level}»",
+      "colors": {
+        "blue": "Azul",
+        "green": "Verde",
+        "amber": "Ámbar",
+        "red": "Rojo",
+        "orange": "Naranja",
+        "violet": "Violeta",
+        "teal": "Turquesa",
+        "slate": "Gris"
+      },
+      "order": "Los umbrales deben ir de mayor a menor: adelantado, en riesgo y atrasado.",
+      "save": "Guardar semáforo"
+    }
   }
 }

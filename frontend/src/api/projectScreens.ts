@@ -1,3 +1,4 @@
+import type { Figures, Level } from './schedule'
 import type { Project, Ref, WorkNode } from '@/types/work'
 import { localDate } from './metrics'
 import { api } from './client'
@@ -91,11 +92,17 @@ export interface MilestoneLine {
   closed: number
   total: number
   days_left?: number
+  /** Spec 009, RF-45. */
+  figures: Figures
 }
 
 export interface Overview {
   today: string
   progress: number
+  /** Plan, real, gap and level (spec 009, RF-44); expected and deviation are the same rounded. */
+  figures: Figures
+  /** The plan of each day for the chart (RF-46). */
+  plan_series: { day: string; plan: number }[]
   has_plan: boolean
   expected: number
   deviation: number
@@ -106,7 +113,7 @@ export interface Overview {
   blocked: number
   next_milestone: MilestoneLine | null
   milestones: MilestoneLine[]
-  risks: { id: string; key: string; title: string; reason: 'overdue' | 'blocked' | 'behind'; days: number; deviation: number; due_date: string | null; assignees: Ref[] }[]
+  risks: { id: string; key: string; title: string; reason: 'overdue' | 'blocked' | 'behind'; days: number; deviation: number; gap: number; level?: Level; due_date: string | null; assignees: Ref[] }[]
   load: Member[]
   history: { day: string; progress: number }[]
 }

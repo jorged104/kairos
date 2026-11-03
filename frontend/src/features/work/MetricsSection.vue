@@ -7,6 +7,8 @@ import { RouterLink } from 'vue-router'
 import { getMetrics, type Share } from '@/api/metrics'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import LevelBadge from '@/features/schedule/LevelBadge.vue'
+import { signed } from '@/features/schedule/useLevels'
 import { useFolded } from './useFolded'
 
 // The metrics of a work item, between its properties and its comments (spec
@@ -27,7 +29,8 @@ const { data: m, error } = useQuery({
 const days = (v: number | null | undefined, missing = false) =>
   v === null || v === undefined ? (missing ? t('metrics.noData') : t('common.none')) : t('metrics.days', { n: n(v) })
 const share = (s: Share) => (s.no_weight ? t('metrics.noWeight') : t('metrics.share', { percent: n(s.percent), points: n(s.points) }))
-const stateClass = { ahead: 'text-green-700 dark:text-green-400', on_track: 'text-foreground', behind: 'text-destructive', '': '' }
+const date = (d: string | null) =>
+  d ? new Intl.DateTimeFormat(locale.value, { day: 'numeric', month: 'short' }).format(new Date(d + 'T00:00:00')) : t('common.none')
 const due = computed(() => {
   const d = m.value?.due
   if (!d) return ''
@@ -59,9 +62,12 @@ const due = computed(() => {
           <dt class="text-muted-foreground">{{ t('metrics.schedule') }}</dt>
           <dd v-if="!m.schedule.has_plan">{{ t('metrics.noPlan') }}</dd>
           <dd v-else>
-            <span class="font-medium" :class="stateClass[m.schedule.state]">{{ t(`metrics.states.${m.schedule.state}`) }}</span>
-            · {{ t('metrics.progressVsExpected', { actual: m.schedule.actual, expected: m.schedule.expected }) }}
-            ({{ m.schedule.deviation > 0 ? '+' : '' }}{{ t('metrics.points', { n: m.schedule.deviation }) }})
+            <LevelBadge :figures="{ has_plan: true, plan: m.schedule.plan, real: m.schedule.real, gap: m.schedule.gap, level: m.schedule.state || undefined }" />
+          </dd>
+          <dd v-if="!m.schedule.in_baseline" class="text-xs text-muted-foreground" data-testid="metric-outside">{{ t('schedule.baseline.outside') }}</dd>
+          <dd v-else-if="m.schedule.changed" class="text-xs text-muted-foreground" data-testid="metric-baseline">
+            {{ t('schedule.baseline.dates', { start: date(m.schedule.base_start), end: date(m.schedule.base_due) }) }}
+            <template v-if="m.schedule.shift_days !== null"> · {{ t('schedule.baseline.shift', { n: signed(m.schedule.shift_days) }) }}</template>
           </dd>
         </div>
         <div class="flex flex-col gap-0.5" data-testid="metric-contribution">
