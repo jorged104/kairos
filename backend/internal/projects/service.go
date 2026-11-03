@@ -26,6 +26,15 @@ import (
 type Service struct {
 	store *db.Store
 	files *files.Service // copies the files of a template's pages (spec 005, RF-53)
+	// onRolesChanged drops a person's cached permissions after a change of
+	// their role in a project (spec 008, RF-44).
+	onRolesChanged func(uuid.UUID)
+}
+
+// OnRolesChanged sets what to do when someone's role in a project changes.
+func (s *Service) OnRolesChanged(fn func(uuid.UUID)) *Service {
+	s.onRolesChanged = fn
+	return s
 }
 
 func NewService(store *db.Store, filesSvc *files.Service) *Service {
@@ -34,7 +43,7 @@ func NewService(store *db.Store, filesSvc *files.Service) *Service {
 
 // Ref is what the permission checks need from a project.
 func Ref(p sqlc.Project) authz.ProjectRef {
-	return authz.ProjectRef{TeamID: p.TeamID, OwnerID: p.OwnerID}
+	return authz.ProjectRef{ID: p.ID, TeamID: p.TeamID, OwnerID: p.OwnerID}
 }
 
 // Writable rejects changes inside a closed or archived project (RF-29, RF-30).
@@ -528,7 +537,9 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Pro
 			Manage:         p.CanManageProject(Ref(row)),
 			WriteWorkItems: p.CanWriteWorkItems(Ref(row)),
 			ManageTemplate: p.Has(authz.TemplatesManage),
+			ManageTeam:     p.CanManageProject(Ref(row)),
 		},
+		MyRole: p.ProjectRoleOf(Ref(row)),
 	}
 	names, err := q.ProjectNames(ctx, []uuid.UUID{row.ID})
 	if err != nil {

@@ -138,12 +138,14 @@ type Principal struct {
 	// ParticipantTeams holds the teams the user belongs to plus all their
 	// ancestors: a project of any of them counts the user as participant.
 	ParticipantTeams map[uuid.UUID]bool
+	// ProjectRoles are the roles given on purpose in projects (spec 008).
+	ProjectRoles map[uuid.UUID]ProjectRole
 }
 
 func NewPrincipal(id uuid.UUID, status string, roles []Role, scope []uuid.UUID) *Principal {
 	p := &Principal{
 		UserID: id, Status: status, Roles: roles, Permissions: PermissionsFor(roles),
-		ScopeTeams: map[uuid.UUID]bool{}, ParticipantTeams: map[uuid.UUID]bool{},
+		ScopeTeams: map[uuid.UUID]bool{}, ParticipantTeams: map[uuid.UUID]bool{}, ProjectRoles: map[uuid.UUID]ProjectRole{},
 	}
 	for _, t := range scope {
 		p.ScopeTeams[t] = true

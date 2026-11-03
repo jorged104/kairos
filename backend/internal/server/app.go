@@ -64,7 +64,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
 	filesSvc := files.NewService(store, storage)
-	projectsH := projects.NewHandler(projects.NewService(store, filesSvc), logger)
+	projectsH := projects.NewHandler(projects.NewService(store, filesSvc).OnRolesChanged(loader.Invalidate), logger)
 	workItemsH := workitems.NewHandler(workitems.NewService(store), logger)
 	milestonesH := milestones.NewHandler(milestones.NewService(store), logger)
 	objectivesH := objectives.NewHandler(objectives.NewService(store), logger)

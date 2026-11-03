@@ -27,6 +27,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Post("/users", h.Create)
 	r.Get("/users/{id}", h.Get)
 	r.Patch("/users/{id}", h.Update)
+	r.Put("/users/{id}/capacity", h.SetCapacity)
 	r.Post("/users/{id}/deactivate", h.status(Deactivate))
 	r.Post("/users/{id}/reactivate", h.status(Reactivate))
 	r.Post("/users/{id}/offboard", h.status(Offboard))
@@ -84,6 +85,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, err := h.svc.Update(r.Context(), authz.FromContext(r.Context()), id, req)
+	h.respond(w, http.StatusOK, u, err)
+}
+
+// SetCapacity takes {"capacity": n} or {"capacity": null} (spec 008, RF-46).
+func (h *Handler) SetCapacity(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		Capacity *int32 `json:"capacity"`
+	}
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	u, err := h.svc.SetCapacity(r.Context(), authz.FromContext(r.Context()), id, req.Capacity)
 	h.respond(w, http.StatusOK, u, err)
 }
 

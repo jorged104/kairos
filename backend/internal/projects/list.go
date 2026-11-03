@@ -132,7 +132,7 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, query url.Values
 			sm.Methodology = &workcore.Ref{ID: *methodologyID, Name: *methodologyName}
 		}
 		sm.StartDate, sm.EndDate = workcore.FromTime(start), workcore.FromTime(end)
-		ref := authz.ProjectRef{TeamID: sm.Team.ID, OwnerID: sm.Owner.ID}
+		ref := authz.ProjectRef{ID: sm.ID, TeamID: sm.Team.ID, OwnerID: sm.Owner.ID}
 		sm.Can = Can{Manage: p.CanManageProject(ref), WriteWorkItems: p.CanWriteWorkItems(ref), ManageTemplate: p.Has(authz.TemplatesManage)}
 		out.Items = append(out.Items, sm)
 	}

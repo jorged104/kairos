@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"openscum/internal/apperr"
+	"openscum/internal/authz"
 	"openscum/internal/customfields"
 	"openscum/internal/mentions"
 	"openscum/internal/workcore"
@@ -38,6 +39,8 @@ type Can struct {
 	Manage         bool `json:"manage"`
 	WriteWorkItems bool `json:"write_work_items"`
 	ManageTemplate bool `json:"manage_template"`
+	// The team, shared views and kanban limits (spec 008, RF-4, RF-25, RF-66).
+	ManageTeam bool `json:"manage_team"`
 }
 
 type Project struct {
@@ -66,6 +69,7 @@ type Project struct {
 	CustomFieldIDs    []uuid.UUID                   `json:"custom_field_ids"`
 	CustomValues      map[uuid.UUID]json.RawMessage `json:"custom_values"`
 	Can               Can                           `json:"can"`
+	MyRole            authz.ProjectRole             `json:"my_role"` // "" without one (spec 008)
 }
 
 // Summary is a row of the project list.

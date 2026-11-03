@@ -55,7 +55,9 @@ type User struct {
 	// RetiredAttributes is read-only history, only for administrators (RF-105).
 	RetiredAttributes map[uuid.UUID]json.RawMessage `json:"retired_attributes,omitempty"`
 	HasPassword       *bool                         `json:"has_password,omitempty"`
-	Can               *Abilities                    `json:"can,omitempty"`
+	// Weekly capacity in weight points (spec 008, RF-46).
+	Capacity *int32     `json:"capacity,omitempty"`
+	Can      *Abilities `json:"can,omitempty"`
 }
 
 type createRequest struct {
