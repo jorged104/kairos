@@ -47,16 +47,16 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 - RF-5: EL SISTEMA mantendrá la apertura de una tarea en el panel lateral (spec 005) desde la tabla, el kanban y el cronograma.
 
 ### Resumen
-- RF-6: EL SISTEMA mostrará el avance del proyecto, su avance esperado hoy y la diferencia en puntos.
-- RF-7: SI el proyecto no tiene fecha de inicio o de fin, ENTONCES EL SISTEMA mostrará «Sin plazo» en lugar del avance esperado y la diferencia.
+- RF-6 (sustituido por la spec 009, RF-44): EL SISTEMA mostrará el avance del proyecto, su avance esperado hoy y la diferencia en puntos.
+- RF-7 (sustituido por la spec 009, RF-44): SI el proyecto no tiene fecha de inicio o de fin, ENTONCES EL SISTEMA mostrará «Sin plazo» en lugar del avance esperado y la diferencia.
 - RF-8: EL SISTEMA mostrará el número de tareas por estado y el total de cerradas.
 - RF-9: EL SISTEMA mostrará el número de tareas abiertas vencidas y el de bloqueadas, cada uno con un enlace a la tabla filtrada por ese criterio.
 - RF-10: EL SISTEMA mostrará el próximo hito no cumplido ni cancelado, con su fecha, los días que faltan y su avance.
 - RF-11: EL SISTEMA mostrará la lista de hitos del proyecto ordenados por fecha, con su avance y su estado.
 - RF-12: EL SISTEMA registrará una vez al día el avance de cada proyecto activo.
-- RF-13: EL SISTEMA mostrará una gráfica del avance registrado por días frente a una línea de plan que va de 0 % en la fecha de inicio a 100 % en la fecha de fin.
+- RF-13 (la línea de plan, por la spec 009, RF-46): EL SISTEMA mostrará una gráfica del avance registrado por días frente a una línea de plan que va de 0 % en la fecha de inicio a 100 % en la fecha de fin.
 - RF-14: MIENTRAS un proyecto tenga menos de dos días registrados, EL SISTEMA mostrará en la gráfica solo el plan y el punto de hoy.
-- RF-15: EL SISTEMA mostrará hasta 10 tareas en riesgo: primero las vencidas (más días de retraso antes), después las bloqueadas y después las retrasadas.
+- RF-15 («retrasada» según la spec 009, RF-47): EL SISTEMA mostrará hasta 10 tareas en riesgo: primero las vencidas (más días de retraso antes), después las bloqueadas y después las retrasadas.
 - RF-16: EL SISTEMA mostrará la carga de las 5 personas del proyecto con más carga, comparada con su capacidad.
 - RF-17: EL SISTEMA mostrará la salud del proyecto y su explicación, editables por quien gestiona el proyecto (spec 004).
 
@@ -129,7 +129,7 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 
 ### Cronograma
 - RF-70: EL SISTEMA mostrará las tareas con fecha de inicio y de fin como barras sobre una línea de tiempo, agrupadas por hito efectivo, con un grupo «Sin hito».
-- RF-71: EL SISTEMA mostrará en cada barra el avance de la tarea y la marcará en rojo si está vencida, bloqueada o retrasada.
+- RF-71 (colores según la spec 009, RF-48): EL SISTEMA mostrará en cada barra el avance de la tarea y la marcará en rojo si está vencida, bloqueada o retrasada.
 - RF-72: EL SISTEMA mostrará cada hito como un rombo en su fecha y una línea vertical en la fecha de hoy.
 - ~~RF-73: EL SISTEMA permitirá cambiar la escala entre semanas, meses y trimestres.~~ Sustituido por RF-81 (2026-11-03).
 - RF-81: EL SISTEMA permitirá cambiar la escala entre días, semanas, meses y trimestres.
