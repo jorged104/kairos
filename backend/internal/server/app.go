@@ -24,6 +24,7 @@ import (
 	"openscum/internal/milestones"
 	"openscum/internal/objectives"
 	"openscum/internal/pages"
+	"openscum/internal/portfolio"
 	"openscum/internal/projects"
 	"openscum/internal/realtime"
 	"openscum/internal/schedule"
@@ -65,6 +66,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	eventsH := events.NewHandler(store, logger)
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
 	scheduleH := schedule.NewHandler(schedule.NewService(store), logger)
+	portfolioH := portfolio.NewHandler(portfolio.NewService(store.Queries), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
 	filesSvc := files.NewService(store, storage)
 	projectsH := projects.NewHandler(projects.NewService(store, filesSvc).OnRolesChanged(loader.Invalidate), logger)
@@ -97,6 +99,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 			usersH.Routes(p)
 			catalogH.Routes(p)
 			scheduleH.Routes(p)
+			portfolioH.Routes(p)
 			fieldsH.Routes(p)
 			projectsH.Routes(p)
 			workItemsH.Routes(p)

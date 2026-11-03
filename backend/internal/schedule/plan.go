@@ -215,3 +215,16 @@ func (s Settings) Classify(gap float64) Level {
 func clamp(v float64) float64 { return math.Min(100, math.Max(0, v)) }
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+// ProjectValue is the plan of a project's work items, or the linear one
+// between the project's dates when none has a planned end (RF-20, RF-23).
+func ProjectValue(start, end *time.Time, items []Item, day time.Time) (float64, bool) {
+	if v, ok := Plan(items, day); ok {
+		return v, true
+	}
+	if start != nil && end != nil && !end.Before(*start) {
+		f, _ := Fraction(start, end, day)
+		return 100 * f, true
+	}
+	return 0, false
+}

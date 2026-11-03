@@ -17,6 +17,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/portfolio"
 	"openscum/internal/schedule"
 	"openscum/internal/workcore"
 )
@@ -45,6 +46,8 @@ type Overview struct {
 	Risks         []Risk          `json:"risks"`
 	Load          []Member        `json:"load"`
 	History       []DayProgress   `json:"history"`
+	// The aggregate and the direct children of a program (spec 010, RF-39, RF-40).
+	Program *portfolio.Card `json:"program,omitempty"`
 }
 
 type StatusCount struct {
@@ -168,20 +171,19 @@ func (s *Service) Overview(ctx context.Context, p *authz.Principal, id uuid.UUID
 	if out.HasPlan {
 		out.PlanSeries = planSeries(row, plan.Items, history, today)
 	}
+	if row.IsProgram {
+		tree, set, err := portfolio.Load(ctx, q, today)
+		if err != nil {
+			return out, err
+		}
+		card := tree.ProgramCard(row.ID, set)
+		out.Program = &card
+	}
 	return out, nil
 }
 
-// projectPlan is the plan of the work items, or the linear one between the
-// project's dates when none has a planned end (spec 009, RF-20, RF-23).
 func projectPlan(row sqlc.Project, items []schedule.Item, day time.Time) (float64, bool) {
-	if v, ok := schedule.Plan(items, day); ok {
-		return v, true
-	}
-	if row.StartDate != nil && row.EndDate != nil && !row.EndDate.Before(*row.StartDate) {
-		f, _ := schedule.Fraction(row.StartDate, row.EndDate, day)
-		return 100 * f, true
-	}
-	return 0, false
+	return schedule.ProjectValue(row.StartDate, row.EndDate, items, day)
 }
 
 // planSeries is the plan of each day of the chart: from the start of the

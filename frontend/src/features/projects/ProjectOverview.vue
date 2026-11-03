@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getOverview } from '@/api/projectScreens'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import ProgramRows from '@/features/portfolio/ProgramRows.vue'
+import { DEFAULT_SORT, sortRows, type Sort } from '@/features/portfolio/rows'
 import BaselinePanel from '@/features/schedule/BaselinePanel.vue'
 import LevelBadge from '@/features/schedule/LevelBadge.vue'
 import { signed, useLevels } from '@/features/schedule/useLevels'
@@ -20,6 +22,7 @@ const { t, locale } = useI18n()
 const errorMessage = useErrorMessage()
 const { statuses } = useCatalog()
 const levels = useLevels()
+const programSort = ref<Sort>(DEFAULT_SORT)
 
 const { data: o, error } = useQuery({ queryKey: computed(() => ['overview', props.project.id]), queryFn: () => getOverview(props.project.id) })
 
@@ -75,6 +78,19 @@ const riskStyle = (r: { reason: 'overdue' | 'blocked' | 'behind'; level?: 'ahead
         {{ t('overview.empty') }}
         <RouterLink :to="{ query: { tab: 'table' } }" class="ml-1 font-medium text-foreground underline">{{ t('overview.firstTask') }}</RouterLink>
       </div>
+
+      <!-- A program: its aggregate and its direct children (spec 010, RF-39, RF-40). -->
+      <section v-if="o.program?.program" class="flex flex-col gap-3 rounded-xl border bg-background p-4" aria-labelledby="ov-program" data-testid="overview-program">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <h2 id="ov-program" class="text-base font-semibold">{{ t('portfolio.aggregate') }}</h2>
+          <span class="text-xs text-muted-foreground">
+            {{ t('portfolio.projects', { count: o.program.projects }, o.program.projects) }} · {{ t('portfolio.belowPlan', { count: o.program.below_plan }, o.program.below_plan) }}
+          </span>
+          <span class="ml-auto text-2xl font-bold tabular-nums">{{ o.program.program.figures.real.toLocaleString('es', { maximumFractionDigits: 1 }) }} %</span>
+        </div>
+        <LevelBadge :figures="o.program.program.figures" />
+        <ProgramRows v-if="o.program.rows.length" :rows="sortRows(o.program.rows, programSort)" :sort="programSort" @sort="programSort = $event" />
+      </section>
 
       <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" :aria-label="t('overview.indicators')">
         <article class="flex flex-col gap-2 rounded-xl border bg-background p-4" data-testid="overview-progress">

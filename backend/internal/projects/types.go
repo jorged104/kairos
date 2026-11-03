@@ -41,6 +41,8 @@ type Can struct {
 	ManageTemplate bool `json:"manage_template"`
 	// The team, shared views and kanban limits (spec 008, RF-4, RF-25, RF-66).
 	ManageTeam bool `json:"manage_team"`
+	// Mark programs and set weights (spec 010, RF-1 to RF-7).
+	ManagePortfolio bool `json:"manage_portfolio"`
 }
 
 type Project struct {
@@ -72,6 +74,10 @@ type Project struct {
 	MyRole            authz.ProjectRole             `json:"my_role"` // "" without one (spec 008)
 	// Limit of work items per status column of the kanban (spec 008, RF-66).
 	ColumnLimits map[uuid.UUID]int32 `json:"column_limits"`
+	// Spec 010, RF-8: the weight set by hand, or null for its effort.
+	IsProgram       bool   `json:"is_program"`
+	PortfolioWeight *int32 `json:"portfolio_weight"`
+	Effort          int32  `json:"effort"`
 }
 
 // Summary is a row of the project list.

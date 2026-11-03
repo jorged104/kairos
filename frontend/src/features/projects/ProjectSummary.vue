@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { SavedPage } from '@/api/pages'
 import PageSection from '@/features/pages/PageSection.vue'
+import PortfolioSettings from '@/features/portfolio/PortfolioSettings.vue'
 import AttributeField from '@/features/users/AttributeField.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
@@ -223,6 +224,8 @@ const actions = computed((): LifecycleAction[] => {
         @saved="onPageSaved"
       />
     </section>
+
+    <PortfolioSettings v-if="project.can.manage_portfolio" :project="project" @error="emit('error', $event)" />
 
     <section v-if="project.can.manage" class="grid gap-4 sm:grid-cols-2">
       <div class="rounded-lg border bg-background p-4 text-sm">

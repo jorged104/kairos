@@ -143,7 +143,11 @@ export interface Project {
   work_item_type_ids: string[]
   custom_field_ids: string[]
   custom_values: CustomValues
-  can: { manage: boolean; write_work_items: boolean; manage_template: boolean; manage_team?: boolean }
+  can: { manage: boolean; write_work_items: boolean; manage_template: boolean; manage_team?: boolean; manage_portfolio?: boolean }
+  /** Spec 010, RF-8: a program, the weight set by hand (null: its effort) and its effort. */
+  is_program?: boolean
+  portfolio_weight?: number | null
+  effort?: number
   /** The caller's role in the project, "" without one (spec 008). */
   my_role?: '' | 'pm' | 'tech_lead' | 'member' | 'observer'
   /** Limit of work items per status column of the kanban (spec 008, RF-66). */

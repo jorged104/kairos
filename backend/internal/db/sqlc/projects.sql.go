@@ -170,7 +170,7 @@ INSERT INTO projects (parent_id, template_id, team_id, owner_id, methodology_id,
                       description, description_text, is_template, health, health_explanation,
                       start_date, end_date, depth)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight
 `
 
 type CreateProjectParams struct {
@@ -233,6 +233,8 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }
@@ -277,7 +279,7 @@ func (q *Queries) CreateProjectPhase(ctx context.Context, arg CreateProjectPhase
 }
 
 const getProject = `-- name: GetProject :one
-SELECT id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version FROM projects WHERE id = $1
+SELECT id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight FROM projects WHERE id = $1
 `
 
 func (q *Queries) GetProject(ctx context.Context, id uuid.UUID) (Project, error) {
@@ -306,12 +308,14 @@ func (q *Queries) GetProject(ctx context.Context, id uuid.UUID) (Project, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }
 
 const getProjectByIdentifier = `-- name: GetProjectByIdentifier :one
-SELECT id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version FROM projects WHERE identifier = $1
+SELECT id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight FROM projects WHERE identifier = $1
 `
 
 func (q *Queries) GetProjectByIdentifier(ctx context.Context, identifier string) (Project, error) {
@@ -340,12 +344,14 @@ func (q *Queries) GetProjectByIdentifier(ctx context.Context, identifier string)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }
 
 const getProjectForUpdate = `-- name: GetProjectForUpdate :one
-SELECT id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version FROM projects WHERE id = $1 FOR UPDATE
+SELECT id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight FROM projects WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetProjectForUpdate(ctx context.Context, id uuid.UUID) (Project, error) {
@@ -374,6 +380,8 @@ func (q *Queries) GetProjectForUpdate(ctx context.Context, id uuid.UUID) (Projec
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }
@@ -975,7 +983,7 @@ func (q *Queries) SetFinishGate(ctx context.Context, arg SetFinishGateParams) er
 const setProjectLifecycle = `-- name: SetProjectLifecycle :one
 UPDATE projects SET lifecycle = $3, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight
 `
 
 type SetProjectLifecycleParams struct {
@@ -1010,13 +1018,15 @@ func (q *Queries) SetProjectLifecycle(ctx context.Context, arg SetProjectLifecyc
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }
 
 const setProjectTemplate = `-- name: SetProjectTemplate :one
 UPDATE projects SET is_template = $2, version = version + 1, updated_at = now()
-WHERE id = $1 RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version
+WHERE id = $1 RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight
 `
 
 type SetProjectTemplateParams struct {
@@ -1050,6 +1060,8 @@ func (q *Queries) SetProjectTemplate(ctx context.Context, arg SetProjectTemplate
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }
@@ -1109,7 +1121,7 @@ SET parent_id = $3, team_id = $4, owner_id = $5, name = $6, description = $7, de
     health = $9, health_explanation = $10, start_date = $11, end_date = $12, depth = $13,
     version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight
 `
 
 type UpdateProjectParams struct {
@@ -1168,6 +1180,8 @@ func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (P
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }

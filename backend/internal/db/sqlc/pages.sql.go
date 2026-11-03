@@ -335,7 +335,7 @@ func (q *Queries) UpdateMilestonePage(ctx context.Context, arg UpdateMilestonePa
 const updateProjectPage = `-- name: UpdateProjectPage :one
 UPDATE projects SET description = $3, description_text = $4, version = version + 1, updated_at = now()
 WHERE id = $1 AND page_version = $2
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight
 `
 
 type UpdateProjectPageParams struct {
@@ -376,6 +376,8 @@ func (q *Queries) UpdateProjectPage(ctx context.Context, arg UpdateProjectPagePa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PageVersion,
+		&i.IsProgram,
+		&i.PortfolioWeight,
 	)
 	return i, err
 }

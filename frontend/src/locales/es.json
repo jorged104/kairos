@@ -12,7 +12,8 @@
     "audit": "Auditoría",
     "projects": "Proyectos",
     "objectives": "Objetivos",
-    "catalog": "Catálogo"
+    "catalog": "Catálogo",
+    "portfolio": "Portafolio"
   },
   "common": {
     "save": "Guardar",
@@ -340,7 +341,8 @@
     "member_from_team": "Pertenece al equipo del proyecto: ponle el papel observador.",
     "view_name_conflict": "Ya hay una vista con ese nombre.",
     "too_many_views": "Se ha llegado al máximo de vistas.",
-    "size_retired": "La talla está retirada"
+    "size_retired": "La talla está retirada",
+    "template_program": "Una plantilla no puede ser un programa."
   },
   "richtext": {
     "bold": "Negrita",
@@ -1028,6 +1030,34 @@
       },
       "order": "Los umbrales deben ir de mayor a menor: adelantado, en riesgo y atrasado.",
       "save": "Guardar semáforo"
+    }
+  },
+  "portfolio": {
+    "title": "Portafolio",
+    "today": "Datos a {date}",
+    "filter": "Semáforo",
+    "clear": "Quitar el filtro",
+    "empty": "Todavía no hay programas ni proyectos.",
+    "noMatch": "Ningún programa ni proyecto cumple el filtro.",
+    "noRows": "Sin proyectos.",
+    "loose": "Sin programa",
+    "program": "Programa",
+    "aggregate": "Avance del programa",
+    "project": "Proyecto",
+    "projects": "{count} proyecto | {count} proyectos",
+    "belowPlan": "{count} bajo plan | {count} bajo plan",
+    "columns": {
+      "plan": "Plan",
+      "real": "Real",
+      "gap": "Brecha",
+      "level": "Estado"
+    },
+    "settings": {
+      "title": "Portafolio",
+      "isProgram": "Es un programa",
+      "weight": "Peso en sus programas",
+      "byEffort": "Pesa su esfuerzo: {n}",
+      "manual": "Peso fijado a mano (su esfuerzo es {n}); vacío para volver al esfuerzo"
     }
   }
 }
