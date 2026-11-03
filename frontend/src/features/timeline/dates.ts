@@ -12,15 +12,29 @@ export const today = (): number => {
   return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY)
 }
 
-export type Scale = 'weeks' | 'months' | 'quarters'
+export type Scale = 'days' | 'weeks' | 'months' | 'quarters'
+export const SCALES: Scale[] = ['days', 'weeks', 'months', 'quarters']
 
-/** Pixels per day of each scale (RF-73). */
-export const PX: Record<Scale, number> = { weeks: 28, months: 7, quarters: 2.5 }
+/** Pixels per day of each scale (RF-81). */
+export const PX: Record<Scale, number> = { days: 40, weeks: 28, months: 7, quarters: 2.5 }
+
+/** Saturday or Sunday. */
+export const weekend = (day: number): boolean => [0, 6].includes(new Date(day * DAY).getUTCDay())
 
 /** The ticks of the header between two days: its label and position. */
 export function ticks(from: number, to: number, scale: Scale, locale: string): { day: number; label: string }[] {
   const out: { day: number; label: string }[] = []
   const d = new Date(from * DAY)
+  if (scale === 'days') {
+    // Every day by its weekday initial; the first of each month says the month.
+    const wd = new Intl.DateTimeFormat(locale, { weekday: 'narrow', timeZone: 'UTC' })
+    const mo = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' })
+    for (let day = from; day <= to; day++) {
+      const x = new Date(day * DAY)
+      out.push({ day, label: x.getUTCDate() === 1 ? `1 ${mo.format(x)}` : `${wd.format(x)} ${x.getUTCDate()}` })
+    }
+    return out
+  }
   if (scale === 'weeks') {
     d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)) // Monday
     const fmt = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' })

@@ -41,7 +41,7 @@
     - El panel lateral de la tarea pasa a `ItemPanel.vue`, compartido por tabla, kanban y cronograma (RF-5).
     - Los enlaces antiguos `?tab=work-items` y `?tab=summary` llevan a Tabla y Datos.
     - El filtro de asignado ofrece las 100 primeras personas activas (como el selector de asignados); un valor fuera de esa lista se muestra como «no disponible».
-- [ ] **T14 — Cronograma: días, fecha al arrastrar, árbol y alta**
+- [x] **T14 — Cronograma: días, fecha al arrastrar, árbol y alta**
   - RF: RF-81 a RF-89
   - Hecho cuando: Vitest de la escala por días, la anotación al arrastrar, el árbol plegable y el alta de tareas y subtareas.
 - [ ] **T13 — Prueba manual (tú)**

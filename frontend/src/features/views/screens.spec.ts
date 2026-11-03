@@ -4,7 +4,7 @@ import { createPinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RouterView, createMemoryHistory, createRouter, type Router } from 'vue-router'
 import type { Member, Overview, Suggestion, ViewList } from '@/api/projectScreens'
-import { dragged, ticks, toDay } from '@/features/timeline/dates'
+import { dragged, fromDay, ticks, toDay, today } from '@/features/timeline/dates'
 import ProjectPage from '@/pages/ProjectPage.vue'
 import { createAppI18n } from '@/lib/i18n'
 import type { Catalog, Project, WorkItem, WorkNode } from '@/types/work'
@@ -218,6 +218,10 @@ describe('cronograma (spec 008)', () => {
     expect(dragged(s, e, 'end', -9)).toEqual({ start: s, end: s })
     expect(dragged(s, e, 'end', -10)).toBeNull()
     expect(ticks(s, s + 70, 'months', 'es').map((x) => x.label)).toHaveLength(3)
+    // Days: one tick a day, the first of the month with its name (RF-81).
+    const days = ticks(s - 1, s + 1, 'days', 'es').map((x) => x.label)
+    expect(days).toHaveLength(3)
+    expect(days[1]).toBe('1 mar')
   })
 
   it('arrastra una barra y lista las tareas sin fechas (RF-70, RF-74, RF-75)', async () => {
@@ -231,6 +235,57 @@ describe('cronograma (spec 008)', () => {
     await flushPromises()
     // Months: 7 px a day, so 14 px are two days.
     expect(bodyOf(calls('PATCH')[0]!)).toMatchObject({ start_date: '2026-03-03', due_date: '2026-03-12' })
+  })
+
+  it('muestra el árbol, la fecha al arrastrar y crea tareas y subtareas (RF-81 a RF-88)', async () => {
+    nodes.push(
+      node('w3', 'KAI-3', { position: 1 }),
+      node('w4', 'KAI-4', { parent_id: 'w3', start_date: '2026-03-05', due_date: '2026-03-08' }),
+      node('w5', 'KAI-5', { parent_id: 'w4', start_date: '2026-03-06', due_date: '2026-03-07' }),
+    )
+    try {
+      const { wrapper } = await renderPage('/projects/p1?tab=timeline')
+      const rows = () => wrapper.findAll('[data-testid=timeline-row]')
+      expect(rows().map((r) => [r.text().match(/KAI-\d/)?.[0], r.attributes('data-level')])).toEqual([['KAI-1', '0'], ['KAI-3', '0'], ['KAI-4', '1'], ['KAI-5', '2']])
+      // The undated parent spans its children, without a bar (RF-84).
+      expect(rows()[1]!.find('[data-testid=timeline-bar]').exists()).toBe(false)
+      expect(rows()[1]!.find('[data-testid=timeline-summary]').exists()).toBe(true)
+      await rows()[1]!.find('[data-testid=timeline-toggle]').trigger('click')
+      expect(rows()).toHaveLength(2)
+      await rows()[1]!.find('[data-testid=timeline-toggle]').trigger('click')
+      expect(rows()).toHaveLength(4)
+
+      // The dates it would get, by the pointer (RF-82).
+      const end = rows()[2]!.find('[data-testid=timeline-end]')
+      end.element.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 50, bubbles: true }))
+      const scroller = end.element.closest('.overflow-x-auto')!
+      scroller.dispatchEvent(new PointerEvent('pointermove', { clientX: 114, clientY: 50, bubbles: true }))
+      await flushPromises()
+      const tip = wrapper.find('[data-testid=timeline-tip]')
+      expect(tip.text()).toContain('10 mar')
+      expect(tip.text()).toContain('6 días')
+      scroller.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+      await flushPromises()
+      expect(wrapper.find('[data-testid=timeline-tip]').exists()).toBe(false)
+      expect(bodyOf(calls('PATCH')[0]!)).toMatchObject({ start_date: '2026-03-05', due_date: '2026-03-10' })
+
+      // At the foot of a group: from today, a week (RF-86).
+      await wrapper.find('[data-testid=timeline-add]').trigger('click')
+      await wrapper.find('[data-testid=timeline-new-title]').setValue('Nueva')
+      await wrapper.find('[data-testid=timeline-new-title]').element.form!.dispatchEvent(new Event('submit'))
+      await flushPromises()
+      const posts = () => calls('POST').filter(([u]) => String(u).endsWith('/api/projects/p1/work-items'))
+      expect(bodyOf(posts()[0]!)).toMatchObject({ title: 'Nueva', type_id: 'ty', parent_id: null, start_date: fromDay(today()), due_date: fromDay(today() + 6) })
+
+      // A sub-item takes its parent's dates (RF-88).
+      await rows()[2]!.find('[data-testid=timeline-add-child]').trigger('click')
+      await wrapper.find('[data-testid=timeline-new-title]').setValue('Hija')
+      await wrapper.find('[data-testid=timeline-new-title]').element.form!.dispatchEvent(new Event('submit'))
+      await flushPromises()
+      expect(bodyOf(posts()[1]!)).toMatchObject({ title: 'Hija', parent_id: 'w4', start_date: '2026-03-05', due_date: '2026-03-08' })
+    } finally {
+      nodes.splice(2)
+    }
   })
 })
 

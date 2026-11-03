@@ -106,3 +106,26 @@ export function useProjectFilters(projectId: () => string) {
 
   return { filters, sort, group, config, viewId, filtering, apply, setValues, removeValue, openView }
 }
+
+/**
+ * What a work item made with some filters takes from them: the ones with a
+ * single value (RF-59, RF-89). «Yo» is the person; «sin asignar» and «sin
+ * talla» are nothing.
+ */
+export function filterDefaults(filters: Filters, meId: string | undefined) {
+  const one = (k: string) => (filters[k]?.length === 1 ? filters[k]![0]! : undefined)
+  const person = one('assignee_id') === 'me' ? meId : one('assignee_id')
+  const size = one('size_id')
+  const label = one('label_id')
+  const values = {
+    status_id: one('status_id'),
+    priority_id: one('priority_id'),
+    size_id: size === 'none' ? undefined : size,
+    label_ids: label ? [label] : undefined,
+    assignee_ids: person && person !== 'none' ? [person] : undefined,
+  }
+  return {
+    values: Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined)) as Partial<typeof values>,
+    milestoneId: one('milestone_id'),
+  }
+}
