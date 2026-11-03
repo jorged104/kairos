@@ -14,6 +14,8 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/projects"
+	"openscum/internal/schedule"
+	"openscum/internal/workcore"
 )
 
 // Metrics of a work item (spec 007, RF-9 to RF-35). Durations are in days with
@@ -28,13 +30,24 @@ type Metrics struct {
 	Blocked      Blocked      `json:"blocked"`
 }
 
-// Schedule compares the progress with the time gone by (RF-9 to RF-14).
+// Schedule is the plan, the gap and the level of the work item against its
+// baseline (spec 009, RF-11, RF-12, RF-43). Expected, actual and deviation
+// are the same rounded, for the earlier API.
 type Schedule struct {
-	HasPlan   bool   `json:"has_plan"`
-	Expected  int    `json:"expected"`
-	Actual    int    `json:"actual"`
-	Deviation int    `json:"deviation"`
-	State     string `json:"state"` // ahead, on_track or behind
+	HasPlan   bool           `json:"has_plan"`
+	Expected  int            `json:"expected"`
+	Actual    int            `json:"actual"`
+	Deviation int            `json:"deviation"`
+	State     schedule.Level `json:"state"` // ahead, on_track, at_risk or late
+	Plan      float64        `json:"plan"`
+	Real      float64        `json:"real"`
+	Gap       float64        `json:"gap"`
+
+	InBaseline bool           `json:"in_baseline"`
+	BaseStart  *workcore.Date `json:"base_start"`
+	BaseDue    *workcore.Date `json:"base_due"`
+	Changed    bool           `json:"changed"`
+	ShiftDays  *int           `json:"shift_days"`
 }
 
 // Contribution of the subtree of a work item to its parent and project (RF-16 to RF-20).
@@ -81,9 +94,6 @@ type Blocker struct {
 	Title  string     `json:"title,omitempty"`
 }
 
-// OnTrackMargin is how far, in points, the progress may be from the expected one (RF-13).
-const OnTrackMargin = 10
-
 // Metrics computes the metrics of a work item; today is the caller's date.
 func (s *Service) Metrics(ctx context.Context, p *authz.Principal, id uuid.UUID, today time.Time) (Metrics, error) {
 	q := s.store.Queries
@@ -108,7 +118,9 @@ func (s *Service) Metrics(ctx context.Context, p *authz.Principal, id uuid.UUID,
 
 	out := Metrics{Today: today.Format(time.DateOnly)}
 	if !closed {
-		out.Schedule = schedule(row.StartDate, row.DueDate, today, ratio)
+		if out.Schedule, err = planOf(ctx, q, row, today); err != nil {
+			return out, err
+		}
 	}
 	if out.Contribution, err = contribution(ctx, q, row, ratio); err != nil {
 		return out, err
@@ -129,21 +141,29 @@ func (s *Service) Metrics(ctx context.Context, p *authz.Principal, id uuid.UUID,
 	return out, err
 }
 
-func schedule(start, due *time.Time, today time.Time, ratio int) *Schedule {
-	if start == nil || due == nil || due.Before(*start) {
-		return &Schedule{} // «Sin plazo» (RF-14)
+// planOf is the plan of the work item over its subtree, from the plan of
+// its project (spec 009, RF-19, RF-43).
+func planOf(ctx context.Context, q *sqlc.Queries, row sqlc.WorkItem, today time.Time) (*Schedule, error) {
+	plan, err := schedule.LoadProject(ctx, q, row.ProjectID, today)
+	if err != nil {
+		return nil, err
 	}
-	total := days(*start, *due) + 1
-	gone := min(max(days(*start, today)+1, 0), total)
-	expected := int(math.Round(100 * float64(gone) / float64(total)))
-	out := &Schedule{HasPlan: true, Expected: expected, Actual: ratio, Deviation: ratio - expected, State: "on_track"}
-	switch {
-	case out.Deviation > OnTrackMargin:
-		out.State = "ahead"
-	case out.Deviation < -OnTrackMargin:
-		out.State = "behind"
+	for _, r := range plan.Rows {
+		if r.ID != row.ID {
+			continue
+		}
+		it := projects.ItemScheduleOf(plan, r)
+		f := it.Figures
+		out := &Schedule{HasPlan: f.HasPlan, Actual: int(math.Round(f.Real)), Real: f.Real, InBaseline: it.InBaseline,
+			BaseStart: it.BaseStart, BaseDue: it.BaseDue, Changed: it.Changed, ShiftDays: it.ShiftDays}
+		if f.HasPlan {
+			out.Plan, out.Gap, out.State = f.Plan, f.Gap, f.Level
+			out.Expected = int(math.Round(f.Plan))
+			out.Deviation = out.Actual - out.Expected
+		}
+		return out, nil
 	}
-	return out
+	return &Schedule{}, nil
 }
 
 func contribution(ctx context.Context, q *sqlc.Queries, row sqlc.WorkItem, ratio int) (Contribution, error) {

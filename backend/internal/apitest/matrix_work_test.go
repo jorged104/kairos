@@ -128,6 +128,20 @@ var workOps = []workOp{
 	{"ver proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/projects/" + m.project(a).String())
 	}, workAll(200)},
+	// Spec 009: the plan is seen with the project; the baseline is for whoever
+	// manages it and the traffic light for the administrator.
+	{"ver plan del proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/projects/" + m.project(a).String() + "/schedule")
+	}, workAll(200)},
+	{"fijar línea base", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/projects/"+m.project(a).String()+"/baseline", map[string]any{})
+	}, managers(201)},
+	{"ver semáforo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/schedule-settings") }, workAll(200)},
+	{"configurar semáforo", func(m *workMatrix, c *Client, a string) *Response {
+		var cur map[string]any
+		m.admin.Get("/api/schedule-settings").Expect(m.t, http.StatusOK).JSON(m.t, &cur)
+		return c.Do(http.MethodPut, "/api/schedule-settings", cur)
+	}, map[string]int{"admin": 200}},
 	{"crear proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/projects", map[string]any{"identifier": m.identifier(), "name": "N", "team_id": m.teamFor(a)})
 	}, map[string]int{"admin": 201, "lead:in": 201}},

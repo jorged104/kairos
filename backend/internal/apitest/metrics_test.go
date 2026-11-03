@@ -83,11 +83,13 @@ func TestMetricsSchedule(t *testing.T) {
 		today, state string
 		ratio, want  int
 	}{
-		{"2026-03-06", "behind", 20, 60},
+		// The four levels of the traffic light (spec 009, RF-28 to RF-31, RF-43).
+		{"2026-03-06", "late", 20, 60},
+		{"2026-03-06", "at_risk", 50, 60},
 		{"2026-03-06", "on_track", 55, 60},
 		{"2026-03-06", "ahead", 75, 60},
-		{"2026-02-20", "ahead", 20, 0},    // before the start (RF-11)
-		{"2026-04-01", "behind", 75, 100}, // after the end (RF-12)
+		{"2026-02-20", "ahead", 20, 0},  // before the start (spec 009, RF-14)
+		{"2026-04-01", "late", 75, 100}, // after the end (spec 009, RF-15)
 	}
 	for _, c := range cases {
 		s.patch(s.member, s.get(t, wi.ID), map[string]any{"done_ratio": c.ratio, "start_date": "2026-03-01", "due_date": "2026-03-10"}).Expect(t, http.StatusOK)
