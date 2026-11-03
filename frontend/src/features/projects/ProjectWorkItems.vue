@@ -1,28 +1,35 @@
 <script setup lang="ts">
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { refDebounced } from '@vueuse/core'
 import { ChevronDown, ChevronRight, Plus } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { createWorkItem, getWorkItem, listMilestones, listWorkItems, projectTree } from '@/api/work'
+import { RouterLink, useRoute } from 'vue-router'
+import { filteredTree, type Filters, type ViewConfig } from '@/api/projectScreens'
+import { createWorkItem, getWorkItem, linkMilestoneWorkItem, listMilestones, projectTree } from '@/api/work'
 import { EditableCell, GridTable, QuickAddRow, type CellOption } from '@/components/data-table'
 import NativeSelect from '@/components/NativeSelect.vue'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { GROUPS } from '@/features/views/useProjectFilters'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
 import { patchWorkItem } from '@/features/workitems/patch'
 import AssigneesPicker from '@/features/work/AssigneesPicker.vue'
 import LabelsPicker from '@/features/work/LabelsPicker.vue'
-import WorkItemSheet from '@/features/workitems/WorkItemSheet.vue'
+import ItemPanel from '@/features/workitems/ItemPanel.vue'
 import { allParents, childrenOf, visibleRows } from '@/features/workitems/tree'
+import { useAuthStore } from '@/stores/auth'
 import type { Project, WorkNode } from '@/types/work'
 
-// Work item tree of a project with a filtered list mode (RF-129, RF-130),
-// edited cell by cell and with quick rows to create (RF-139, RF-140).
-const props = defineProps<{ project: Project }>()
+// Work item tree of a project, edited cell by cell and with quick rows to
+// create (RF-139, RF-140). With filters, an order or a grouping it lists the
+// matching ones (spec 008, RF-55 to RF-59).
+const props = withDefaults(defineProps<{ project: Project; filters?: Filters; sort?: string; group?: ViewConfig['group'] }>(), {
+  filters: () => ({}),
+  sort: '',
+  group: '',
+})
+const emit = defineEmits<{ arrange: [change: Partial<ViewConfig>] }>()
 const { t } = useI18n()
 const qc = useQueryClient()
 const { catalog, types, statuses, priorities, sizes, labels } = useCatalog()
@@ -30,40 +37,9 @@ const { users } = usePeople()
 
 const { data: tree } = useQuery({ queryKey: ['tree', props.project.id], queryFn: () => projectTree(props.project.id) })
 
-// The work item open in the side panel, kept in the URL (?item=KAI-12) so it
-// survives a reload and the back button closes it (spec 005, RF-37).
 const route = useRoute()
-const router = useRouter()
 const openItem = computed(() => (typeof route.query.item === 'string' ? route.query.item : null))
 const panelTo = (key: string) => ({ query: { ...route.query, item: key } })
-function closePanel() {
-  const { item: _item, ...query } = route.query
-  void router.replace({ query })
-}
-// The panel takes half the screen; its left edge drags it wider or narrower
-// (RF-65 to RF-67).
-// Only while it is open: null is half again (double click on the edge).
-const panelWidth = ref<number | null>(null)
-const MIN_PANEL_PX = 360
-const clampWidth = (px: number) => Math.round(Math.min(Math.max(px, MIN_PANEL_PX), window.innerWidth - 120))
-function startResize(e: PointerEvent) {
-  e.preventDefault()
-  const move = (ev: PointerEvent) => (panelWidth.value = clampWidth(window.innerWidth - ev.clientX))
-  const stop = () => {
-    window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', stop)
-    document.body.style.removeProperty('user-select')
-  }
-  document.body.style.userSelect = 'none' // no text selected while dragging
-  window.addEventListener('pointermove', move)
-  window.addEventListener('pointerup', stop)
-}
-function resizeWithKeys(e: KeyboardEvent) {
-  const step = e.key === 'ArrowLeft' ? 32 : e.key === 'ArrowRight' ? -32 : 0
-  if (!step) return
-  e.preventDefault()
-  panelWidth.value = clampWidth((panelWidth.value ?? window.innerWidth / 2) + step)
-}
 const children = computed(() => childrenOf(tree.value ?? []))
 const expanded = ref(new Set<string>())
 const rows = computed(() => visibleRows(children.value, expanded.value))
@@ -74,21 +50,11 @@ function toggle(id: string) {
   expanded.value = next
 }
 
-// Filters switch to the paginated list of the API.
-const search = ref('')
-const q = refDebounced(search, 300)
-const typeId = ref('')
-const closed = ref('')
-const milestoneId = ref('')
-const labelIds = ref<string[]>([])
-const filtering = computed(() => !!(q.value || typeId.value || closed.value || milestoneId.value || labelIds.value.length))
-const { data: milestones } = useQuery({ queryKey: ['milestones', props.project.id], queryFn: () => listMilestones(props.project.id) })
+// Filters, an order or a grouping switch to the list of matching ones.
+const filtering = computed(() => Object.keys(props.filters).length > 0 || !!props.sort || !!props.group)
 const { data: list } = useQuery({
-  queryKey: computed(() => ['work-items', props.project.id, q.value, typeId.value, closed.value, milestoneId.value, labelIds.value]),
-  queryFn: () =>
-    listWorkItems(props.project.id, {
-      q: q.value, type_id: typeId.value, closed: closed.value, milestone_id: milestoneId.value, label_id: labelIds.value, page_size: 200,
-    }),
+  queryKey: computed(() => ['tree', props.project.id, 'filtered', props.filters, props.sort]),
+  queryFn: () => filteredTree(props.project.id, props.filters, props.sort),
   enabled: filtering,
   placeholderData: keepPreviousData,
 })
@@ -99,20 +65,39 @@ const enabledTypes = computed(() =>
 const writable = computed(() => props.project.can.write_work_items && props.project.lifecycle === 'activo')
 
 function refresh() {
-  qc.invalidateQueries({ queryKey: ['work-items', props.project.id] })
   qc.invalidateQueries({ queryKey: ['milestones', props.project.id] })
+  qc.invalidateQueries({ queryKey: ['overview', props.project.id] })
+  qc.invalidateQueries({ queryKey: ['views', props.project.id] })
   return qc.invalidateQueries({ queryKey: ['tree', props.project.id] })
 }
 
 // Quick rows: one at the end for roots and one under the row whose child is being added.
 const newTypeId = ref('')
 const addingChild = ref<string | null>(null)
+// A new one takes the filters with a single value (RF-59).
+const auth = useAuthStore()
+const inherited = computed(() => {
+  const one = (k: string) => (props.filters[k]?.length === 1 ? props.filters[k]![0]! : undefined)
+  const person = one('assignee_id') === 'me' ? auth.me?.id : one('assignee_id')
+  const size = one('size_id')
+  return {
+    status_id: one('status_id'),
+    priority_id: one('priority_id'),
+    size_id: size === 'none' ? undefined : size,
+    label_ids: one('label_id') ? [one('label_id')!] : undefined,
+    assignee_ids: person && person !== 'none' ? [person] : undefined,
+    milestone_id: one('milestone_id'),
+  }
+})
 async function create(title: string, parentId: string | null) {
-  await createWorkItem(props.project.id, {
+  const { milestone_id, ...values } = filtering.value ? inherited.value : ({} as typeof inherited.value)
+  const created = await createWorkItem(props.project.id, {
     title,
     type_id: newTypeId.value || enabledTypes.value[0]?.id || '',
     parent_id: parentId,
+    ...Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined && !(Array.isArray(v) && !v.length))),
   })
+  if (milestone_id && props.project.can.manage) await linkMilestoneWorkItem(milestone_id, created.id).catch(() => undefined)
   if (parentId) expanded.value = new Set([...expanded.value, parentId])
   await refresh()
 }
@@ -160,53 +145,75 @@ function saveAssignees(n: WorkNode) {
   }
 }
 
-// The filtered list and the tree share the row layout.
-const shownRows = computed(() =>
-  filtering.value ? (list.value?.items ?? []).map((node) => ({ node, level: 0, hasChildren: false, expanded: false })) : rows.value,
-)
+// The filtered list and the tree share the row layout; a grouping adds a
+// heading row per group with its count (RF-58).
+type Row = { node: WorkNode; level: number; hasChildren: boolean; expanded: boolean; heading?: string }
+const groupOf = (n: WorkNode): { key: string; name: string }[] => {
+  switch (props.group) {
+    case 'status':
+      return [{ key: n.status_id, name: statuses.value.get(n.status_id)?.name ?? '' }]
+    case 'type':
+      return [{ key: n.type_id, name: types.value.get(n.type_id)?.name ?? '' }]
+    case 'assignee':
+      return n.assignees.length ? n.assignees.map((a) => ({ key: a.id, name: a.name })) : [{ key: '', name: t('workItems.unassigned') }]
+    case 'milestone':
+      return n.milestone_ids?.length
+        ? n.milestone_ids.map((id) => ({ key: id, name: milestoneNames.value.get(id) ?? '' }))
+        : [{ key: '', name: t('timeline.noMilestone') }]
+    default:
+      return [{ key: '', name: '' }]
+  }
+}
+const { data: milestones } = useQuery({ queryKey: computed(() => ['milestones', props.project.id]), queryFn: () => listMilestones(props.project.id) })
+const milestoneNames = computed(() => new Map((milestones.value ?? []).map((m) => [m.id, m.name])))
+const shownRows = computed<Row[]>(() => {
+  if (!filtering.value) return rows.value
+  const nodes = list.value ?? []
+  if (!props.group) return nodes.map((node) => ({ node, level: 0, hasChildren: false, expanded: false }))
+  const groups = new Map<string, { name: string; nodes: WorkNode[] }>()
+  for (const n of nodes) {
+    for (const g of groupOf(n)) {
+      if (!groups.has(g.key)) groups.set(g.key, { name: g.name, nodes: [] })
+      groups.get(g.key)!.nodes.push(n)
+    }
+  }
+  const out: Row[] = []
+  for (const [key, g] of [...groups.entries()].sort((x, y) => (x[0] === '' ? 1 : y[0] === '' ? -1 : x[1].name.localeCompare(y[1].name)))) {
+    out.push({ node: g.nodes[0]!, level: 0, hasChildren: false, expanded: false, heading: `${g.name} · ${g.nodes.length}` + '\u0000' + key })
+    for (const node of g.nodes) out.push({ node, level: 0, hasChildren: false, expanded: false })
+  }
+  return out
+})
+const SORTS = ['', 'key', 'title', 'status', 'priority', 'due', '-due', 'progress', '-progress', 'weight', '-weight']
 const typeOf = (n: WorkNode) => types.value.get(n.type_id)
 const statusOf = (n: WorkNode) => statuses.value.get(n.status_id)
 const priorityName = (n: WorkNode) => priorities.value.get(n.priority_id)?.name ?? ''
 const indent = (level: number) => `${level * 1.25 + 0.5}rem`
-const canAdd = computed(() => writable.value && !filtering.value)
+const canAdd = computed(() => writable.value)
 const columns = computed(() => (canAdd.value ? 12 : 11))
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="grid gap-2 rounded-lg border bg-background p-3 sm:grid-cols-5">
-      <Input v-model="search" :placeholder="t('workItems.searchPlaceholder')" :aria-label="t('workItems.filterText')" />
-      <NativeSelect v-model="typeId" :aria-label="t('workItems.filterType')">
-        <option value="">{{ t('workItems.allTypes') }}</option>
-        <option v-for="ty in enabledTypes" :key="ty!.id" :value="ty!.id">{{ ty!.name }}</option>
-      </NativeSelect>
-      <NativeSelect v-model="closed" :aria-label="t('workItems.state')">
-        <option value="">{{ t('workItems.openAndClosed') }}</option>
-        <option value="false">{{ t('workItems.onlyOpen') }}</option>
-        <option value="true">{{ t('workItems.onlyClosed') }}</option>
-      </NativeSelect>
-      <NativeSelect v-model="milestoneId" :aria-label="t('workItems.milestone')">
-        <option value="">{{ t('workItems.anyMilestone') }}</option>
-        <option v-for="m in milestones ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
-      </NativeSelect>
-      <LabelsPicker
-        :value="labelIds"
-        :options="labels"
-        :label="t('labels.filter')"
-        :placeholder="t('labels.any')"
-        :max="Infinity"
-        :visible="2"
-        class="rounded-md border px-2"
-        :save="async (ids) => (labelIds = ids)"
-        data-testid="label-filter"
-      />
+    <div class="flex flex-wrap items-center gap-2">
+      <template v-if="!filtering">
+        <Button size="sm" variant="outline" @click="expanded = allParents(children)">{{ t('workItems.expandAll') }}</Button>
+        <Button size="sm" variant="outline" @click="expanded = new Set()">{{ t('workItems.collapseAll') }}</Button>
+      </template>
+      <span class="flex-1" />
+      <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {{ t('table.sortBy') }}
+        <NativeSelect :model-value="sort" class="w-40" data-testid="table-sort" @update:model-value="(v: string) => emit('arrange', { sort: v })">
+          <option v-for="o in SORTS" :key="o" :value="o">{{ t(`table.sorts.${o || 'tree'}`) }}</option>
+        </NativeSelect>
+      </label>
+      <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {{ t('table.groupBy') }}
+        <NativeSelect :model-value="group" class="w-36" data-testid="table-group" @update:model-value="(v: string) => emit('arrange', { group: v as ViewConfig['group'] })">
+          <option v-for="g in GROUPS" :key="g" :value="g">{{ t(`table.groups.${g || 'none'}`) }}</option>
+        </NativeSelect>
+      </label>
     </div>
-
-    <div v-if="!filtering" class="flex gap-2">
-      <Button size="sm" variant="outline" @click="expanded = allParents(children)">{{ t('workItems.expandAll') }}</Button>
-      <Button size="sm" variant="outline" @click="expanded = new Set()">{{ t('workItems.collapseAll') }}</Button>
-    </div>
-
     <GridTable :empty="(filtering || !writable) && shownRows.length === 0">
       <thead>
         <tr>
@@ -225,8 +232,11 @@ const columns = computed(() => (canAdd.value ? 12 : 11))
         </tr>
       </thead>
       <tbody>
-        <template v-for="r in shownRows" :key="r.node.id">
-          <tr class="hover:bg-muted/30" data-testid="work-item-row">
+        <template v-for="(r, i) in shownRows" :key="r.heading ?? r.node.id + '-' + i">
+          <tr v-if="r.heading" class="bg-muted/40" data-testid="table-group-row">
+            <th :colspan="columns" scope="rowgroup" class="px-3 py-1.5 text-left text-xs font-semibold">{{ r.heading.split('\u0000')[0] }}</th>
+          </tr>
+          <tr v-else class="hover:bg-muted/30" data-testid="work-item-row">
             <td class="px-2">
               <RouterLink
                 :to="panelTo(r.node.key)"
@@ -364,7 +374,7 @@ const columns = computed(() => (canAdd.value ? 12 : 11))
         <QuickAddRow
           v-if="canAdd"
           :colspan="columns"
-          :label="t('workItems.newTitle')"
+          :label="filtering ? t('table.newInView') : t('workItems.newTitle')"
           :placeholder="t('workItems.newPlaceholder')"
           :submit="(title) => create(title, null)"
         >
@@ -375,28 +385,6 @@ const columns = computed(() => (canAdd.value ? 12 : 11))
       </tbody>
     </GridTable>
 
-    <aside
-      v-if="openItem"
-      class="fixed inset-y-0 right-0 z-30 w-full overflow-y-auto border-l bg-background p-4 shadow-2xl sm:w-(--panel-w) sm:p-6"
-      :style="{ '--panel-w': panelWidth === null ? '50vw' : `${panelWidth}px` }"
-      :aria-label="openItem"
-      data-testid="item-panel"
-    >
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        tabindex="0"
-        :aria-label="t('page.resizePanel')"
-        class="group fixed inset-y-0 z-40 hidden w-3 -translate-x-1/2 cursor-col-resize touch-none outline-none sm:block"
-        :style="{ right: 'var(--panel-w)' }"
-        data-testid="panel-resize"
-        @pointerdown="startResize"
-        @keydown="resizeWithKeys"
-        @dblclick="panelWidth = null"
-      >
-        <span class="mx-auto block h-full w-0.5 bg-transparent transition-colors group-hover:bg-primary/40 group-focus-visible:bg-primary" />
-      </div>
-      <WorkItemSheet :key="openItem" :wikey="openItem" panel @close="closePanel" />
-    </aside>
+    <ItemPanel />
   </div>
 </template>

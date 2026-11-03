@@ -9,13 +9,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import ProjectKanban from '@/features/kanban/ProjectKanban.vue'
 import ProjectMilestones from '@/features/projects/ProjectMilestones.vue'
+import ProjectOverview from '@/features/projects/ProjectOverview.vue'
 import ProjectPhases from '@/features/projects/ProjectPhases.vue'
 import ProjectSummary from '@/features/projects/ProjectSummary.vue'
+import ProjectTeam from '@/features/projects/ProjectTeam.vue'
 import ProjectWorkItems from '@/features/projects/ProjectWorkItems.vue'
+import ProjectTimeline from '@/features/timeline/ProjectTimeline.vue'
+import FilterBar from '@/features/views/FilterBar.vue'
+import { useFilterOptions } from '@/features/views/useFilterOptions'
+import { useProjectFilters } from '@/features/views/useProjectFilters'
+import ViewsBar from '@/features/views/ViewsBar.vue'
 import { healthVariant, lifecycleVariant } from '@/features/work/Badges'
 
-// Project page: summary, phases, milestones and work items (RF-136).
+// Project page (spec 008, RF-1 to RF-5): overview, table, kanban, timeline
+// and team, then the milestones, phases and data of spec 004 (RF-136).
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const route = useRoute()
@@ -28,10 +37,31 @@ const { data: project, error: loadError } = useQuery({
   queryFn: () => getProject(props.id),
 })
 
-const TABS = ['summary', 'phases', 'milestones', 'work-items'] as const
-type Tab = (typeof TABS)[number]
-const tab = computed<Tab>(() => (TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'summary'))
+const ALL_TABS = ['overview', 'table', 'kanban', 'timeline', 'team', 'milestones', 'phases', 'data'] as const
+type Tab = (typeof ALL_TABS)[number]
+// The team only for who manages it (RF-4).
+const TABS = computed(() => ALL_TABS.filter((x) => x !== 'team' || project.value?.can.manage_team))
+// The tabs before spec 008 keep their links.
+const OLD: Record<string, Tab> = { summary: 'data', 'work-items': 'table' }
+const tab = computed<Tab>(() => {
+  const q = route.query.tab as string
+  const x = (OLD[q] ?? q) as Tab
+  return TABS.value.includes(x) ? x : 'overview'
+})
 const tabLabel = (x: Tab) => t(`projects.tabs.${x}`)
+const working = computed(() => tab.value === 'table' || tab.value === 'kanban' || tab.value === 'timeline')
+
+// Filters and views of the table, the kanban and the timeline (RF-18 to RF-32).
+const views = useProjectFilters(() => props.id)
+const filterOptions = useFilterOptions(() => project.value)
+// A value no longer available stays as a chip but doesn't filter (RF-31).
+const effective = computed(() =>
+  Object.fromEntries(
+    Object.entries(views.filters.value)
+      .map(([k, vs]) => [k, vs.filter((v) => filterOptions.available(k, v))] as const)
+      .filter(([, vs]) => vs.length),
+  ),
+)
 
 const error = ref<unknown>(null)
 watch(tab, () => (error.value = null))
@@ -68,7 +98,8 @@ function reload() {
           :aria-selected="tab === x"
           class="-mb-px border-b-2 px-3 py-2"
           :class="tab === x ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'"
-          @click="router.replace({ query: { tab: x } })"
+          :data-testid="`tab-${x}`"
+          @click="router.replace({ query: { ...(working && ['table', 'kanban', 'timeline'].includes(x) ? route.query : {}), tab: x, item: undefined } })"
         >
           {{ tabLabel(x) }}
         </button>
@@ -81,10 +112,39 @@ function reload() {
         </AlertDescription>
       </Alert>
 
-      <ProjectSummary v-if="tab === 'summary'" :project="project" @error="error = $event" />
-      <ProjectPhases v-else-if="tab === 'phases'" :project="project" @error="error = $event" />
+      <template v-if="working">
+        <ViewsBar
+          :project-id="project.id"
+          :view-id="views.viewId.value"
+          :config="views.config.value"
+          :can-share="!!project.can.manage_team"
+          @open="views.openView"
+        />
+        <FilterBar
+          :filters="views.filters.value"
+          :options="filterOptions.options.value"
+          :label="filterOptions.label"
+          :available="filterOptions.available"
+          @set="views.setValues"
+          @remove="views.removeValue"
+        />
+      </template>
+
+      <ProjectOverview v-if="tab === 'overview'" :project="project" />
+      <ProjectWorkItems
+        v-else-if="tab === 'table'"
+        :project="project"
+        :filters="effective"
+        :sort="views.sort.value"
+        :group="views.group.value"
+        @arrange="views.apply"
+      />
+      <ProjectKanban v-else-if="tab === 'kanban'" :project="project" :filters="effective" />
+      <ProjectTimeline v-else-if="tab === 'timeline'" :project="project" :filters="effective" />
+      <ProjectTeam v-else-if="tab === 'team'" :project="project" />
       <ProjectMilestones v-else-if="tab === 'milestones'" :project="project" />
-      <ProjectWorkItems v-else :project="project" />
+      <ProjectPhases v-else-if="tab === 'phases'" :project="project" @error="error = $event" />
+      <ProjectSummary v-else :project="project" @error="error = $event" />
     </template>
   </div>
 </template>

@@ -143,7 +143,11 @@ export interface Project {
   work_item_type_ids: string[]
   custom_field_ids: string[]
   custom_values: CustomValues
-  can: { manage: boolean; write_work_items: boolean; manage_template: boolean }
+  can: { manage: boolean; write_work_items: boolean; manage_template: boolean; manage_team?: boolean }
+  /** The caller's role in the project, "" without one (spec 008). */
+  my_role?: '' | 'pm' | 'tech_lead' | 'member' | 'observer'
+  /** Limit of work items per status column of the kanban (spec 008, RF-66). */
+  column_limits?: Record<string, number>
 }
 
 export interface ProjectSummary {
@@ -238,6 +242,13 @@ export interface WorkNode {
   position: number
   due_date: string | null
   weight: number
+  /** From the tree, for the kanban and the timeline (spec 008, RF-61, RF-70). */
+  start_date?: string | null
+  closed_at?: string | null
+  blocked?: boolean
+  milestone_ids?: string[]
+  /** What it blocks or precedes, for the timeline (spec 008, RF-79). */
+  successors?: { to_id: string; type: 'blocks' | 'precedes'; lag_days: number }[]
 }
 
 export interface MilestoneItem extends WorkNode {

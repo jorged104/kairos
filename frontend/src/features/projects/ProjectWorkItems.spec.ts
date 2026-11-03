@@ -38,9 +38,9 @@ const project: Project = {
   can: { manage: true, write_work_items: true, manage_template: false },
 }
 
-async function render() {
+async function render(extra: Record<string, unknown> = {}) {
   const fetch = vi.fn((url: string, _init?: RequestInit) => {
-    if (url.endsWith('/tree')) return json({ items: [node] })
+    if (url.includes('/tree')) return json({ items: [node] })
     if (url.endsWith('/api/catalog')) return json(catalog)
     if (url.endsWith('/api/work-items/w1')) return json(item)
     return json({ items: [] })
@@ -48,7 +48,7 @@ async function render() {
   vi.stubGlobal('fetch', fetch)
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { template: '<div />' } }] })
   const wrapper = mount(ProjectWorkItems, {
-    props: { project },
+    props: { project, ...extra },
     global: { plugins: [router, createPinia(), createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] },
     attachTo: document.body,
   })
@@ -78,7 +78,7 @@ describe('árbol de work items', () => {
     wrapper.unmount()
   })
 
-  it('edita las etiquetas en su columna y filtra por ellas (spec 007, RF-43, RF-44)', async () => {
+  it('edita las etiquetas en su columna (spec 007, RF-43)', async () => {
     const { wrapper, fetch } = await render()
     const row = wrapper.find('[data-testid=work-item-row]')
     await row.find('[data-testid=labels]').trigger('click')
@@ -88,12 +88,16 @@ describe('árbol de work items', () => {
     const patch = fetch.mock.calls.find(([, init]) => init?.method === 'PATCH')
     expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({ label_ids: ['lb-f'], weight: 3 })
 
-    const filter = wrapper.find('[data-testid=label-filter]')
-    await filter.find('[data-testid=labels]').trigger('click')
-    await filter.find('[data-testid=labels-menu] input[type=checkbox]').setValue(true)
-    await filter.find('[data-testid=labels-done]').trigger('click')
-    await flushPromises()
-    expect(fetch.mock.calls.some(([url]) => url.includes('/work-items?') && url.includes('label_id=lb-f'))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('con filtros lista las que los cumplen, ordenadas y agrupadas (spec 008, RF-22, RF-56 a RF-58)', async () => {
+    const { wrapper, fetch } = await render({ filters: { label_id: ['lb-f'] }, sort: '-due', group: 'status' })
+    const call = fetch.mock.calls.map(([url]) => url).find((url) => url.includes('/tree?'))!
+    expect(call).toContain('label_id=lb-f')
+    expect(call).toContain('sort=-due')
+    expect(wrapper.find('[data-testid=table-group-row]').text()).toBe('Nuevo · 1')
+    expect(wrapper.find('[data-testid=table-sort]').exists()).toBe(true)
     wrapper.unmount()
   })
 })

@@ -1,0 +1,254 @@
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { RouterView, createMemoryHistory, createRouter, type Router } from 'vue-router'
+import type { Member, Overview, Suggestion, ViewList } from '@/api/projectScreens'
+import { dragged, ticks, toDay } from '@/features/timeline/dates'
+import ProjectPage from '@/pages/ProjectPage.vue'
+import { createAppI18n } from '@/lib/i18n'
+import type { Catalog, Project, WorkItem, WorkNode } from '@/types/work'
+
+const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }))
+
+const catalog: Catalog = {
+  methodologies: [],
+  work_item_types: [{ id: 'ty', name: 'Historia', color: '#3b82f6', position: 1, default_weight: 1, retired: false }],
+  statuses: [
+    { id: 'st-new', name: 'Nuevo', color: '#3b82f6', position: 1, is_closed: false, is_default: true, retired: false },
+    { id: 'st-doing', name: 'En progreso', color: '#f59e0b', position: 2, is_closed: false, is_default: false, retired: false },
+    { id: 'st-done', name: 'Cerrado', color: '#64748b', position: 3, is_closed: true, is_default: false, retired: false },
+  ],
+  priorities: [{ id: 'pr', name: 'Normal', color: '#3b82f6', position: 1, is_default: true, retired: false }],
+  sizes: [{ id: 'sz-m', name: 'M', position: 3, retired: false }],
+  labels: [{ id: 'lb-f', name: 'Frontend', color: '#22c55e', position: 1, retired: false }],
+}
+
+const node = (id: string, key: string, extra: Partial<WorkNode> = {}): WorkNode => ({
+  id, parent_id: null, key, title: `Tarea ${key}`, type_id: 'ty', status_id: 'st-new', priority_id: 'pr', assignee: null, assignees: [],
+  size_id: null, label_ids: [], derived_done_ratio: 0, derived_estimated_hours: 0, derived_remaining_hours: 0, depth: 0, position: 0,
+  due_date: null, weight: 1, start_date: null, blocked: false, milestone_ids: [], ...extra,
+})
+const nodes = [
+  node('w1', 'KAI-1', { start_date: '2026-03-01', due_date: '2026-03-10', derived_done_ratio: 40, label_ids: ['lb-f'] }),
+  node('w2', 'KAI-2', { status_id: 'st-doing', blocked: true }),
+]
+
+const project: Project = {
+  id: 'p1', identifier: 'KAI', name: 'Kairos', description: null, page_version: 1, team: { id: 't', name: 'BI' }, owner: { id: 'u', name: 'U' },
+  methodology: null, parent: null, template_id: null, is_template: false, lifecycle: 'activo', health: 'en_riesgo', health_explanation: 'Retraso en SSO',
+  start_date: '2026-03-01', end_date: '2026-03-31', depth: 0, version: 1, work_item_type_ids: ['ty'], custom_field_ids: [], custom_values: {},
+  can: { manage: true, write_work_items: true, manage_template: false, manage_team: true }, my_role: 'pm', column_limits: { 'st-doing': 1 },
+}
+
+const overview: Overview = {
+  today: '2026-03-15', progress: 40, has_plan: true, expected: 48, deviation: -8,
+  statuses: [{ status_id: 'st-new', count: 3 }, { status_id: 'st-done', count: 1 }], total: 4, closed: 1, overdue: 2, blocked: 1,
+  next_milestone: { id: 'm1', name: 'Piloto', due_date: '2026-03-20', status: 'abierto', percent: 50, closed: 1, total: 2, days_left: 5 },
+  milestones: [{ id: 'm1', name: 'Piloto', due_date: '2026-03-20', status: 'abierto', percent: 50, closed: 1, total: 2 }],
+  risks: [{ id: 'w9', key: 'KAI-9', title: 'Pruebas de carga', reason: 'overdue', days: 4, deviation: -30, due_date: '2026-03-11', assignees: [] }],
+  load: [], history: [{ day: '2026-03-14', progress: 38 }],
+}
+
+const members: Member[] = [
+  { user: { id: 'u', name: 'Ana Pérez' }, status: 'active', role: 'pm', owner: true, in_team: false, explicit: false, can_work: true, capacity: 10, load: { project: 4, total: 12, items: 2, overloaded: true } },
+  { user: { id: 'u2', name: 'Luis Gómez' }, status: 'active', role: 'member', owner: false, in_team: true, explicit: false, can_work: true, capacity: null, load: { project: 1, total: 1, items: 1, overloaded: false } },
+]
+const suggestions: Suggestion[] = [{ id: 'w5', key: 'KAI-5', title: 'Sin asignar', weight: 2, due_date: null, label_ids: [], people: [{ id: 'u2', name: 'Luis Gómez' }] }]
+let views: ViewList
+let fetchMock: ReturnType<typeof vi.fn>
+const calls = (method: string) => fetchMock.mock.calls.filter(([, i]) => (i as RequestInit | undefined)?.method === method)
+const bodyOf = (call: unknown[]) => JSON.parse(String((call[1] as RequestInit).body))
+
+beforeEach(() => {
+  views = { items: [{ id: 'v1', name: 'Frontend', shared: true, mine: false, can_edit: true, count: 1, unavailable: [], config: { filters: { label_id: ['lb-f'] }, sort: '', group: '' } }], all_count: 2 }
+  fetchMock = vi.fn((url: string, init?: RequestInit) => {
+    const method = init?.method ?? 'GET'
+    if (url.startsWith('/api/projects/p1/views') && method === 'POST') return json({ ...bodyOf([url, init]), id: 'v2', mine: true, can_edit: true, count: 1, unavailable: [] }, 201)
+    if (url.startsWith('/api/projects/p1/views')) return json(views)
+    if (url.startsWith('/api/projects/p1/overview')) return json(overview)
+    if (url.startsWith('/api/projects/p1/tree')) return json({ items: nodes })
+    if (url.startsWith('/api/projects/p1/members')) return json({ items: members })
+    if (url.startsWith('/api/projects/p1/assignment-suggestions')) return json({ items: suggestions })
+    if (url.startsWith('/api/projects/p1/milestones')) return json({ items: [] })
+    if (url.endsWith('/api/projects/p1')) return json(project)
+    if (url.endsWith('/api/catalog')) return json(catalog)
+    if (url.startsWith('/api/users')) return json({ items: [{ id: 'u2', name: 'Luis Gómez' }, { id: 'u3', name: 'Marta Ruiz' }], total: 2, page: 1, page_size: 100 })
+    if (url.startsWith('/api/work-items/w')) {
+      const id = url.split('/')[3]!
+      const item = { ...nodes.find((n) => n.id === id), id, version: 3, allowed_status_ids: ['st-doing'], custom_values: {}, assignees: [], label_ids: [] } as unknown as WorkItem
+      if (method === 'PATCH') return json(item)
+      return json(item)
+    }
+    return json({ items: [] })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+  document.body.innerHTML = ''
+  localStorage.clear()
+})
+
+async function renderPage(path = '/projects/p1'): Promise<{ wrapper: ReturnType<typeof mount>; router: Router }> {
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:id', component: ProjectPage, props: true }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
+  await router.push(path)
+  const wrapper = mount(RouterView, {
+    global: { plugins: [router, createPinia(), createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    attachTo: document.body,
+  })
+  await flushPromises()
+  return { wrapper, router }
+}
+
+describe('pestañas del proyecto (spec 008)', () => {
+  it('abre en Resumen con las cinco vistas delante (RF-1, RF-2, RF-6 a RF-11, RF-15)', async () => {
+    const { wrapper } = await renderPage()
+    const tabs = wrapper.findAll('[role=tab]').map((x) => x.text())
+    expect(tabs).toEqual(['Resumen', 'Tabla', 'Kanban', 'Cronograma', 'Equipo', 'Hitos', 'Fases', 'Datos'])
+    const ov = wrapper.find('[data-testid=overview]')
+    expect(ov.find('[data-testid=overview-progress]').text()).toContain('40 %')
+    expect(ov.find('[data-testid=overview-progress]').text()).toContain('-8 pts frente al plan')
+    expect(ov.find('[data-testid=overview-attention]').text()).toContain('2 vencidas')
+    expect(ov.find('[data-testid=overview-next]').text()).toContain('faltan 5 días')
+    expect(ov.findAll('[data-testid=overview-risk]')[0]!.text()).toContain('Vencida 4 días')
+    expect(ov.find('[data-testid=overview-overdue]').attributes('href')).toContain('overdue=true')
+  })
+
+  it('oculta Equipo a quien no gestiona el equipo (RF-4)', async () => {
+    project.can.manage_team = false
+    try {
+      const { wrapper } = await renderPage('/projects/p1?tab=team')
+      expect(wrapper.findAll('[role=tab]').map((x) => x.text())).not.toContain('Equipo')
+      expect(wrapper.find('[data-testid=overview]').exists()).toBe(true)
+    } finally {
+      project.can.manage_team = true
+    }
+  })
+})
+
+describe('filtros y vistas (spec 008)', () => {
+  it('añade un filtro como chip en la dirección y lo quita (RF-3, RF-18, RF-21)', async () => {
+    const { wrapper, router } = await renderPage('/projects/p1?tab=table')
+    await wrapper.find('[data-testid=filter-add]').trigger('click')
+    await wrapper.find('[data-testid=filter-field]').setValue('status_id')
+    const values = wrapper.findAll('[data-testid=filter-values] input')
+    await values[0]!.trigger('click')
+    await values[1]!.trigger('click')
+    await wrapper.find('[data-testid=filter-apply]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.status_id).toEqual(['st-new', 'st-doing'])
+    expect(wrapper.findAll('[data-testid=filter-chip]')).toHaveLength(2)
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/tree?') && String(u).includes('status_id=st-new&status_id=st-doing'))).toBe(true)
+    await wrapper.find('[data-testid=filter-remove]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.status_id).toBe('st-doing')
+  })
+
+  it('abre una vista, avisa de cambios sin guardar y guarda otra compartida (RF-24 a RF-27, RF-32)', async () => {
+    const { wrapper, router } = await renderPage('/projects/p1?tab=kanban')
+    const buttons = wrapper.findAll('[data-testid=view-button]')
+    expect(buttons[0]!.text()).toContain('Frontend · 1')
+    await buttons[0]!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toMatchObject({ view: 'v1', label_id: 'lb-f', tab: 'kanban' })
+    expect(localStorage.getItem('kairos.project.p1.view')).toBe('v1')
+    expect(wrapper.find('[data-testid=views-dirty]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid=filter-remove]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid=views-dirty]').exists()).toBe(true)
+    await wrapper.find('[data-testid=view-save]').trigger('click')
+    await wrapper.find('[data-testid=view-name]').setValue('Todo el equipo')
+    await wrapper.find('[data-testid=view-shared]').setValue(true)
+    await wrapper.find('[data-testid=view-confirm]').trigger('click')
+    await flushPromises()
+    const post = calls('POST').find(([u]) => String(u).endsWith('/views'))!
+    expect(bodyOf(post)).toEqual({ name: 'Todo el equipo', shared: true, config: { filters: {}, sort: '', group: '' } })
+  })
+})
+
+describe('kanban (spec 008)', () => {
+  it('mueve una tarjeta arrastrándola o con «Mover a», y marca el límite (RF-62 a RF-66)', async () => {
+    const { wrapper } = await renderPage('/projects/p1?tab=kanban')
+    const columns = wrapper.findAll('[data-testid=kanban-column]')
+    expect(columns.map((c) => c.attributes('aria-label'))).toEqual(['Nuevo', 'En progreso', 'Cerrado'])
+    expect(columns[1]!.find('[data-testid=kanban-limit]').text()).toBe('1 / 1')
+    const card = columns[0]!.find('[data-testid=kanban-card]')
+    await card.trigger('dragstart', { dataTransfer: { setData: () => undefined } })
+    await flushPromises()
+    // The workflow allows only «En progreso».
+    expect(columns[2]!.attributes('aria-disabled')).toBe('true')
+    await columns[2]!.trigger('drop')
+    await flushPromises()
+    expect(calls('PATCH')).toHaveLength(0)
+    await card.trigger('dragstart', { dataTransfer: { setData: () => undefined } })
+    await flushPromises()
+    await columns[1]!.trigger('drop')
+    await flushPromises()
+    expect(bodyOf(calls('PATCH')[0]!)).toMatchObject({ status_id: 'st-doing' })
+
+    await card.find('[data-testid=kanban-move]').trigger('click')
+    await flushPromises()
+    const menu = wrapper.find('[data-testid=kanban-move-menu]')
+    expect(menu.findAll('[role=menuitem]').map((b) => b.text())).toEqual(['En progreso'])
+  })
+
+  it('si el cambio se rechaza la tarjeta se queda y se explica (RF-64)', async () => {
+    const { wrapper } = await renderPage('/projects/p1?tab=kanban')
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === 'PATCH' ? json({ error: { code: 'blocked_by_open_item', message: '' } }, 409) : original(url, init),
+    )
+    const columns = wrapper.findAll('[data-testid=kanban-column]')
+    await columns[0]!.find('[data-testid=kanban-card]').trigger('dragstart', { dataTransfer: { setData: () => undefined } })
+    await flushPromises()
+    await columns[1]!.trigger('drop')
+    await flushPromises()
+    expect(wrapper.find('[data-testid=kanban-error]').text()).toContain('la bloquea una tarea abierta')
+  })
+})
+
+describe('cronograma (spec 008)', () => {
+  it('calcula las fechas al arrastrar y no deja el fin antes del inicio (RF-75 a RF-77)', () => {
+    const s = toDay('2026-03-01')
+    const e = toDay('2026-03-10')
+    expect(dragged(s, e, 'move', 3)).toEqual({ start: s + 3, end: e + 3 })
+    expect(dragged(s, e, 'start', 2)).toEqual({ start: s + 2, end: e })
+    expect(dragged(s, e, 'end', -9)).toEqual({ start: s, end: s })
+    expect(dragged(s, e, 'end', -10)).toBeNull()
+    expect(ticks(s, s + 70, 'months', 'es').map((x) => x.label)).toHaveLength(3)
+  })
+
+  it('arrastra una barra y lista las tareas sin fechas (RF-70, RF-74, RF-75)', async () => {
+    const { wrapper } = await renderPage('/projects/p1?tab=timeline')
+    expect(wrapper.find('[data-testid=timeline-undated]').text()).toContain('KAI-2')
+    const bar = wrapper.find('[data-testid=timeline-bar]')
+    bar.element.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, bubbles: true }))
+    const scroller = bar.element.closest('.overflow-x-auto')!
+    scroller.dispatchEvent(new PointerEvent('pointermove', { clientX: 114, bubbles: true }))
+    scroller.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+    await flushPromises()
+    // Months: 7 px a day, so 14 px are two days.
+    expect(bodyOf(calls('PATCH')[0]!)).toMatchObject({ start_date: '2026-03-03', due_date: '2026-03-12' })
+  })
+})
+
+describe('equipo (spec 008)', () => {
+  it('cambia un papel y asigna desde una sugerencia (RF-33, RF-48, RF-49, RF-53)', async () => {
+    const { wrapper } = await renderPage('/projects/p1?tab=team')
+    const rows = wrapper.findAll('[data-testid=team-member]')
+    expect(rows[0]!.find('[data-testid=team-role]').attributes('disabled')).toBeDefined() // the owner is PM
+    expect(rows[0]!.find('[data-testid=team-load]').text()).toContain('12 / 10')
+    await rows[1]!.find('[data-testid=team-role]').setValue('observer')
+    await flushPromises()
+    const patch = calls('PATCH').find(([u]) => String(u).includes('/members/u2'))!
+    expect(bodyOf(patch)).toEqual({ role: 'observer' })
+
+    await wrapper.find('[data-testid=team-assign]').trigger('click')
+    await flushPromises()
+    const assign = calls('PATCH').find(([u]) => String(u).endsWith('/api/work-items/w5'))!
+    expect(bodyOf(assign)).toMatchObject({ assignee_ids: ['u2'], assignee_id: 'u2' })
+    expect(wrapper.find('[data-testid=team-notice]').text()).toBe('KAI-5 asignada a Luis Gómez.')
+  })
+})
