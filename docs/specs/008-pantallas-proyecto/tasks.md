@@ -1,0 +1,39 @@
+# Tareas 008 — Pantallas de proyecto
+
+- [ ] **T1 — Esquema** (migración 00008, queries sqlc)
+  - Hecho cuando: `make sqlc` limpio.
+- [ ] **T2 — Papeles por proyecto**
+  - RF: RF-33 a RF-45, RF-80
+  - Hecho cuando: apitest de miembros y permisos por papel; test de matriz ampliado.
+- [ ] **T3 — Capacidad, carga y sugerencias**
+  - RF: RF-46 a RF-54
+  - Hecho cuando: apitest de capacidad, carga total y en proyecto, y sugerencias.
+- [ ] **T4 — Filtros y árbol filtrado**
+  - RF: RF-18 a RF-20, RF-57, RF-70
+  - Hecho cuando: apitest de cada filtro, combinaciones y orden.
+- [ ] **T5 — Vistas guardadas**
+  - RF: RF-23 a RF-31
+  - Hecho cuando: apitest de permisos, conflictos, límites, conteos y valores retirados.
+- [ ] **T6 — Resumen, registro diario y límites del kanban**
+  - RF: RF-6 a RF-17, RF-66
+  - Hecho cuando: apitest del resumen, del registro diario y de los límites.
+- [ ] **T7 — Pestañas, filtros y vistas en el frontend**
+  - RF: RF-1 a RF-5, RF-18 a RF-32
+  - Hecho cuando: Vitest de pestañas, URL, chips, guardar y compartir.
+- [ ] **T8 — Resumen y tabla**
+  - RF: RF-6 a RF-17, RF-55 a RF-59
+  - Hecho cuando: Vitest del resumen y de la tabla ordenada y agrupada.
+- [ ] **T9 — Kanban**
+  - RF: RF-60 a RF-69
+  - Hecho cuando: Vitest de arrastre, columnas no permitidas, «Mover a», rechazo y límites.
+- [ ] **T10 — Cronograma**
+  - RF: RF-70 a RF-79
+  - Hecho cuando: Vitest de mover, extremos, fin antes de inicio y «Sin fechas».
+- [ ] **T11 — Equipo**
+  - RF: RF-33 a RF-54
+  - Hecho cuando: Vitest de papeles, capacidad y asignación desde sugerencias.
+- [ ] **T12 — Rendimiento**
+  - RF: RNF
+  - Hecho cuando: resumen < 500 ms y filtro < 300 ms con 2 000 tareas.
+- [ ] **T13 — Prueba manual (tú)**
+  - Hecho cuando: la demo de la spec (pasos 1 a 7) funciona.
