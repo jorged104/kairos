@@ -47,6 +47,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/projects/{id}/overview", h.overview)
 		r.Get("/projects/{id}/schedule", h.schedule)
 		r.Post("/projects/{id}/baseline", h.baseline)
+		r.Put("/projects/{id}/portfolio", h.portfolio)
 		r.Put("/projects/{id}/column-limits/{statusId}", h.columnLimit)
 	})
 	r.With(auth.RequirePermission(authz.TemplatesUse, h.logger)).Get("/templates", h.templates)
@@ -198,6 +199,20 @@ func (h *Handler) baseline(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.SetBaseline(r.Context(), authz.FromContext(r.Context()), id, req)
 	h.reply(w, http.StatusCreated, out, err)
+}
+
+func (h *Handler) portfolio(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	var req portfolioRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	out, err := h.svc.SetPortfolio(r.Context(), authz.FromContext(r.Context()), id, req)
+	h.reply(w, http.StatusOK, out, err)
 }
 
 // today is the caller's date from ?today=YYYY-MM-DD, or the server's.

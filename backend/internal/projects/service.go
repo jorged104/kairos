@@ -534,13 +534,20 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Pro
 		Depth: row.Depth, Version: row.Version, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 		Team: workcore.Ref{ID: row.TeamID}, Owner: workcore.Ref{ID: row.OwnerID},
 		Can: Can{
-			Manage:         p.CanManageProject(Ref(row)),
-			WriteWorkItems: p.CanWriteWorkItems(Ref(row)),
-			ManageTemplate: p.Has(authz.TemplatesManage),
-			ManageTeam:     p.CanManageProject(Ref(row)),
+			Manage:          p.CanManageProject(Ref(row)),
+			WriteWorkItems:  p.CanWriteWorkItems(Ref(row)),
+			ManageTemplate:  p.Has(authz.TemplatesManage),
+			ManageTeam:      p.CanManageProject(Ref(row)),
+			ManagePortfolio: p.Has(authz.PortfolioManage),
 		},
-		MyRole: p.ProjectRoleOf(Ref(row)),
+		MyRole:    p.ProjectRoleOf(Ref(row)),
+		IsProgram: row.IsProgram, PortfolioWeight: row.PortfolioWeight,
 	}
+	effort, err := q.ProjectEffort(ctx, row.ID)
+	if err != nil {
+		return out, fmt.Errorf("esfuerzo del proyecto: %w", err)
+	}
+	out.Effort = effort
 	names, err := q.ProjectNames(ctx, []uuid.UUID{row.ID})
 	if err != nil {
 		return out, fmt.Errorf("nombres del proyecto: %w", err)
