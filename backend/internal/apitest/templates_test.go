@@ -17,7 +17,11 @@ func TestTemplates(t *testing.T) {
 	// Content of the template: an epic with two children, a dependency, a milestone.
 	m := s.milestone(t, tpl.ID, map[string]any{"name": "Entrega", "due_date": "2026-01-31"})
 	epic := s.item(t, s.admin, tpl.ID, map[string]any{"title": "Épica", "estimated_hours": 4, "assignee_id": s.memberID})
-	a := s.item(t, s.admin, tpl.ID, map[string]any{"title": "A", "parent_id": epic.ID, "start_date": "2026-01-05", "estimated_hours": 2, "weight": 7})
+	front, old := s.label(t, "Frontend"), s.label(t, "Viejo")
+	m3 := s.env.CatalogID("work_item_sizes", "M")
+	a := s.item(t, s.admin, tpl.ID, map[string]any{"title": "A", "parent_id": epic.ID, "start_date": "2026-01-05", "estimated_hours": 2, "weight": 7,
+		"size_id": m3, "label_ids": []uuid.UUID{front, old}})
+	s.admin.Post("/api/labels/"+old.String()+"/retire", nil).Expect(t, http.StatusOK)
 	b := s.item(t, s.admin, tpl.ID, map[string]any{"title": "B", "parent_id": epic.ID})
 	s.admin.Post("/api/work-items/"+a.ID.String()+"/dependencies", map[string]any{"to_id": b.ID, "type": "precedes"}).Expect(t, http.StatusCreated)
 	s.link(t, s.admin, m.ID, epic.ID).Expect(t, http.StatusNoContent)
@@ -80,8 +84,10 @@ func TestTemplates(t *testing.T) {
 	var copiedA workItemDTO
 	s.lead.Get("/api/work-items/by-key/BIR-2").JSON(t, &copiedA)
 	var raw struct {
-		StartDate    string `json:"start_date"`
-		Weight       int    `json:"weight"`
+		StartDate    string      `json:"start_date"`
+		Weight       int         `json:"weight"`
+		SizeID       *uuid.UUID  `json:"size_id"`
+		LabelIDs     []uuid.UUID `json:"label_ids"`
 		Dependencies []struct {
 			Type string `json:"type"`
 		} `json:"dependencies"`
@@ -89,6 +95,10 @@ func TestTemplates(t *testing.T) {
 	s.lead.Get("/api/work-items/"+copiedA.ID.String()).JSON(t, &raw)
 	if raw.StartDate != "2026-02-05" || len(raw.Dependencies) != 1 || raw.Weight != 7 {
 		t.Fatalf("copied A = %+v, want dates shifted 31 days, its dependency and its weight (RF-157)", raw)
+	}
+	// Its size (spec 006, RF-11) and its active labels (spec 007, RF-45).
+	if raw.SizeID == nil || *raw.SizeID != m3 || len(raw.LabelIDs) != 1 || raw.LabelIDs[0] != front {
+		t.Fatalf("copied A = %+v, want size M and only the active label", raw)
 	}
 	var ms struct {
 		Items []milestoneDTO `json:"items"`

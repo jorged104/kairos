@@ -104,6 +104,71 @@ SELECT sqlc.arg(work_item_id)::uuid, u.id, u.pos::int - 1
 FROM unnest(sqlc.arg(user_ids)::uuid[]) WITH ORDINALITY AS u(id, pos)
 ON CONFLICT (work_item_id, user_id) DO UPDATE SET position = EXCLUDED.position;
 
+-- Etiquetas (spec 007) ------------------------------------------------------------
+
+-- name: ListWorkItemLabels :many
+-- The labels of some work items, in the catalog's order (RF-42).
+SELECT wl.work_item_id, l.id FROM work_item_labels wl JOIN labels l ON l.id = wl.label_id
+WHERE wl.work_item_id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY wl.work_item_id, l.position, l.name;
+
+-- name: ClearWorkItemLabels :exec
+DELETE FROM work_item_labels WHERE work_item_id = $1;
+
+-- name: AddWorkItemLabels :exec
+INSERT INTO work_item_labels (work_item_id, label_id)
+SELECT sqlc.arg(work_item_id)::uuid, unnest(sqlc.arg(label_ids)::uuid[])
+ON CONFLICT DO NOTHING;
+
+-- name: CopyWorkItemLabels :exec
+-- A template copies the labels that are still active (spec 007, RF-45).
+INSERT INTO work_item_labels (work_item_id, label_id)
+SELECT sqlc.arg(to_id)::uuid, wl.label_id FROM work_item_labels wl JOIN labels l ON l.id = wl.label_id
+WHERE wl.work_item_id = sqlc.arg(from_id)::uuid AND l.retired_at IS NULL;
+
+-- name: ActiveLabelIDs :many
+-- The ones of these labels that exist and are not retired (RF-39).
+SELECT id FROM labels WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND retired_at IS NULL;
+
+-- Métricas e historial (spec 007) --------------------------------------------------
+
+-- name: WorkItemAudit :many
+-- The audit of some work items, oldest first.
+SELECT id, occurred_at, actor_id, action, target_id, before, after FROM audit_log
+WHERE target_type = 'work_item' AND target_id = ANY (sqlc.arg(ids)::text[])
+ORDER BY id;
+
+-- name: WorkItemHistoryPage :many
+-- A batch of the history of a work item, newest first (RF-52).
+SELECT a.id, a.occurred_at, a.actor_id, coalesce(u.name, '') AS actor_name, a.action, a.before, a.after
+FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
+WHERE a.target_type = 'work_item' AND a.target_id = sqlc.arg(target_id)::text
+  AND a.action IN ('work_item.created', 'work_item.updated', 'work_item.page_updated',
+                   'work_item.dependency_added', 'work_item.dependency_removed')
+  AND (sqlc.narg(before_id)::bigint IS NULL OR a.id < sqlc.narg(before_id))
+ORDER BY a.id DESC
+LIMIT sqlc.arg(row_limit);
+
+-- name: BlockingDependencyAudit :many
+-- Who has blocked a work item at any time, from the audit of the blockers (RF-33).
+SELECT id, occurred_at, action, target_id, before, after FROM audit_log
+WHERE target_type = 'work_item' AND action IN ('work_item.dependency_added', 'work_item.dependency_removed')
+  AND coalesce(after, before)->>'type' = 'blocks'
+  AND coalesce(after, before)->>'to_id' = sqlc.arg(to_id)::text
+ORDER BY id;
+
+-- name: CurrentBlockingDependencies :many
+SELECT from_id, created_at FROM work_item_dependencies WHERE to_id = $1 AND type = 'blocks';
+
+-- name: ProjectWeight :one
+SELECT coalesce(sum(weight), 0)::bigint FROM work_items WHERE project_id = $1;
+
+-- name: ClosedStatusIDs :many
+SELECT id FROM statuses WHERE is_closed;
+
+-- name: NamesOfUsers :many
+SELECT id, name FROM users WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
 -- name: GetWorkItemSize :one
 SELECT * FROM work_item_sizes WHERE id = $1;
 

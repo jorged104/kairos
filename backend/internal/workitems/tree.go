@@ -83,9 +83,10 @@ func NodeFrom(identifier string, r sqlc.WorkItemDescendantsRow) Node {
 	return n
 }
 
-// FillAssignees sets the assignees of some rows in one query (RF-12, RF-18).
-// Assignee stays as the first of them, for the previous clients.
-func FillAssignees(ctx context.Context, q *sqlc.Queries, nodes []*Node) error {
+// FillLists sets the assignees and the labels of some rows, one query each
+// (spec 006, RF-12, RF-18; spec 007, RF-43). Assignee stays as the first
+// assignee, for the previous clients.
+func FillLists(ctx context.Context, q *sqlc.Queries, nodes []*Node) error {
 	if len(nodes) == 0 {
 		return nil
 	}
@@ -97,7 +98,15 @@ func FillAssignees(ctx context.Context, q *sqlc.Queries, nodes []*Node) error {
 	if err != nil {
 		return err
 	}
+	labels, err := labelsOf(ctx, q, ids)
+	if err != nil {
+		return err
+	}
 	for _, n := range nodes {
+		n.LabelIDs = labels[n.ID]
+		if n.LabelIDs == nil {
+			n.LabelIDs = []uuid.UUID{}
+		}
 		n.Assignees = byItem[n.ID]
 		if n.Assignees == nil {
 			n.Assignees = []workcore.Ref{}
@@ -116,7 +125,7 @@ func fillAll(ctx context.Context, q *sqlc.Queries, nodes []Node) error {
 	for i := range nodes {
 		ptrs[i] = &nodes[i]
 	}
-	return FillAssignees(ctx, q, ptrs)
+	return FillLists(ctx, q, ptrs)
 }
 
 var psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
@@ -163,6 +172,18 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 			return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "assignee_id")
 		}
 		where = append(where, sq.Expr("EXISTS (SELECT 1 FROM work_item_assignees a WHERE a.work_item_id = w.id AND a.user_id = ?)", id))
+	}
+	// Any of the labels (spec 007, RF-44).
+	if vs := query["label_id"]; len(vs) > 0 {
+		ids := make([]uuid.UUID, 0, len(vs))
+		for _, v := range vs {
+			id, err := uuid.Parse(v)
+			if err != nil {
+				return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "label_id")
+			}
+			ids = append(ids, id)
+		}
+		where = append(where, sq.Expr("EXISTS (SELECT 1 FROM work_item_labels l WHERE l.work_item_id = w.id AND l.label_id = ANY (?))", ids))
 	}
 	switch v := query.Get("closed"); v {
 	case "":

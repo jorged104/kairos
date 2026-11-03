@@ -1,0 +1,32 @@
+# Tareas 007 — Tareas: nombre, métricas, etiquetas e historial
+
+- [x] **T1 — Esquema** (migración 00007, queries sqlc)
+  - RF: RF-36, RF-40
+  - Hecho cuando: `make sqlc` limpio.
+- [x] **T2 — Etiquetas en la API**
+  - RF: RF-36 a RF-46
+  - Hecho cuando: apitest de catálogo, máximo, retirada, filtro, auditoría, cliente anterior y plantilla; test de matriz.
+- [x] **T3 — Métricas en la API**
+  - RF: RF-9 a RF-35
+  - Hecho cuando: apitest de plazo, aporte, tiempos de ciclo, vencimiento, reaperturas y bloqueos.
+- [x] **T4 — Historial en la API**
+  - RF: RF-47 a RF-54
+  - Hecho cuando: apitest de nombres legibles, descripción agrupada, paginación y permisos.
+- [x] **T5 — Nombre «tarea»**
+  - RF: RF-1 a RF-4
+  - Hecho cuando: Vitest sin «work item» en el catálogo de i18n.
+- [x] **T6 — Etiquetas en el frontend**
+  - RF: RF-36, RF-39, RF-42 a RF-44
+  - Hecho cuando: Vitest de la tabla del catálogo, la ficha, la columna y el filtro del árbol.
+- [x] **T7 — Métricas e historial en la ficha**
+  - RF: RF-5 a RF-8, RF-47 a RF-52
+  - Hecho cuando: Vitest de la sección de métricas y del historial.
+- [x] **T8 — Rendimiento**
+  - RF: RNF
+  - Hecho cuando: métricas e historial de una tarea con 200 cambios en < 300 ms.
+  - Resultado: medianas de 18 ms (métricas) y 6 ms (historial) en `TestMetricsAndHistoryPerformance`.
+  - Notas:
+    - La copia de la talla desde una plantilla (T2 de la spec 006) queda cubierta en `TestTemplates` junto con las etiquetas.
+    - El estado plegado de «Métricas» se guarda en `localStorage` (`kairos.sheet.metrics`); el del historial no se recuerda (RF-47).
+- [ ] **T9 — Prueba manual (tú)**
+  - Hecho cuando: la demo de la spec (pasos 1 a 7) funciona.

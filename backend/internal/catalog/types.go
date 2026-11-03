@@ -66,6 +66,15 @@ type Size struct {
 	Retired  bool      `json:"retired"`
 }
 
+// Label classifies work items across all projects (spec 007, RF-36, RF-38).
+type Label struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Color    string    `json:"color"`
+	Position int32     `json:"position"`
+	Retired  bool      `json:"retired"`
+}
+
 type Transition struct {
 	FromStatusID uuid.UUID `json:"from_status_id" validate:"required"`
 	ToStatusID   uuid.UUID `json:"to_status_id" validate:"required"`
@@ -79,6 +88,7 @@ type Catalog struct {
 	Statuses      []Status      `json:"statuses"`
 	Priorities    []Priority    `json:"priorities"`
 	Sizes         []Size        `json:"sizes"`
+	Labels        []Label       `json:"labels"`
 }
 
 type methodologyRequest struct {
@@ -141,6 +151,17 @@ type sizeRequest struct {
 }
 
 func (r *sizeRequest) Normalize() { r.Name = strings.TrimSpace(r.Name) }
+
+type labelRequest struct {
+	Name     string `json:"name" validate:"required,max=100"`
+	Color    string `json:"color" validate:"required,len=7,hexcolor"`
+	Position int32  `json:"position" validate:"min=0"`
+}
+
+func (r *labelRequest) Normalize() {
+	r.Name = strings.TrimSpace(r.Name)
+	r.Color = strings.ToLower(strings.TrimSpace(r.Color))
+}
 
 type transitionsRequest struct {
 	Transitions []Transition `json:"transitions" validate:"max=500,dive"`

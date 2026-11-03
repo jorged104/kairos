@@ -42,6 +42,7 @@ function onSaved() {
         <NamedCatalog kind="statuses" :title="t('catalog.statuses')" :items="catalog.statuses" closable defaultable @error="onError" />
         <NamedCatalog kind="priorities" :title="t('catalog.priorities')" :items="catalog.priorities" defaultable @error="onError" />
         <NamedCatalog kind="work-item-sizes" :title="t('catalog.sizes')" :items="catalog.sizes" sized @error="onError" />
+        <NamedCatalog kind="labels" :title="t('labels.title')" :items="catalog.labels" @error="onError" />
       </div>
     </div>
     <WorkflowEditor :catalog="catalog" @error="onError" @saved="onSaved" />

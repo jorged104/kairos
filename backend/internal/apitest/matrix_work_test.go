@@ -117,6 +117,9 @@ var workOps = []workOp{
 	{"cambiar flujo", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/work-item-types/"+m.CatalogID("work_item_types", "Story").String()+"/transitions", map[string]any{"transitions": []any{}})
 	}, map[string]int{"admin": 200}},
+	{"crear etiqueta", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/labels", map[string]any{"name": "E-" + uuid.NewString(), "color": "#000000"})
+	}, map[string]int{"admin": 201}},
 	{"listar campos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/custom-fields") }, workAll(200)},
 	{"crear campo", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/custom-fields", map[string]any{"entity": "project", "name": "C-" + uuid.NewString(), "type": "text"})

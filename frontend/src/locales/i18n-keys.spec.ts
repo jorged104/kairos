@@ -44,6 +44,16 @@ describe('catálogo es.json', () => {
     expect(missing, `Claves ausentes en es.json:\n${missing.join('\n')}`).toEqual([])
   })
 
+  // The visible name is «tarea» (spec 007, RF-1).
+  it('no muestra «work item» en ningún texto', () => {
+    const values = (node: unknown, path: string): [string, string][] =>
+      typeof node === 'string'
+        ? [[path, node]]
+        : Object.entries(node as Record<string, unknown>).flatMap(([k, v]) => values(v, path ? `${path}.${k}` : k))
+    const found = values(es, '').filter(([, text]) => /work[\s-]?items?/i.test(text)).map(([path]) => path)
+    expect(found).toEqual([])
+  })
+
   it('detecta una clave inexistente', () => {
     expect(hasKey(es, 'health.title')).toBe(true)
     expect(hasKey(es, 'health.no.existe')).toBe(false)

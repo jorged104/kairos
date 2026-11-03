@@ -22,7 +22,8 @@ export function setUnauthenticatedHandler(handler: () => void) {
 interface RequestOptions {
   method?: string
   body?: unknown
-  query?: Record<string, string | number | undefined>
+  /** A list repeats the parameter (label_id=a&label_id=b). */
+  query?: Record<string, string | number | string[] | undefined>
 }
 
 export function errorFrom(status: number, body: unknown): ApiError {
@@ -41,7 +42,8 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   if (options.query) {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(options.query)) {
-      if (value !== undefined && value !== '') params.set(key, String(value))
+      if (Array.isArray(value)) value.forEach((v) => params.append(key, v))
+      else if (value !== undefined && value !== '') params.set(key, String(value))
     }
     const qs = params.toString()
     if (qs) url += `?${qs}`

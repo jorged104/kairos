@@ -25,14 +25,14 @@ import type {
 } from '@/types/work'
 import { api } from './client'
 
-type Query = Record<string, string | number | undefined>
+type Query = Record<string, string | number | string[] | undefined>
 const items = <T>(r: { items: T[] }) => r.items
 
 // Catalog (RF-1 to RF-17).
 
 export const getCatalog = () => api<Catalog>('/api/catalog')
 
-export type CatalogKind = 'methodologies' | 'work-item-types' | 'statuses' | 'priorities' | 'work-item-sizes'
+export type CatalogKind = 'methodologies' | 'work-item-types' | 'statuses' | 'priorities' | 'work-item-sizes' | 'labels'
 
 export interface CatalogInput {
   name: string
@@ -242,6 +242,8 @@ export interface WorkItemUpdateInput {
   assignee_ids: string[]
   /** The size doesn't change the weight (spec 006, RF-5). */
   size_id: string | null
+  /** Replaces the labels (spec 007, RF-40). */
+  label_ids: string[]
   start_date: string | null
   due_date: string | null
   estimated_hours: number | null

@@ -13,6 +13,31 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeLabelIDs = `-- name: ActiveLabelIDs :many
+SELECT id FROM labels WHERE id = ANY ($1::uuid[]) AND retired_at IS NULL
+`
+
+// The ones of these labels that exist and are not retired (RF-39).
+func (q *Queries) ActiveLabelIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, activeLabelIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const addWorkItemAssignees = `-- name: AddWorkItemAssignees :exec
 INSERT INTO work_item_assignees (work_item_id, user_id, position)
 SELECT $1::uuid, u.id, u.pos::int - 1
@@ -31,12 +56,123 @@ func (q *Queries) AddWorkItemAssignees(ctx context.Context, arg AddWorkItemAssig
 	return err
 }
 
+const addWorkItemLabels = `-- name: AddWorkItemLabels :exec
+INSERT INTO work_item_labels (work_item_id, label_id)
+SELECT $1::uuid, unnest($2::uuid[])
+ON CONFLICT DO NOTHING
+`
+
+type AddWorkItemLabelsParams struct {
+	WorkItemID uuid.UUID
+	LabelIds   []uuid.UUID
+}
+
+func (q *Queries) AddWorkItemLabels(ctx context.Context, arg AddWorkItemLabelsParams) error {
+	_, err := q.db.Exec(ctx, addWorkItemLabels, arg.WorkItemID, arg.LabelIds)
+	return err
+}
+
+const blockingDependencyAudit = `-- name: BlockingDependencyAudit :many
+SELECT id, occurred_at, action, target_id, before, after FROM audit_log
+WHERE target_type = 'work_item' AND action IN ('work_item.dependency_added', 'work_item.dependency_removed')
+  AND coalesce(after, before)->>'type' = 'blocks'
+  AND coalesce(after, before)->>'to_id' = $1::text
+ORDER BY id
+`
+
+type BlockingDependencyAuditRow struct {
+	ID         int64
+	OccurredAt time.Time
+	Action     string
+	TargetID   string
+	Before     json.RawMessage
+	After      json.RawMessage
+}
+
+// Who has blocked a work item at any time, from the audit of the blockers (RF-33).
+func (q *Queries) BlockingDependencyAudit(ctx context.Context, toID string) ([]BlockingDependencyAuditRow, error) {
+	rows, err := q.db.Query(ctx, blockingDependencyAudit, toID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BlockingDependencyAuditRow
+	for rows.Next() {
+		var i BlockingDependencyAuditRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OccurredAt,
+			&i.Action,
+			&i.TargetID,
+			&i.Before,
+			&i.After,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const clearWorkItemAssignees = `-- name: ClearWorkItemAssignees :exec
 DELETE FROM work_item_assignees WHERE work_item_id = $1
 `
 
 func (q *Queries) ClearWorkItemAssignees(ctx context.Context, workItemID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, clearWorkItemAssignees, workItemID)
+	return err
+}
+
+const clearWorkItemLabels = `-- name: ClearWorkItemLabels :exec
+DELETE FROM work_item_labels WHERE work_item_id = $1
+`
+
+func (q *Queries) ClearWorkItemLabels(ctx context.Context, workItemID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearWorkItemLabels, workItemID)
+	return err
+}
+
+const closedStatusIDs = `-- name: ClosedStatusIDs :many
+SELECT id FROM statuses WHERE is_closed
+`
+
+func (q *Queries) ClosedStatusIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, closedStatusIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const copyWorkItemLabels = `-- name: CopyWorkItemLabels :exec
+INSERT INTO work_item_labels (work_item_id, label_id)
+SELECT $1::uuid, wl.label_id FROM work_item_labels wl JOIN labels l ON l.id = wl.label_id
+WHERE wl.work_item_id = $2::uuid AND l.retired_at IS NULL
+`
+
+type CopyWorkItemLabelsParams struct {
+	ToID   uuid.UUID
+	FromID uuid.UUID
+}
+
+// A template copies the labels that are still active (spec 007, RF-45).
+func (q *Queries) CopyWorkItemLabels(ctx context.Context, arg CopyWorkItemLabelsParams) error {
+	_, err := q.db.Exec(ctx, copyWorkItemLabels, arg.ToID, arg.FromID)
 	return err
 }
 
@@ -182,6 +318,35 @@ func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) 
 		&i.SizeID,
 	)
 	return i, err
+}
+
+const currentBlockingDependencies = `-- name: CurrentBlockingDependencies :many
+SELECT from_id, created_at FROM work_item_dependencies WHERE to_id = $1 AND type = 'blocks'
+`
+
+type CurrentBlockingDependenciesRow struct {
+	FromID    uuid.UUID
+	CreatedAt time.Time
+}
+
+func (q *Queries) CurrentBlockingDependencies(ctx context.Context, toID uuid.UUID) ([]CurrentBlockingDependenciesRow, error) {
+	rows, err := q.db.Query(ctx, currentBlockingDependencies, toID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CurrentBlockingDependenciesRow
+	for rows.Next() {
+		var i CurrentBlockingDependenciesRow
+		if err := rows.Scan(&i.FromID, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteDependency = `-- name: DeleteDependency :exec
@@ -482,6 +647,40 @@ func (q *Queries) ListWorkItemAssignees(ctx context.Context, ids []uuid.UUID) ([
 	return items, nil
 }
 
+const listWorkItemLabels = `-- name: ListWorkItemLabels :many
+
+SELECT wl.work_item_id, l.id FROM work_item_labels wl JOIN labels l ON l.id = wl.label_id
+WHERE wl.work_item_id = ANY ($1::uuid[])
+ORDER BY wl.work_item_id, l.position, l.name
+`
+
+type ListWorkItemLabelsRow struct {
+	WorkItemID uuid.UUID
+	ID         uuid.UUID
+}
+
+// Etiquetas (spec 007) ------------------------------------------------------------
+// The labels of some work items, in the catalog's order (RF-42).
+func (q *Queries) ListWorkItemLabels(ctx context.Context, ids []uuid.UUID) ([]ListWorkItemLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkItemLabels, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkItemLabelsRow
+	for rows.Next() {
+		var i ListWorkItemLabelsRow
+		if err := rows.Scan(&i.WorkItemID, &i.ID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockDependencies = `-- name: LockDependencies :exec
 SELECT pg_advisory_xact_lock(hashtext('deps:' || $1::text))
 `
@@ -499,6 +698,35 @@ SELECT pg_advisory_xact_lock(hashtext('wi-tree:' || $1::uuid::text))
 func (q *Queries) LockWorkItemTree(ctx context.Context, projectID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, lockWorkItemTree, projectID)
 	return err
+}
+
+const namesOfUsers = `-- name: NamesOfUsers :many
+SELECT id, name FROM users WHERE id = ANY ($1::uuid[])
+`
+
+type NamesOfUsersRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) NamesOfUsers(ctx context.Context, ids []uuid.UUID) ([]NamesOfUsersRow, error) {
+	rows, err := q.db.Query(ctx, namesOfUsers, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []NamesOfUsersRow
+	for rows.Next() {
+		var i NamesOfUsersRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const nextWorkItemNumber = `-- name: NextWorkItemNumber :one
@@ -538,6 +766,17 @@ func (q *Queries) OpenBlockers(ctx context.Context, toID uuid.UUID) ([]uuid.UUID
 		return nil, err
 	}
 	return items, nil
+}
+
+const projectWeight = `-- name: ProjectWeight :one
+SELECT coalesce(sum(weight), 0)::bigint FROM work_items WHERE project_id = $1
+`
+
+func (q *Queries) ProjectWeight(ctx context.Context, projectID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, projectWeight, projectID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const projectWorkItemTree = `-- name: ProjectWorkItemTree :many
@@ -777,6 +1016,53 @@ func (q *Queries) WorkItemAncestorIDs(ctx context.Context, id uuid.UUID) ([]uuid
 	return items, nil
 }
 
+const workItemAudit = `-- name: WorkItemAudit :many
+
+SELECT id, occurred_at, actor_id, action, target_id, before, after FROM audit_log
+WHERE target_type = 'work_item' AND target_id = ANY ($1::text[])
+ORDER BY id
+`
+
+type WorkItemAuditRow struct {
+	ID         int64
+	OccurredAt time.Time
+	ActorID    *uuid.UUID
+	Action     string
+	TargetID   string
+	Before     json.RawMessage
+	After      json.RawMessage
+}
+
+// Métricas e historial (spec 007) --------------------------------------------------
+// The audit of some work items, oldest first.
+func (q *Queries) WorkItemAudit(ctx context.Context, ids []string) ([]WorkItemAuditRow, error) {
+	rows, err := q.db.Query(ctx, workItemAudit, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItemAuditRow
+	for rows.Next() {
+		var i WorkItemAuditRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OccurredAt,
+			&i.ActorID,
+			&i.Action,
+			&i.TargetID,
+			&i.Before,
+			&i.After,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const workItemDescendants = `-- name: WorkItemDescendants :many
 WITH RECURSIVE tree AS (
     SELECT c.id FROM work_items c WHERE c.parent_id = $1
@@ -838,6 +1124,62 @@ func (q *Queries) WorkItemDescendants(ctx context.Context, parentID *uuid.UUID) 
 			&i.DueDate,
 			&i.Weight,
 			&i.SizeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const workItemHistoryPage = `-- name: WorkItemHistoryPage :many
+SELECT a.id, a.occurred_at, a.actor_id, coalesce(u.name, '') AS actor_name, a.action, a.before, a.after
+FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
+WHERE a.target_type = 'work_item' AND a.target_id = $1::text
+  AND a.action IN ('work_item.created', 'work_item.updated', 'work_item.page_updated',
+                   'work_item.dependency_added', 'work_item.dependency_removed')
+  AND ($2::bigint IS NULL OR a.id < $2)
+ORDER BY a.id DESC
+LIMIT $3
+`
+
+type WorkItemHistoryPageParams struct {
+	TargetID string
+	BeforeID *int64
+	RowLimit int32
+}
+
+type WorkItemHistoryPageRow struct {
+	ID         int64
+	OccurredAt time.Time
+	ActorID    *uuid.UUID
+	ActorName  string
+	Action     string
+	Before     json.RawMessage
+	After      json.RawMessage
+}
+
+// A batch of the history of a work item, newest first (RF-52).
+func (q *Queries) WorkItemHistoryPage(ctx context.Context, arg WorkItemHistoryPageParams) ([]WorkItemHistoryPageRow, error) {
+	rows, err := q.db.Query(ctx, workItemHistoryPage, arg.TargetID, arg.BeforeID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItemHistoryPageRow
+	for rows.Next() {
+		var i WorkItemHistoryPageRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OccurredAt,
+			&i.ActorID,
+			&i.ActorName,
+			&i.Action,
+			&i.Before,
+			&i.After,
 		); err != nil {
 			return nil, err
 		}

@@ -15,6 +15,7 @@ import { useCatalog } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
 import { patchWorkItem } from '@/features/workitems/patch'
 import AssigneesPicker from '@/features/work/AssigneesPicker.vue'
+import LabelsPicker from '@/features/work/LabelsPicker.vue'
 import WorkItemSheet from '@/features/workitems/WorkItemSheet.vue'
 import { allParents, childrenOf, visibleRows } from '@/features/workitems/tree'
 import type { Project, WorkNode } from '@/types/work'
@@ -24,7 +25,7 @@ import type { Project, WorkNode } from '@/types/work'
 const props = defineProps<{ project: Project }>()
 const { t } = useI18n()
 const qc = useQueryClient()
-const { catalog, types, statuses, priorities, sizes } = useCatalog()
+const { catalog, types, statuses, priorities, sizes, labels } = useCatalog()
 const { users } = usePeople()
 
 const { data: tree } = useQuery({ queryKey: ['tree', props.project.id], queryFn: () => projectTree(props.project.id) })
@@ -79,12 +80,15 @@ const q = refDebounced(search, 300)
 const typeId = ref('')
 const closed = ref('')
 const milestoneId = ref('')
-const filtering = computed(() => !!(q.value || typeId.value || closed.value || milestoneId.value))
+const labelIds = ref<string[]>([])
+const filtering = computed(() => !!(q.value || typeId.value || closed.value || milestoneId.value || labelIds.value.length))
 const { data: milestones } = useQuery({ queryKey: ['milestones', props.project.id], queryFn: () => listMilestones(props.project.id) })
 const { data: list } = useQuery({
-  queryKey: computed(() => ['work-items', props.project.id, q.value, typeId.value, closed.value, milestoneId.value]),
+  queryKey: computed(() => ['work-items', props.project.id, q.value, typeId.value, closed.value, milestoneId.value, labelIds.value]),
   queryFn: () =>
-    listWorkItems(props.project.id, { q: q.value, type_id: typeId.value, closed: closed.value, milestone_id: milestoneId.value, page_size: 200 }),
+    listWorkItems(props.project.id, {
+      q: q.value, type_id: typeId.value, closed: closed.value, milestone_id: milestoneId.value, label_id: labelIds.value, page_size: 200,
+    }),
   enabled: filtering,
   placeholderData: keepPreviousData,
 })
@@ -141,6 +145,13 @@ const people = computed(() => users.value.map((u) => ({ id: u.id, name: u.name }
 const sizeOptions = (n: WorkNode): CellOption[] =>
   catalog.value.sizes.filter((sz) => !sz.retired || sz.id === n.size_id).map((sz) => ({ value: sz.id, label: sz.name }))
 const sizeName = (n: WorkNode) => (n.size_id ? (sizes.value.get(n.size_id)?.name ?? '') : '')
+function saveLabels(n: WorkNode) {
+  return async (ids: string[]) => {
+    await patchWorkItem(n.id, { label_ids: ids })
+    qc.invalidateQueries({ queryKey: ['work-item', n.key] })
+    await refresh()
+  }
+}
 function saveAssignees(n: WorkNode) {
   return async (ids: string[]) => {
     await patchWorkItem(n.id, { assignee_ids: ids, assignee_id: ids[0] ?? null })
@@ -158,12 +169,12 @@ const statusOf = (n: WorkNode) => statuses.value.get(n.status_id)
 const priorityName = (n: WorkNode) => priorities.value.get(n.priority_id)?.name ?? ''
 const indent = (level: number) => `${level * 1.25 + 0.5}rem`
 const canAdd = computed(() => writable.value && !filtering.value)
-const columns = computed(() => (canAdd.value ? 11 : 10))
+const columns = computed(() => (canAdd.value ? 12 : 11))
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="grid gap-2 rounded-lg border bg-background p-3 sm:grid-cols-4">
+    <div class="grid gap-2 rounded-lg border bg-background p-3 sm:grid-cols-5">
       <Input v-model="search" :placeholder="t('workItems.searchPlaceholder')" :aria-label="t('workItems.filterText')" />
       <NativeSelect v-model="typeId" :aria-label="t('workItems.filterType')">
         <option value="">{{ t('workItems.allTypes') }}</option>
@@ -178,6 +189,17 @@ const columns = computed(() => (canAdd.value ? 11 : 10))
         <option value="">{{ t('workItems.anyMilestone') }}</option>
         <option v-for="m in milestones ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
       </NativeSelect>
+      <LabelsPicker
+        :value="labelIds"
+        :options="labels"
+        :label="t('labels.filter')"
+        :placeholder="t('labels.any')"
+        :max="Infinity"
+        :visible="2"
+        class="rounded-md border px-2"
+        :save="async (ids) => (labelIds = ids)"
+        data-testid="label-filter"
+      />
     </div>
 
     <div v-if="!filtering" class="flex gap-2">
@@ -194,6 +216,7 @@ const columns = computed(() => (canAdd.value ? 11 : 10))
           <th class="w-36">{{ t('workItems.status') }}</th>
           <th class="w-28">{{ t('workItems.priority') }}</th>
           <th class="w-44">{{ t('workItems.assignees') }}</th>
+          <th class="w-40">{{ t('labels.title') }}</th>
           <th class="w-20">{{ t('workItems.size') }}</th>
           <th class="w-20" :title="t('workItems.weightHint')">{{ t('workItems.weight') }}</th>
           <th class="w-36">{{ t('workItems.progress') }}</th>
@@ -278,6 +301,16 @@ const columns = computed(() => (canAdd.value ? 11 : 10))
                 :label="t('workItems.assignees')"
                 :editable="writable"
                 :save="saveAssignees(r.node)"
+              />
+            </td>
+            <td class="border-r px-2 align-middle">
+              <LabelsPicker
+                :value="r.node.label_ids"
+                :options="labels"
+                :label="t('labels.title')"
+                :editable="writable"
+                :visible="2"
+                :save="saveLabels(r.node)"
               />
             </td>
             <EditableCell

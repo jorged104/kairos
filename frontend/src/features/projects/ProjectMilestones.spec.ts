@@ -42,7 +42,7 @@ describe('hitos del proyecto', () => {
   it('muestra avance y atraso, y el alta solo a quien gestiona un proyecto activo (RF-137)', async () => {
     const viewer = await render(project(false))
     expect(viewer.find('[data-testid=milestone-row]').text()).toContain('Atrasado')
-    expect(viewer.find('[data-testid=milestone-row]').text()).toContain('1 de 4 work items cerrados')
+    expect(viewer.find('[data-testid=milestone-row]').text()).toContain('1 de 4 tareas cerradas')
     expect(viewer.find('[data-testid=quick-add]').exists()).toBe(false)
     expect(viewer.find('[data-grid-cell]').exists()).toBe(false)
 

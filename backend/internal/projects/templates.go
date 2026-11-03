@@ -287,6 +287,9 @@ func (s *Service) copyContent(ctx context.Context, q *sqlc.Queries, p *authz.Pri
 			return fmt.Errorf("copiar work item: %w", err)
 		}
 		items[w.ID] = id
+		if err := q.CopyWorkItemLabels(ctx, sqlc.CopyWorkItemLabelsParams{FromID: w.ID, ToID: id}); err != nil {
+			return fmt.Errorf("copiar etiquetas: %w", err)
+		}
 		err = s.copyPage(ctx, q, p, page("work_item", w.ID, from), page("work_item", id, to), w.Description,
 			func(doc json.RawMessage) error {
 				return q.SetWorkItemDescription(ctx, sqlc.SetWorkItemDescriptionParams{ID: id, Description: doc, DescriptionText: w.DescriptionText})

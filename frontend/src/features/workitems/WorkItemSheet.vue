@@ -19,6 +19,9 @@ import { useComments } from '@/features/comments/useComments'
 import PageSection, { type PageCommenting } from '@/features/pages/PageSection.vue'
 import { useFullWidth } from '@/features/pages/useFullWidth'
 import AssigneesPicker from '@/features/work/AssigneesPicker.vue'
+import HistorySection from '@/features/work/HistorySection.vue'
+import LabelsPicker from '@/features/work/LabelsPicker.vue'
+import MetricsSection from '@/features/work/MetricsSection.vue'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
@@ -38,7 +41,7 @@ const { t } = useI18n()
 const router = useRouter()
 const qc = useQueryClient()
 const errorMessage = useErrorMessage()
-const { catalog, types, statuses } = useCatalog()
+const { catalog, types, statuses, labels } = useCatalog()
 const fields = useCustomFields()
 const { users } = usePeople()
 
@@ -330,6 +333,19 @@ defineExpose({ close })
             </dd>
           </div>
           <div class="flex flex-col">
+            <dt><label for="w-labels" class="text-muted-foreground">{{ t('labels.title') }}</label></dt>
+            <dd>
+              <LabelsPicker
+                id="w-labels"
+                :value="wi.label_ids"
+                :options="labels"
+                :label="t('labels.title')"
+                :editable="writable"
+                :save="(ids) => saveField({ label_ids: ids })"
+              />
+            </dd>
+          </div>
+          <div class="flex flex-col">
             <dt><label for="w-size" class="text-muted-foreground">{{ t('workItems.size') }}</label></dt>
             <dd>
               <InlineField
@@ -477,6 +493,8 @@ defineExpose({ close })
         </div>
       </section>
 
+      <MetricsSection :work-item-id="wi.id" :version="wi.version" />
+
       <CommentsSection :work-item-id="wi.id" />
 
       <PageSection
@@ -491,6 +509,8 @@ defineExpose({ close })
         :commenting="commenting"
         @saved="onPageSaved"
       />
+
+      <HistorySection :work-item-id="wi.id" :version="wi.version" />
       <Teleport to="body">
         <div
           v-if="popover && popoverThreads.length && comments"

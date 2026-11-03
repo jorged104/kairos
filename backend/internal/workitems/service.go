@@ -215,6 +215,69 @@ func setAssignees(ctx context.Context, q *sqlc.Queries, id uuid.UUID, ids []uuid
 	return nil
 }
 
+// checkLabels returns the new labels without repeats, at most MaxLabels; the
+// ones added must be active, a retired one only stays (spec 007, RF-39, RF-41).
+func checkLabels(ctx context.Context, q *sqlc.Queries, ids, current []uuid.UUID) ([]uuid.UUID, error) {
+	out := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	if len(out) > MaxLabels {
+		return nil, errTooManyLabels
+	}
+	added := diff(out, current)
+	if len(added) == 0 {
+		return out, nil
+	}
+	active, err := q.ActiveLabelIDs(ctx, added)
+	if err != nil {
+		return nil, fmt.Errorf("leer etiquetas: %w", err)
+	}
+	if len(active) != len(added) {
+		return nil, errLabelRetired
+	}
+	return out, nil
+}
+
+// labelsOf reads the labels of some work items, in the catalog's order.
+func labelsOf(ctx context.Context, q *sqlc.Queries, ids []uuid.UUID) (map[uuid.UUID][]uuid.UUID, error) {
+	rows, err := q.ListWorkItemLabels(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("leer etiquetas: %w", err)
+	}
+	out := make(map[uuid.UUID][]uuid.UUID, len(ids))
+	for _, r := range rows {
+		out[r.WorkItemID] = append(out[r.WorkItemID], r.ID)
+	}
+	return out, nil
+}
+
+func labelIDs(ctx context.Context, q *sqlc.Queries, id uuid.UUID) ([]uuid.UUID, error) {
+	byItem, err := labelsOf(ctx, q, []uuid.UUID{id})
+	if err != nil {
+		return nil, err
+	}
+	if byItem[id] == nil {
+		return []uuid.UUID{}, nil
+	}
+	return byItem[id], nil
+}
+
+func setLabels(ctx context.Context, q *sqlc.Queries, id uuid.UUID, ids []uuid.UUID) error {
+	if err := q.ClearWorkItemLabels(ctx, id); err != nil {
+		return fmt.Errorf("quitar etiquetas: %w", err)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if err := q.AddWorkItemLabels(ctx, sqlc.AddWorkItemLabelsParams{WorkItemID: id, LabelIds: ids}); err != nil {
+		return fmt.Errorf("guardar etiquetas: %w", err)
+	}
+	return nil
+}
+
 // first is the assignee_id the previous API reads: the first of the list.
 func first(ids []uuid.UUID) *uuid.UUID {
 	if len(ids) == 0 {
@@ -343,6 +406,12 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err != nil {
 			return err
 		}
+		labels := []uuid.UUID{}
+		if req.LabelIDs != nil {
+			if labels, err = checkLabels(ctx, q, *req.LabelIDs, nil); err != nil {
+				return err
+			}
+		}
 		depth := int16(0)
 		if req.ParentID != nil {
 			if err := q.LockWorkItemTree(ctx, projectID); err != nil {
@@ -373,6 +442,9 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err := setAssignees(ctx, q, row.ID, assignees); err != nil {
 			return err
 		}
+		if err := setLabels(ctx, q, row.ID, labels); err != nil {
+			return err
+		}
 		if err := applyValues(ctx, q, projectID, row.ID, req.TypeID, req.CustomValues); err != nil {
 			return err
 		}
@@ -380,7 +452,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 			return fmt.Errorf("recalcular derivados: %w", err)
 		}
 		created := auditView(row, Key(project.Identifier, n))
-		created["assignee_ids"] = assignees
+		created["assignee_ids"], created["label_ids"] = assignees, labels
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.created", TargetType: "work_item",
 			TargetID: row.ID.String(), After: created}); err != nil {
 			return err
@@ -469,6 +541,17 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if err != nil {
 			return err
 		}
+		// A client that doesn't send the labels keeps them (spec 007, RF-40).
+		currentLabels, err := labelIDs(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		labels := currentLabels
+		if req.LabelIDs != nil {
+			if labels, err = checkLabels(ctx, q, *req.LabelIDs, currentLabels); err != nil {
+				return err
+			}
+		}
 
 		key := Key(project.Identifier, row.SequenceNumber)
 		change, err := statusChange(ctx, q, p, row, req.StatusID, key)
@@ -529,6 +612,13 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return err
 			}
 		}
+		labelsAdded, labelsRemoved := diff(labels, currentLabels), diff(currentLabels, labels)
+		labelsChanged := len(labelsAdded)+len(labelsRemoved) > 0
+		if labelsChanged {
+			if err := setLabels(ctx, q, id, labels); err != nil {
+				return err
+			}
+		}
 		updated, err := q.UpdateWorkItem(ctx, sqlc.UpdateWorkItemParams{
 			ID: id, Version: req.Version, TypeID: req.TypeID, StatusID: req.StatusID, PriorityID: req.PriorityID,
 			ParentID: req.ParentID, Title: req.Title, Description: desc, DescriptionText: text, AssigneeID: first(assignees),
@@ -564,6 +654,11 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if assigneesChanged {
 			// Who came in and who left (spec 006, RF-21).
 			after["assignees_added"], after["assignees_removed"] = diff(assignees, current), diff(current, assignees)
+		}
+		before["label_ids"], after["label_ids"] = currentLabels, labels
+		if labelsChanged {
+			// Each label added or removed (spec 007, RF-46).
+			after["labels_added"], after["labels_removed"] = labelsAdded, labelsRemoved
 		}
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.updated", TargetType: "work_item",
 			TargetID: id.String(), Before: before, After: after}); err != nil {
@@ -757,7 +852,7 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		Description: row.Description, PageVersion: row.PageVersion, Author: workcore.Ref{ID: row.AuthorID},
 		StartDate: workcore.FromTime(row.StartDate), DueDate: workcore.FromTime(row.DueDate),
 		EstimatedHours: row.EstimatedHours, RemainingHours: row.RemainingHours, DoneRatio: row.DoneRatio, Weight: row.Weight,
-		SizeID: row.SizeID, Assignees: []workcore.Ref{},
+		SizeID: row.SizeID, Assignees: []workcore.Ref{}, LabelIDs: []uuid.UUID{},
 		Derived:  Derived{EstimatedHours: row.AggEstimated, RemainingHours: row.AggRemaining},
 		Position: row.Position, Depth: row.Depth, Version: row.Version, ClosedAt: row.ClosedAt,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, AllowedStatusIDs: []uuid.UUID{},
@@ -782,6 +877,9 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		out.Assignees = list
 		first := list[0]
 		out.Assignee = &first
+	}
+	if out.LabelIDs, err = labelIDs(ctx, q, row.ID); err != nil {
+		return out, err
 	}
 	if row.ParentID != nil {
 		parents, err := refs(ctx, q, []uuid.UUID{*row.ParentID})

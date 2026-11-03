@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { getCatalog, listCustomFields } from '@/api/work'
 import type { Catalog } from '@/types/work'
 
-const empty: Catalog = { methodologies: [], work_item_types: [], statuses: [], priorities: [], sizes: [] }
+const empty: Catalog = { methodologies: [], work_item_types: [], statuses: [], priorities: [], sizes: [], labels: [] }
 
 /** The catalog of spec 004 with lookups by id; retired elements included. */
 export function useCatalog() {
@@ -17,6 +17,7 @@ export function useCatalog() {
     priorities: computed(() => byId(catalog.value.priorities)),
     methodologies: computed(() => byId(catalog.value.methodologies)),
     sizes: computed(() => byId(catalog.value.sizes ?? [])),
+    labels: computed(() => catalog.value.labels ?? []),
   }
 }
 

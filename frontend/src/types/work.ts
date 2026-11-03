@@ -73,12 +73,22 @@ export interface Size {
   retired: boolean
 }
 
+/** Classifies work items across all projects (spec 007, RF-36, RF-38). */
+export interface Label {
+  id: string
+  name: string
+  color: string
+  position: number
+  retired: boolean
+}
+
 export interface Catalog {
   methodologies: Methodology[]
   work_item_types: WorkItemType[]
   statuses: Status[]
   priorities: Priority[]
   sizes: Size[]
+  labels: Label[]
 }
 
 export interface Transition {
@@ -220,6 +230,7 @@ export interface WorkNode {
   /** Everyone working on it, all alike (spec 006, RF-12). */
   assignees: Ref[]
   size_id: string | null
+  label_ids: string[]
   derived_done_ratio: number
   derived_estimated_hours: number
   derived_remaining_hours: number
@@ -279,6 +290,7 @@ export interface WorkItem {
   /** Everyone working on it, all alike (spec 006, RF-12). */
   assignees: Ref[]
   size_id: string | null
+  label_ids: string[]
   parent: WorkRef | null
   start_date: string | null
   due_date: string | null
