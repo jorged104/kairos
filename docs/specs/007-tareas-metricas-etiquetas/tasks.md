@@ -1,0 +1,28 @@
+# Tareas 007 — Tareas: nombre, métricas, etiquetas e historial
+
+- [ ] **T1 — Esquema** (migración 00007, queries sqlc)
+  - RF: RF-36, RF-40
+  - Hecho cuando: `make sqlc` limpio.
+- [ ] **T2 — Etiquetas en la API**
+  - RF: RF-36 a RF-46
+  - Hecho cuando: apitest de catálogo, máximo, retirada, filtro, auditoría, cliente anterior y plantilla; test de matriz.
+- [ ] **T3 — Métricas en la API**
+  - RF: RF-9 a RF-35
+  - Hecho cuando: apitest de plazo, aporte, tiempos de ciclo, vencimiento, reaperturas y bloqueos.
+- [ ] **T4 — Historial en la API**
+  - RF: RF-47 a RF-54
+  - Hecho cuando: apitest de nombres legibles, descripción agrupada, paginación y permisos.
+- [ ] **T5 — Nombre «tarea»**
+  - RF: RF-1 a RF-4
+  - Hecho cuando: Vitest sin «work item» en el catálogo de i18n.
+- [ ] **T6 — Etiquetas en el frontend**
+  - RF: RF-36, RF-39, RF-42 a RF-44
+  - Hecho cuando: Vitest de la tabla del catálogo, la ficha, la columna y el filtro del árbol.
+- [ ] **T7 — Métricas e historial en la ficha**
+  - RF: RF-5 a RF-8, RF-47 a RF-52
+  - Hecho cuando: Vitest de la sección de métricas y del historial.
+- [ ] **T8 — Rendimiento**
+  - RF: RNF
+  - Hecho cuando: métricas e historial de una tarea con 200 cambios en < 300 ms.
+- [ ] **T9 — Prueba manual (tú)**
+  - Hecho cuando: la demo de la spec (pasos 1 a 7) funciona.
