@@ -24,7 +24,7 @@ func NewService(store *db.Store) *Service { return &Service{store: store} }
 
 // Get returns the whole catalog, retired elements included.
 func (s *Service) Get(ctx context.Context) (Catalog, error) {
-	out := Catalog{Methodologies: []Methodology{}, Types: []Type{}, Statuses: []Status{}, Priorities: []Priority{}, Sizes: []Size{}}
+	out := Catalog{Methodologies: []Methodology{}, Types: []Type{}, Statuses: []Status{}, Priorities: []Priority{}, Sizes: []Size{}, Labels: []Label{}}
 	ms, err := s.store.ListMethodologies(ctx)
 	if err != nil {
 		return out, fmt.Errorf("listar metodologías: %w", err)
@@ -69,6 +69,13 @@ func (s *Service) Get(ctx context.Context) (Catalog, error) {
 	}
 	for _, sz := range sizes {
 		out.Sizes = append(out.Sizes, toSize(sz))
+	}
+	labels, err := s.store.ListLabels(ctx)
+	if err != nil {
+		return out, fmt.Errorf("listar etiquetas: %w", err)
+	}
+	for _, l := range labels {
+		out.Labels = append(out.Labels, toLabel(l))
 	}
 	return out, nil
 }
@@ -451,6 +458,35 @@ func (s *Service) SetSizeRetired(ctx context.Context, p *authz.Principal, id uui
 	})
 }
 
+// Etiquetas (spec 007, RF-36 a RF-39) ----------------------------------------------------------
+
+func labelID(l Label) uuid.UUID { return l.ID }
+
+func (s *Service) CreateLabel(ctx context.Context, p *authz.Principal, req labelRequest) (Label, error) {
+	return mutate(ctx, s, p, "label", "created", labelID, func(q *sqlc.Queries) (Label, error) {
+		r, err := q.CreateLabel(ctx, sqlc.CreateLabelParams{
+			Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position,
+		})
+		return toLabel(r), err
+	})
+}
+
+func (s *Service) UpdateLabel(ctx context.Context, p *authz.Principal, id uuid.UUID, req labelRequest) (Label, error) {
+	return mutate(ctx, s, p, "label", "updated", labelID, func(q *sqlc.Queries) (Label, error) {
+		r, err := q.UpdateLabel(ctx, sqlc.UpdateLabelParams{
+			ID: id, Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position,
+		})
+		return toLabel(r), err
+	})
+}
+
+func (s *Service) SetLabelRetired(ctx context.Context, p *authz.Principal, id uuid.UUID, retired bool) (Label, error) {
+	return mutate(ctx, s, p, "label", retiredAction(retired), labelID, func(q *sqlc.Queries) (Label, error) {
+		r, err := q.SetLabelRetired(ctx, sqlc.SetLabelRetiredParams{ID: id, Retired: retired})
+		return toLabel(r), err
+	})
+}
+
 // Conversiones --------------------------------------------------------------------------------
 
 func toMethodology(r sqlc.Methodology) Methodology {
@@ -472,6 +508,10 @@ func toStatus(r sqlc.Status) Status {
 
 func toPriority(r sqlc.Priority) Priority {
 	return Priority{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, IsDefault: r.IsDefault, Retired: r.RetiredAt != nil}
+}
+
+func toLabel(r sqlc.Label) Label {
+	return Label{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, Retired: r.RetiredAt != nil}
 }
 
 func toSize(r sqlc.WorkItemSize) Size {

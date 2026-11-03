@@ -434,7 +434,7 @@ func (s *Service) WorkItems(ctx context.Context, p *authz.Principal, id uuid.UUI
 	for i := range out {
 		nodes = append(nodes, &out[i].Node)
 	}
-	if err := workitems.FillAssignees(ctx, s.store.Queries, nodes); err != nil {
+	if err := workitems.FillLists(ctx, s.store.Queries, nodes); err != nil {
 		return nil, err
 	}
 	return out, nil

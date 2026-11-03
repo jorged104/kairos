@@ -57,6 +57,10 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Patch("/work-item-sizes/{id}", update(h, h.svc.UpdateSize))
 		r.Post("/work-item-sizes/{id}/retire", retire(h, h.svc.SetSizeRetired, true))
 		r.Post("/work-item-sizes/{id}/restore", retire(h, h.svc.SetSizeRetired, false))
+		r.Post("/labels", create(h, h.svc.CreateLabel))
+		r.Patch("/labels/{id}", update(h, h.svc.UpdateLabel))
+		r.Post("/labels/{id}/retire", retire(h, h.svc.SetLabelRetired, true))
+		r.Post("/labels/{id}/restore", retire(h, h.svc.SetLabelRetired, false))
 	})
 }
 

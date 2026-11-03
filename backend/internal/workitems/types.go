@@ -53,6 +53,7 @@ type WorkItem struct {
 	Assignee         *workcore.Ref                 `json:"assignee"` // the first of Assignees, for previous clients
 	Assignees        []workcore.Ref                `json:"assignees"`
 	SizeID           *uuid.UUID                    `json:"size_id"`
+	LabelIDs         []uuid.UUID                   `json:"label_ids"`
 	Parent           *Ref                          `json:"parent"`
 	StartDate        *workcore.Date                `json:"start_date"`
 	DueDate          *workcore.Date                `json:"due_date"`
@@ -104,6 +105,7 @@ type Node struct {
 	Assignee   *workcore.Ref  `json:"assignee"`
 	Assignees  []workcore.Ref `json:"assignees"`
 	SizeID     *uuid.UUID     `json:"size_id"`
+	LabelIDs   []uuid.UUID    `json:"label_ids"`
 	DoneRatio  int16          `json:"derived_done_ratio"`
 	Estimated  float64        `json:"derived_estimated_hours"`
 	Remaining  float64        `json:"derived_remaining_hours"`
@@ -134,6 +136,8 @@ type createRequest struct {
 	AssigneeIDs *[]uuid.UUID `json:"assignee_ids"`
 	// Absent keeps the size; null removes it (spec 006, RF-4).
 	SizeID optionalID `json:"size_id"`
+	// Replaces the labels; absent keeps them (spec 007, RF-40).
+	LabelIDs *[]uuid.UUID `json:"label_ids"`
 }
 
 func (r *createRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }
@@ -161,6 +165,8 @@ type updateRequest struct {
 	AssigneeIDs *[]uuid.UUID `json:"assignee_ids"`
 	// Absent keeps the size; null removes it (spec 006, RF-4).
 	SizeID optionalID `json:"size_id"`
+	// Replaces the labels; absent keeps them (spec 007, RF-40).
+	LabelIDs *[]uuid.UUID `json:"label_ids"`
 }
 
 func (r *updateRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }
@@ -189,6 +195,9 @@ func (o *optionalID) UnmarshalJSON(b []byte) error {
 // MaxAssignees bounds the list of a work item (spec 006, RF-13).
 const MaxAssignees = 20
 
+// MaxLabels bounds the labels of a work item (spec 007, RF-41).
+const MaxLabels = 10
+
 type dependencyRequest struct {
 	ToID    uuid.UUID `json:"to_id" validate:"required"`
 	Type    string    `json:"type" validate:"required,oneof=blocks precedes relates duplicates"`
@@ -201,6 +210,8 @@ var (
 	errInvalidAssignee  = apperr.New(http.StatusBadRequest, "invalid_assignee", "El asignado debe estar activo y no ser solo observador")
 	errTooManyAssignees = apperr.New(http.StatusBadRequest, "too_many_assignees", "Un work item admite como máximo 20 asignados")
 	errSizeRetired      = apperr.New(http.StatusBadRequest, "size_retired", "La talla está retirada")
+	errTooManyLabels    = apperr.New(http.StatusBadRequest, "too_many_labels", "Una tarea admite como máximo 10 etiquetas")
+	errLabelRetired     = apperr.New(http.StatusBadRequest, "label_retired", "La etiqueta está retirada o no existe")
 	errTypeNotEnabled   = apperr.New(http.StatusBadRequest, "type_not_enabled", "El tipo no está activo en el proyecto")
 	errCrossProject     = apperr.New(http.StatusBadRequest, "cross_project", "El elemento pertenece a otro proyecto")
 	errCycle            = apperr.New(http.StatusConflict, "work_item_cycle", "Un work item no puede colgar de sí mismo ni de un descendiente")

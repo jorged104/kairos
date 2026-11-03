@@ -120,6 +120,12 @@ INSERT INTO work_item_labels (work_item_id, label_id)
 SELECT sqlc.arg(work_item_id)::uuid, unnest(sqlc.arg(label_ids)::uuid[])
 ON CONFLICT DO NOTHING;
 
+-- name: CopyWorkItemLabels :exec
+-- A template copies the labels that are still active (spec 007, RF-45).
+INSERT INTO work_item_labels (work_item_id, label_id)
+SELECT sqlc.arg(to_id)::uuid, wl.label_id FROM work_item_labels wl JOIN labels l ON l.id = wl.label_id
+WHERE wl.work_item_id = sqlc.arg(from_id)::uuid AND l.retired_at IS NULL;
+
 -- name: ActiveLabelIDs :many
 -- The ones of these labels that exist and are not retired (RF-39).
 SELECT id FROM labels WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND retired_at IS NULL;

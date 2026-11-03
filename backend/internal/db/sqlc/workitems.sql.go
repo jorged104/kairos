@@ -159,6 +159,23 @@ func (q *Queries) ClosedStatusIDs(ctx context.Context) ([]uuid.UUID, error) {
 	return items, nil
 }
 
+const copyWorkItemLabels = `-- name: CopyWorkItemLabels :exec
+INSERT INTO work_item_labels (work_item_id, label_id)
+SELECT $1::uuid, wl.label_id FROM work_item_labels wl JOIN labels l ON l.id = wl.label_id
+WHERE wl.work_item_id = $2::uuid AND l.retired_at IS NULL
+`
+
+type CopyWorkItemLabelsParams struct {
+	ToID   uuid.UUID
+	FromID uuid.UUID
+}
+
+// A template copies the labels that are still active (spec 007, RF-45).
+func (q *Queries) CopyWorkItemLabels(ctx context.Context, arg CopyWorkItemLabelsParams) error {
+	_, err := q.db.Exec(ctx, copyWorkItemLabels, arg.ToID, arg.FromID)
+	return err
+}
+
 const countWorkItemChildren = `-- name: CountWorkItemChildren :one
 SELECT count(*) FROM work_items WHERE parent_id = $1
 `
