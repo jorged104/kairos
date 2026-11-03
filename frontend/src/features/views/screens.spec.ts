@@ -258,6 +258,21 @@ describe('cronograma (spec 008)', () => {
     expect(days[1]).toBe('1 mar')
   })
 
+  it('dibuja la línea base detrás de la barra y la colorea con su semáforo (spec 009, RF-13, RF-48)', async () => {
+    const later = node('w7', 'KAI-7', { start_date: '2099-01-10', due_date: '2099-01-20' })
+    nodes.push(later)
+    schedule.items = [{ id: 'w7', figures: { has_plan: true, plan: 50, real: 40, gap: -10, level: 'at_risk' }, in_baseline: true,
+      base_start: '2099-01-01', base_due: '2099-01-10', changed: true, shift_days: 10 }]
+    try {
+      const { wrapper } = await renderPage('/projects/p1?tab=timeline')
+      expect(wrapper.findAll('[data-testid=timeline-baseline]')).toHaveLength(1)
+      expect(wrapper.findAll('[data-testid=timeline-bar]').map((b) => b.attributes('data-level'))).toContain('at_risk')
+    } finally {
+      nodes.pop()
+      schedule.items = []
+    }
+  })
+
   it('arrastra una barra y lista las tareas sin fechas (RF-70, RF-74, RF-75)', async () => {
     const { wrapper } = await renderPage('/projects/p1?tab=timeline')
     expect(wrapper.find('[data-testid=timeline-undated]').text()).toContain('KAI-2')

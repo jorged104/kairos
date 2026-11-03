@@ -5,10 +5,12 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { filteredTree, type Filters } from '@/api/projectScreens'
+import { getProjectSchedule, type ItemSchedule } from '@/api/schedule'
 import { createWorkItem, linkMilestoneWorkItem, listMilestones } from '@/api/work'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import { useLevels } from '@/features/schedule/useLevels'
 import { filterDefaults } from '@/features/views/useProjectFilters'
 import { useCatalog } from '@/features/work/useCatalog'
 import { patchWorkItem } from '@/features/workitems/patch'
@@ -20,7 +22,9 @@ import { PX, SCALES, dragged, fromDay, ticks, toDay, today as todayDay, weekend,
 
 // The work items with dates as bars on a time line, grouped by effective
 // milestone and in their hierarchy; dragging a bar moves its dates, its ends
-// change one, and new ones are made in place (spec 008, RF-70 to RF-89).
+// change one, and new ones are made in place (spec 008, RF-70 to RF-89). The
+// baseline shows behind each bar and the traffic light colors it (spec 009,
+// RF-13, RF-48).
 const props = withDefaults(defineProps<{ project: Project; filters?: Filters }>(), { filters: () => ({}) })
 const { t, locale } = useI18n()
 const qc = useQueryClient()
@@ -34,6 +38,9 @@ const { data: nodes } = useQuery({
   queryFn: () => filteredTree(props.project.id, props.filters),
 })
 const { data: milestones } = useQuery({ queryKey: computed(() => ['milestones', props.project.id]), queryFn: () => listMilestones(props.project.id) })
+const { data: plan } = useQuery({ queryKey: computed(() => ['schedule', props.project.id]), queryFn: () => getProjectSchedule(props.project.id) })
+const planOf = computed(() => new Map<string, ItemSchedule>((plan.value?.items ?? []).map((i) => [i.id, i])))
+const levels = useLevels()
 const writable = computed(() => props.project.can.write_work_items && props.project.lifecycle === 'activo')
 
 const scale = ref<Scale>('months')
@@ -54,6 +61,7 @@ const range = computed(() => {
   if (props.project.start_date) days.push(toDay(props.project.start_date))
   if (props.project.end_date) days.push(toDay(props.project.end_date))
   for (const n of dated.value) days.push(toDay(n.start_date!), toDay(n.due_date!))
+  for (const it of plan.value?.items ?? []) if (it.changed && it.base_due) days.push(toDay(it.base_start ?? it.base_due), toDay(it.base_due))
   for (const m of milestones.value ?? []) if (m.due_date) days.push(toDay(m.due_date))
   return { from: Math.min(...days) - 7, to: Math.max(...days) + 14 }
 })
@@ -117,15 +125,27 @@ const groups = computed<Group[]>(() => {
   })
 })
 
-// Late, blocked or behind is red (RF-71).
+// Late or blocked is red (spec 008, RF-71); at risk or late in the traffic
+// light takes the color of its level (spec 009, RF-48).
 const isClosed = (n: WorkNode) => !!catalog.value.statuses.find((s) => s.id === n.status_id)?.is_closed
-function atRisk(n: WorkNode) {
-  if (isClosed(n)) return false
-  const start = toDay(n.start_date!)
-  const end = toDay(n.due_date!)
-  if (end < now || n.blocked) return true
-  const gone = Math.min(Math.max(now - start + 1, 0), end - start + 1)
-  return n.derived_done_ratio - Math.round((100 * gone) / (end - start + 1)) < -10
+function tone(n: WorkNode): { track: string; fill: string; level?: string } {
+  const plain = { track: 'bg-muted-foreground/25', fill: 'bg-foreground' }
+  if (isClosed(n)) return plain
+  if (toDay(n.due_date!) < now || n.blocked) return { track: 'bg-red-200 dark:bg-red-950', fill: 'bg-destructive', level: 'overdue' }
+  const level = planOf.value.get(n.id)?.figures.level
+  if (level === 'at_risk' || level === 'late') {
+    const c = levels.classes(level)
+    return { track: c.soft, fill: c.solid, level }
+  }
+  return plain
+}
+// The baseline of a work item whose dates changed (RF-13).
+function baseline(n: WorkNode) {
+  const it = planOf.value.get(n.id)
+  if (!it?.in_baseline || !it.changed || !it.base_due) return null
+  const end = toDay(it.base_due)
+  const start = it.base_start ? toDay(it.base_start) : end
+  return { left: x(start), width: Math.max((end - start + 1) * px.value, 6), start: it.base_start, end: it.base_due }
 }
 
 // Dragging (RF-75 to RF-78), with the dates it would get by the pointer (RF-82).
@@ -160,6 +180,7 @@ const tip = computed(() => {
 })
 async function refresh() {
   qc.invalidateQueries({ queryKey: ['overview', props.project.id] })
+  qc.invalidateQueries({ queryKey: ['schedule', props.project.id] })
   qc.invalidateQueries({ queryKey: ['views', props.project.id] })
   await qc.invalidateQueries({ queryKey: ['tree', props.project.id] })
 }
@@ -378,9 +399,17 @@ const indent = (level: number) => ({ paddingLeft: `${12 + level * 16}px` })
                 </div>
                 <div class="relative shrink-0" :style="{ width: `${width}px` }">
                   <div
+                    v-if="baseline(l.row.node)"
+                    class="pointer-events-none absolute top-1 h-7 rounded-md border-2 border-dashed border-muted-foreground/50"
+                    :style="{ left: `${baseline(l.row.node)!.left}px`, width: `${baseline(l.row.node)!.width}px` }"
+                    :title="t('schedule.baseline.bar', { key: l.row.node.key, start: date(baseline(l.row.node)!.start), end: date(baseline(l.row.node)!.end) })"
+                    data-testid="timeline-baseline"
+                  />
+                  <div
                     v-if="hasDates(l.row.node)"
                     class="absolute top-2 flex h-5 overflow-hidden rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                    :class="[atRisk(l.row.node) ? 'bg-red-200 dark:bg-red-950' : 'bg-muted-foreground/25', writable && 'cursor-grab', drag?.id === l.row.node.id && drag.invalid && 'ring-2 ring-destructive']"
+                    :class="[tone(l.row.node).track, writable && 'cursor-grab', drag?.id === l.row.node.id && drag.invalid && 'ring-2 ring-destructive']"
+                    :data-level="tone(l.row.node).level"
                     :style="{ left: `${bar(l.row.node).left}px`, width: `${Math.max(bar(l.row.node).width, 6)}px` }"
                     :tabindex="writable ? 0 : -1"
                     role="slider"
@@ -392,7 +421,7 @@ const indent = (level: number) => ({ paddingLeft: `${12 + level * 16}px` })
                     @pointerdown="begin($event, l.row.node, 'move')"
                     @keydown="onKey($event, l.row.node)"
                   >
-                    <div class="h-full" :class="atRisk(l.row.node) ? 'bg-destructive' : 'bg-foreground'" :style="{ width: `${l.row.node.derived_done_ratio}%` }" />
+                    <div class="h-full" :class="tone(l.row.node).fill" :style="{ width: `${l.row.node.derived_done_ratio}%` }" />
                     <template v-if="writable">
                       <span class="absolute inset-y-0 left-0 w-2 cursor-ew-resize" data-testid="timeline-start" @pointerdown.stop="begin($event, l.row.node, 'start')" />
                       <span class="absolute inset-y-0 right-0 w-2 cursor-ew-resize" data-testid="timeline-end" @pointerdown.stop="begin($event, l.row.node, 'end')" />

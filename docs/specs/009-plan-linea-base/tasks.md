@@ -17,7 +17,7 @@
 - [x] **T6 — Frontend: semáforo, Resumen y ficha**
   - RF: RF-5, RF-6, RF-11, RF-12, RF-35, RF-43 a RF-47
   - Hecho cuando: Vitest del Resumen con línea base y de las métricas.
-- [ ] **T7 — Frontend: cronograma y administración del semáforo**
+- [x] **T7 — Frontend: cronograma y administración del semáforo**
   - RF: RF-13, RF-36 a RF-40, RF-48
   - Hecho cuando: Vitest de la sombra de la línea base, los colores y el formulario.
 - [ ] **T8 — Prueba manual** (tú)
