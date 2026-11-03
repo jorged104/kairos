@@ -24,14 +24,15 @@ const catalog: Catalog = {
     { id: 'sz-m', name: 'M', position: 3, retired: false },
     { id: 'sz-l', name: 'L', position: 4, retired: true },
   ],
+  labels: [{ id: 'lb-f', name: 'Frontend', color: '#22c55e', position: 1, retired: false }]
 }
 const node: WorkNode = {
-  id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login con SSO', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null, assignees: [], size_id: null,
+  id: 'w1', parent_id: null, key: 'KAI-1', title: 'Login con SSO', type_id: 'ty', status_id: 'st', priority_id: 'pr', assignee: null, assignees: [], size_id: null, label_ids: [],
   derived_done_ratio: 0, derived_estimated_hours: 0, derived_remaining_hours: 0, depth: 0, position: 0, due_date: null, weight: 1,
 }
 const item: WorkItem = {
   id: 'w1', key: 'KAI-1', sequence_number: 1, project: { id: 'p1', identifier: 'KAI', name: 'Kairos' }, type_id: 'ty',
-  status_id: 'st', priority_id: 'pr', title: 'Login con SSO', author: { id: 'u', name: 'U' }, assignee: null, assignees: [], size_id: null,
+  status_id: 'st', priority_id: 'pr', title: 'Login con SSO', author: { id: 'u', name: 'U' }, assignee: null, assignees: [], size_id: null, label_ids: [],
   description: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Criterios de aceptación' }] }] },
   page_version: 3, refs: {},
   parent: null, start_date: null, due_date: null, estimated_hours: null, remaining_hours: null, done_ratio: 0, weight: 1,
@@ -44,6 +45,28 @@ const project: Project = {
   start_date: null, end_date: null, depth: 0, version: 1, work_item_type_ids: ['ty'], custom_field_ids: [], custom_values: {},
   can: { manage: true, write_work_items: true, manage_template: false },
 }
+
+const metrics = {
+  today: '2026-03-06',
+  schedule: { has_plan: true, expected: 60, actual: 20, deviation: -40, state: 'behind' },
+  contribution: { tracking: false, parent: null, project: { no_weight: false, percent: 60, points: 12 } },
+  times: { closed: false, lead_days: null, cycle_days: null, age_days: 10, in_progress_days: null, in_status_days: 2.5, missing: false },
+  due: { state: 'overdue', days: 3 },
+  reopens: 1,
+  blocked: { now: true, blockers: [{ hidden: false, id: 'w9', key: 'KAI-9', title: 'Base' }, { hidden: true }], total_days: 1.5 },
+}
+const entry = (kind: string, changes: unknown[] = []) => ({ at: '2026-03-01T10:00:00Z', actor: { id: 'u', name: 'Ana' }, kind, changes })
+const historyPage1 = {
+  entries: [
+    entry('updated', [
+      { field: 'status_id', from: { id: 's1', name: 'Nuevo' }, to: { id: 's2', name: 'En progreso' } },
+      { field: 'label_ids', from: [], to: [{ id: 'lb-x', name: '' }] },
+    ]),
+    entry('description'),
+  ],
+  next: 41,
+}
+const historyPage2 = { entries: [entry('created')], next: null }
 
 // The work item as the API has it now: a PATCH changes it and moves its version.
 let current: WorkItem
@@ -60,6 +83,8 @@ beforeEach(() => {
       if (url.endsWith('/tree')) return json({ items: [node] })
       if (url.startsWith('/api/users')) return json({ items: [{ id: 'u2', name: 'Luis Gómez' }], total: 1, page: 1, page_size: 100 })
       if (url.endsWith('/comments')) return json({ threads: [], refs: {}, can_comment: true })
+      if (url.includes('/metrics')) return json(metrics)
+      if (url.includes('/history')) return json(url.includes('before=') ? historyPage2 : historyPage1)
       if (url.endsWith('/api/catalog')) return json(catalog)
       if (url.includes('/api/work-items/by-key/KAI-1')) return json(current)
       if (url.endsWith('/api/projects/p1')) return json(project)
@@ -71,6 +96,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
   useFullWidth().on.value = false
+  localStorage.clear()
 })
 
 async function renderTree(path = '/projects/p1') {
@@ -207,15 +233,61 @@ describe('ficha del work item', () => {
     expect(JSON.parse(String((calls('PATCH')[0]![1] as RequestInit).body))).toMatchObject({ assignee_ids: ['u2'], assignee_id: 'u2' })
   })
 
-  it('los comentarios van entre las propiedades y la página (spec 006, RF-22)', async () => {
+  it('ordena propiedades, métricas, comentarios, página e historial (spec 006, RF-22; spec 007, RF-5, RF-47)', async () => {
     const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
     const html = wrapper.find('[data-testid=item-panel]').html()
-    const props = html.indexOf('data-testid="properties"')
-    const comments = html.indexOf('data-testid="comments"')
-    const page = html.indexOf('data-testid="page"')
-    expect(props).toBeGreaterThan(-1)
-    expect(comments).toBeGreaterThan(props)
-    expect(page).toBeGreaterThan(comments)
+    const at = ['properties', 'metrics', 'comments', 'page', 'history'].map((s) => html.indexOf(`data-testid="${s}"`))
+    expect(at[0]).toBeGreaterThan(-1)
+    expect([...at].sort((a, b) => a - b)).toEqual(at)
+  })
+
+  it('pone etiquetas desde las propiedades y guarda al cerrar la lista (spec 007, RF-40, RF-42)', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    const panel = wrapper.find('[data-testid=item-panel]')
+    await panel.find('#w-labels').trigger('click')
+    const menu = panel.find('[data-testid=labels-menu]')
+    expect(menu.text()).toContain('Frontend')
+    await menu.find('input[type=checkbox]').setValue(true)
+    expect(calls('PATCH')).toHaveLength(0)
+    await menu.find('[data-testid=labels-done]').trigger('click')
+    await flushPromises()
+    expect(JSON.parse(String((calls('PATCH')[0]![1] as RequestInit).body))).toMatchObject({ label_ids: ['lb-f'] })
+    expect(panel.find('#w-labels').text()).toContain('Frontend')
+  })
+
+  it('las métricas empiezan plegadas y se recuerda si se abren (spec 007, RF-6 a RF-9, RF-27, RF-31)', async () => {
+    const first = await renderTree('/projects/p1?item=KAI-1')
+    expect(first.wrapper.find('[data-testid=metrics-list]').exists()).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/metrics'))).toBe(false)
+    await first.wrapper.find('[data-testid=metrics-toggle]').trigger('click')
+    await flushPromises()
+    const list = first.wrapper.find('[data-testid=metrics-list]')
+    expect(String(vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('/metrics'))![0])).toMatch(/today=\d{4}-\d{2}-\d{2}/)
+    expect(list.find('[data-testid=metric-schedule]').text()).toContain('Retrasada')
+    expect(list.find('[data-testid=metric-schedule]').text()).toContain('esperado 60 %')
+    expect(list.find('[data-testid=metric-due]').text()).toContain('Vencida, 3 días de retraso')
+    expect(list.find('[data-testid=metric-blocked]').text()).toContain('KAI-9')
+    expect(list.find('[data-testid=metric-blocked]').text()).toContain('una tarea sin acceso')
+    expect(list.find('[data-testid=metric-times]').text()).toContain('En curso desde hace: —')
+    first.wrapper.unmount()
+    expect(localStorage.getItem('kairos.sheet.metrics')).toBe('1')
+  })
+
+  it('el historial muestra los cambios con nombres y carga más (spec 007, RF-47 a RF-52)', async () => {
+    const { wrapper } = await renderTree('/projects/p1?item=KAI-1')
+    await wrapper.find('[data-testid=history-toggle]').trigger('click')
+    await flushPromises()
+    const entries = () => wrapper.findAll('[data-testid=history-entry]')
+    expect(entries()).toHaveLength(2)
+    expect(entries()[0]!.text()).toContain('Estado: Nuevo → En progreso')
+    expect(entries()[0]!.text()).toContain('Etiquetas: — → (eliminado)')
+    expect(entries()[1]!.text()).toContain('editó la descripción')
+    await wrapper.find('[data-testid=history-more]').trigger('click')
+    await flushPromises()
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)![0])).toContain('before=41')
+    expect(entries()).toHaveLength(3)
+    expect(entries()[2]!.text()).toContain('creó la tarea')
+    expect(wrapper.find('[data-testid=history-more]').exists()).toBe(false)
   })
 
   it('se borra con la papelera de arriba a la izquierda, pulsando dos veces', async () => {

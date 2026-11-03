@@ -333,6 +333,8 @@
     "comment_too_long": "El comentario supera los 10 000 caracteres",
     "anchor_page_changed": "La página cambió mientras comentabas: vuelve a seleccionar el texto",
     "too_many_assignees": "Una tarea admite como máximo 20 asignados",
+    "too_many_labels": "Una tarea admite como máximo 10 etiquetas",
+    "label_retired": "La etiqueta está retirada o ya no existe",
     "size_retired": "La talla está retirada"
   },
   "richtext": {
@@ -383,7 +385,8 @@
       "work-item-types": "Nuevo tipo",
       "statuses": "Nuevo estado",
       "priorities": "Nueva prioridad",
-      "work-item-sizes": "Nueva talla"
+      "work-item-sizes": "Nueva talla",
+      "labels": "Nueva etiqueta"
     },
     "sizes": "Tallas"
   },
@@ -473,6 +476,80 @@
     "inherited": "Heredado",
     "status": "Estado",
     "new": "Nuevo hito"
+  },
+  "metrics": {
+    "title": "Métricas",
+    "schedule": "Avance frente al plazo",
+    "noPlan": "Sin plazo",
+    "states": {
+      "ahead": "Adelantada",
+      "on_track": "Al día",
+      "behind": "Retrasada"
+    },
+    "progressVsExpected": "avance {actual} %, esperado {expected} %",
+    "points": "{n} puntos",
+    "contribution": "Aporte",
+    "toParent": "Al padre",
+    "toProject": "Al proyecto",
+    "share": "{percent} % del peso, aporta {points} puntos",
+    "trackingShare": "0 % (seguimiento)",
+    "noWeight": "Sin peso",
+    "times": "Tiempos",
+    "lead": "Lead time",
+    "cycle": "Cycle time",
+    "age": "Creada hace",
+    "inProgress": "En curso desde hace",
+    "inStatus": "En el estado actual",
+    "days": "{n} d",
+    "noData": "Sin datos",
+    "dueTitle": "Vencimiento",
+    "due": {
+      "none": "Sin fecha fin",
+      "today": "Vence hoy",
+      "pending": "Falta {count} día | Faltan {count} días",
+      "overdue": "Vencida, {count} día de retraso | Vencida, {count} días de retraso",
+      "on_time": "Cerrada a tiempo",
+      "late": "Cerrada con {count} día de retraso | Cerrada con {count} días de retraso"
+    },
+    "reopens": "Reaperturas",
+    "blocks": "Bloqueos",
+    "blockedBy": "Bloqueada por",
+    "hiddenBlocker": "una tarea sin acceso",
+    "notBlocked": "No está bloqueada",
+    "blockedTotal": "Tiempo bloqueada"
+  },
+  "history": {
+    "title": "Historial",
+    "created": "creó la tarea",
+    "description": "editó la descripción",
+    "dependency_added": "añadió «{type}» {item}",
+    "dependency_removed": "quitó «{type}» {item}",
+    "deleted": "(eliminado)",
+    "system": "Sistema",
+    "more": "Cargar más",
+    "fields": {
+      "title": "Título",
+      "type_id": "Tipo",
+      "status_id": "Estado",
+      "priority_id": "Prioridad",
+      "parent_id": "Padre",
+      "assignee_ids": "Asignados",
+      "start_date": "Inicio",
+      "due_date": "Fin",
+      "estimated_hours": "Horas estimadas",
+      "remaining_hours": "Horas restantes",
+      "done_ratio": "Avance (%)",
+      "weight": "Peso",
+      "size_id": "Talla",
+      "label_ids": "Etiquetas"
+    }
+  },
+  "labels": {
+    "title": "Etiquetas",
+    "search": "Buscar etiquetas",
+    "max": "Como máximo {max} etiquetas",
+    "filter": "Filtrar por etiquetas",
+    "any": "Cualquier etiqueta"
   },
   "workItems": {
     "title": "Título",
