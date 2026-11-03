@@ -768,6 +768,74 @@ func (q *Queries) OpenBlockers(ctx context.Context, toID uuid.UUID) ([]uuid.UUID
 	return items, nil
 }
 
+const projectBlockedItems = `-- name: ProjectBlockedItems :many
+
+SELECT DISTINCT d.to_id FROM work_item_dependencies d
+JOIN work_items b ON b.id = d.from_id
+JOIN statuses bs ON bs.id = b.status_id
+JOIN work_items t ON t.id = d.to_id
+WHERE t.project_id = $1 AND d.type = 'blocks' AND NOT bs.is_closed
+`
+
+// Árbol ------------------------------------------------------------------------
+// Work items of a project blocked by an open one (spec 008, RF-61).
+func (q *Queries) ProjectBlockedItems(ctx context.Context, projectID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, projectBlockedItems, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var to_id uuid.UUID
+		if err := rows.Scan(&to_id); err != nil {
+			return nil, err
+		}
+		items = append(items, to_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const projectEffectiveMilestones = `-- name: ProjectEffectiveMilestones :many
+WITH RECURSIVE eff AS (
+    SELECT mw.milestone_id, mw.work_item_id AS id
+    FROM milestone_work_items mw JOIN milestones m ON m.id = mw.milestone_id
+    WHERE m.project_id = $1
+    UNION
+    SELECT eff.milestone_id, c.id FROM work_items c JOIN eff ON c.parent_id = eff.id
+)
+SELECT eff.milestone_id, eff.id FROM eff
+`
+
+type ProjectEffectiveMilestonesRow struct {
+	MilestoneID uuid.UUID
+	ID          uuid.UUID
+}
+
+// The effective milestones of the work items of a project (spec 008, RF-70).
+func (q *Queries) ProjectEffectiveMilestones(ctx context.Context, projectID uuid.UUID) ([]ProjectEffectiveMilestonesRow, error) {
+	rows, err := q.db.Query(ctx, projectEffectiveMilestones, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectEffectiveMilestonesRow
+	for rows.Next() {
+		var i ProjectEffectiveMilestonesRow
+		if err := rows.Scan(&i.MilestoneID, &i.ID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const projectWeight = `-- name: ProjectWeight :one
 SELECT coalesce(sum(weight), 0)::bigint FROM work_items WHERE project_id = $1
 `
@@ -780,7 +848,6 @@ func (q *Queries) ProjectWeight(ctx context.Context, projectID uuid.UUID) (int64
 }
 
 const projectWorkItemTree = `-- name: ProjectWorkItemTree :many
-
 SELECT w.id, w.parent_id, w.sequence_number, w.title, w.type_id, w.status_id, w.priority_id,
        w.assignee_id, u.name AS assignee_name, w.weighted_done_ratio AS derived_done_ratio, w.agg_estimated, w.agg_remaining,
        w.depth, w.position, w.due_date, w.weight, w.size_id
@@ -809,7 +876,6 @@ type ProjectWorkItemTreeRow struct {
 	SizeID           *uuid.UUID
 }
 
-// Árbol ------------------------------------------------------------------------
 // Every work item of a project as a flat list (RF-130). The derived ratio is
 // the one weighted by weight (RF-153); derived_done_ratio is the previous one.
 func (q *Queries) ProjectWorkItemTree(ctx context.Context, projectID uuid.UUID) ([]ProjectWorkItemTreeRow, error) {

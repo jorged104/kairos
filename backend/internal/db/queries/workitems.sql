@@ -212,6 +212,25 @@ WHERE d.to_id = $1 AND d.type = 'blocks' AND NOT s.is_closed;
 
 -- Árbol ------------------------------------------------------------------------
 
+-- name: ProjectBlockedItems :many
+-- Work items of a project blocked by an open one (spec 008, RF-61).
+SELECT DISTINCT d.to_id FROM work_item_dependencies d
+JOIN work_items b ON b.id = d.from_id
+JOIN statuses bs ON bs.id = b.status_id
+JOIN work_items t ON t.id = d.to_id
+WHERE t.project_id = $1 AND d.type = 'blocks' AND NOT bs.is_closed;
+
+-- name: ProjectEffectiveMilestones :many
+-- The effective milestones of the work items of a project (spec 008, RF-70).
+WITH RECURSIVE eff AS (
+    SELECT mw.milestone_id, mw.work_item_id AS id
+    FROM milestone_work_items mw JOIN milestones m ON m.id = mw.milestone_id
+    WHERE m.project_id = $1
+    UNION
+    SELECT eff.milestone_id, c.id FROM work_items c JOIN eff ON c.parent_id = eff.id
+)
+SELECT eff.milestone_id, eff.id FROM eff;
+
 -- name: ProjectWorkItemTree :many
 -- Every work item of a project as a flat list (RF-130). The derived ratio is
 -- the one weighted by weight (RF-153); derived_done_ratio is the previous one.

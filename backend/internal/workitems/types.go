@@ -113,6 +113,11 @@ type Node struct {
 	Position   int32          `json:"position"`
 	DueDate    *workcore.Date `json:"due_date"`
 	Weight     int16          `json:"weight"`
+	// For the kanban and the timeline (spec 008, RF-61, RF-70); only from the
+	// tree and the list.
+	StartDate    *workcore.Date `json:"start_date,omitempty"`
+	Blocked      bool           `json:"blocked"`
+	MilestoneIDs []uuid.UUID    `json:"milestone_ids,omitempty"`
 }
 
 type createRequest struct {

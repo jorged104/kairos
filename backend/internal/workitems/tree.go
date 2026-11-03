@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -32,21 +30,22 @@ type Page struct {
 }
 
 // Tree returns every work item of a project as a flat list ordered by depth;
-// the client builds the tree (RF-130).
-func (s *Service) Tree(ctx context.Context, p *authz.Principal, projectID uuid.UUID) ([]Node, error) {
+// the client builds the tree (RF-130). With filters, only the matching ones,
+// for the kanban, the timeline and the filtered table (spec 008, RF-22).
+func (s *Service) Tree(ctx context.Context, p *authz.Principal, projectID uuid.UUID, query url.Values) ([]Node, error) {
 	project, err := projects.Get(ctx, s.store.Queries, p, projectID, false)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.store.ProjectWorkItemTree(ctx, projectID)
+	where, err := Where(projectID, project.Identifier, p.UserID, query)
 	if err != nil {
-		return nil, fmt.Errorf("leer árbol: %w", err)
+		return nil, err
 	}
-	out := make([]Node, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, NodeFrom(project.Identifier, sqlc.WorkItemDescendantsRow(r)))
+	order, err := OrderBy(query, "w.depth, w.position, w.sequence_number")
+	if err != nil {
+		return nil, err
 	}
-	return out, fillAll(ctx, s.store.Queries, out)
+	return s.nodes(ctx, project, psql.Select().From("work_items w").Join("statuses s ON s.id = w.status_id").Where(where).OrderBy(order))
 }
 
 // Descendants returns every descendant of a work item in one query (RF-79).
@@ -130,10 +129,8 @@ func fillAll(ctx context.Context, q *sqlc.Queries, nodes []Node) error {
 
 var psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-// List returns the work items of a project by number (RF-129). Query
-// parameters: q (title or number), type_id, status_id, closed (true/false),
-// priority_id, assignee_id (or "none"), milestone_id (effective, inherited
-// included), page, page_size.
+// List returns the work items of a project, a page at a time (RF-129), with
+// the filters and orders of filters.go (spec 008).
 func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.UUID, query url.Values) (Page, error) {
 	project, err := projects.Get(ctx, s.store.Queries, p, projectID, false)
 	if err != nil {
@@ -143,68 +140,14 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 	if !ok {
 		return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "page")
 	}
-	where := sq.And{sq.Eq{"w.project_id": projectID}}
-	if text := strings.TrimSpace(query.Get("q")); text != "" {
-		cond := sq.Or{sq.Expr("unaccent(lower(w.title)) LIKE unaccent(lower(?))", "%"+workcore.EscapeLike(text)+"%")}
-		num := strings.TrimPrefix(strings.ToUpper(text), project.Identifier+"-")
-		if n, err := strconv.Atoi(num); err == nil {
-			cond = append(cond, sq.Eq{"w.sequence_number": n})
-		}
-		where = append(where, cond)
+	where, err := Where(projectID, project.Identifier, p.UserID, query)
+	if err != nil {
+		return Page{}, err
 	}
-	for param, col := range map[string]string{"type_id": "w.type_id", "status_id": "w.status_id", "priority_id": "w.priority_id"} {
-		if v := query.Get(param); v != "" {
-			id, err := uuid.Parse(v)
-			if err != nil {
-				return Page{}, apperr.ErrInvalidFilter.WithDetail("field", param)
-			}
-			where = append(where, sq.Eq{col: id})
-		}
+	order, err := OrderBy(query, "w.sequence_number")
+	if err != nil {
+		return Page{}, err
 	}
-	// A work item matches by any of its assignees (RF-19).
-	switch v := query.Get("assignee_id"); v {
-	case "":
-	case "none":
-		where = append(where, sq.Expr("NOT EXISTS (SELECT 1 FROM work_item_assignees a WHERE a.work_item_id = w.id)"))
-	default:
-		id, err := uuid.Parse(v)
-		if err != nil {
-			return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "assignee_id")
-		}
-		where = append(where, sq.Expr("EXISTS (SELECT 1 FROM work_item_assignees a WHERE a.work_item_id = w.id AND a.user_id = ?)", id))
-	}
-	// Any of the labels (spec 007, RF-44).
-	if vs := query["label_id"]; len(vs) > 0 {
-		ids := make([]uuid.UUID, 0, len(vs))
-		for _, v := range vs {
-			id, err := uuid.Parse(v)
-			if err != nil {
-				return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "label_id")
-			}
-			ids = append(ids, id)
-		}
-		where = append(where, sq.Expr("EXISTS (SELECT 1 FROM work_item_labels l WHERE l.work_item_id = w.id AND l.label_id = ANY (?))", ids))
-	}
-	switch v := query.Get("closed"); v {
-	case "":
-	case "true", "false":
-		where = append(where, sq.Eq{"s.is_closed": v == "true"})
-	default:
-		return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "closed")
-	}
-	if v := query.Get("milestone_id"); v != "" {
-		id, err := uuid.Parse(v)
-		if err != nil {
-			return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "milestone_id")
-		}
-		where = append(where, sq.Expr(`w.id IN (
-			WITH RECURSIVE eff AS (
-				SELECT mw.work_item_id AS id FROM milestone_work_items mw WHERE mw.milestone_id = ?
-				UNION
-				SELECT c.id FROM work_items c JOIN eff ON c.parent_id = eff.id
-			) SELECT id FROM eff)`, id))
-	}
-
 	base := psql.Select().From("work_items w").Join("statuses s ON s.id = w.status_id").Where(where)
 	countSQL, countArgs, err := base.Column("count(*)").ToSql()
 	if err != nil {
@@ -214,34 +157,93 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, projectID uuid.U
 	if err := s.store.Pool.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return Page{}, fmt.Errorf("contar work items: %w", err)
 	}
-	listSQL, args, err := base.Columns(
-		"w.id", "w.parent_id", "w.sequence_number", "w.title", "w.type_id", "w.status_id", "w.priority_id",
-		"w.assignee_id", "u.name", "w.weighted_done_ratio", "w.agg_estimated", "w.agg_remaining",
-		"w.depth", "w.position", "w.due_date", "w.weight", "w.size_id",
-	).LeftJoin("users u ON u.id = w.assignee_id").OrderBy("w.sequence_number").
-		Limit(uint64(page.Size)).Offset(uint64(page.Offset())).ToSql()
+	items, err := s.nodes(ctx, project, base.OrderBy(order).Limit(uint64(page.Size)).Offset(uint64(page.Offset())))
 	if err != nil {
-		return Page{}, fmt.Errorf("construir listado: %w", err)
-	}
-	rows, err := s.store.Pool.Query(ctx, listSQL, args...)
-	if err != nil {
-		return Page{}, fmt.Errorf("listar work items: %w", err)
-	}
-	defer rows.Close()
-	out := Page{Items: []Node{}, Total: total, Page: page.Number, PageSize: page.Size}
-	for rows.Next() {
-		var r sqlc.WorkItemDescendantsRow
-		var due *time.Time
-		if err := rows.Scan(&r.ID, &r.ParentID, &r.SequenceNumber, &r.Title, &r.TypeID, &r.StatusID, &r.PriorityID,
-			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position, &due, &r.Weight, &r.SizeID); err != nil {
-			return Page{}, fmt.Errorf("leer work item: %w", err)
-		}
-		r.DueDate = due
-		out.Items = append(out.Items, NodeFrom(project.Identifier, r))
-	}
-	if err := rows.Err(); err != nil {
 		return Page{}, err
 	}
+	return Page{Items: items, Total: total, Page: page.Number, PageSize: page.Size}, nil
+}
+
+// Count is how many work items of a project match some filters (spec 008, RF-26).
+func (s *Service) Count(ctx context.Context, p *authz.Principal, project sqlc.Project, query url.Values) (int64, error) {
+	where, err := Where(project.ID, project.Identifier, p.UserID, query)
+	if err != nil {
+		return 0, err
+	}
+	sql, args, err := psql.Select("count(*)").From("work_items w").Join("statuses s ON s.id = w.status_id").Where(where).ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("construir conteo: %w", err)
+	}
+	var n int64
+	if err := s.store.Pool.QueryRow(ctx, sql, args...).Scan(&n); err != nil {
+		return 0, fmt.Errorf("contar work items: %w", err)
+	}
+	return n, nil
+}
+
+// nodes runs a select of work items and fills their lists, whether they are
+// blocked and their effective milestones (spec 008, RF-61, RF-70).
+func (s *Service) nodes(ctx context.Context, project sqlc.Project, sel sq.SelectBuilder) ([]Node, error) {
+	sql, args, err := sel.Columns(
+		"w.id", "w.parent_id", "w.sequence_number", "w.title", "w.type_id", "w.status_id", "w.priority_id",
+		"w.assignee_id", "u.name", "w.weighted_done_ratio", "w.agg_estimated", "w.agg_remaining",
+		"w.depth", "w.position", "w.due_date", "w.weight", "w.size_id", "w.start_date",
+	).LeftJoin("users u ON u.id = w.assignee_id").ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("construir listado: %w", err)
+	}
+	rows, err := s.store.Pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("listar work items: %w", err)
+	}
+	defer rows.Close()
+	out := []Node{}
+	for rows.Next() {
+		var r sqlc.WorkItemDescendantsRow
+		var due, start *time.Time
+		if err := rows.Scan(&r.ID, &r.ParentID, &r.SequenceNumber, &r.Title, &r.TypeID, &r.StatusID, &r.PriorityID,
+			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position,
+			&due, &r.Weight, &r.SizeID, &start); err != nil {
+			return nil, fmt.Errorf("leer work item: %w", err)
+		}
+		r.DueDate = due
+		n := NodeFrom(project.Identifier, r)
+		n.StartDate = workcore.FromTime(start)
+		out = append(out, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	rows.Close()
-	return out, fillAll(ctx, s.store.Queries, out.Items)
+	if err := fillAll(ctx, s.store.Queries, out); err != nil {
+		return nil, err
+	}
+	return out, s.fillPlanning(ctx, project.ID, out)
+}
+
+func (s *Service) fillPlanning(ctx context.Context, projectID uuid.UUID, nodes []Node) error {
+	blocked, err := s.store.ProjectBlockedItems(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("leer bloqueos: %w", err)
+	}
+	isBlocked := map[uuid.UUID]bool{}
+	for _, id := range blocked {
+		isBlocked[id] = true
+	}
+	eff, err := s.store.ProjectEffectiveMilestones(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("leer hitos efectivos: %w", err)
+	}
+	milestones := map[uuid.UUID][]uuid.UUID{}
+	for _, e := range eff {
+		milestones[e.ID] = append(milestones[e.ID], e.MilestoneID)
+	}
+	for i := range nodes {
+		nodes[i].Blocked = isBlocked[nodes[i].ID]
+		nodes[i].MilestoneIDs = milestones[nodes[i].ID]
+		if nodes[i].MilestoneIDs == nil {
+			nodes[i].MilestoneIDs = []uuid.UUID{}
+		}
+	}
+	return nil
 }
