@@ -28,6 +28,7 @@ type Item struct {
 	ParentID   *uuid.UUID
 	Weight     int
 	Ratio      int // own progress, closed = 100 (RF-26)
+	Closed     bool
 	Start      *time.Time
 	Due        *time.Time
 	InBaseline bool
@@ -35,7 +36,7 @@ type Item struct {
 
 // FromRow resolves the planned dates of a work item.
 func FromRow(r sqlc.ProjectPlanItemsRow) Item {
-	it := Item{ID: r.ID, ParentID: r.ParentID, Weight: int(r.Weight), Ratio: int(r.Ratio), Start: r.StartDate, Due: r.DueDate}
+	it := Item{ID: r.ID, ParentID: r.ParentID, Weight: int(r.Weight), Ratio: int(r.Ratio), Closed: r.IsClosed, Start: r.StartDate, Due: r.DueDate}
 	if r.InBaseline {
 		it.InBaseline, it.Start, it.Due = true, r.BaseStart, r.BaseDue
 	}

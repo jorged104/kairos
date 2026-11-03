@@ -48,6 +48,8 @@ type Tree struct {
 	Nodes    map[uuid.UUID]Node
 	Children map[uuid.UUID][]uuid.UUID
 	Order    []uuid.UUID // by name
+	// The work items of each project, when loaded from the database.
+	Items map[uuid.UUID][]schedule.Item
 }
 
 func NewTree(nodes []Node) Tree {
@@ -89,7 +91,16 @@ func (t Tree) Members(id uuid.UUID) []Node {
 // weighted by their weight; the simple mean when all weigh 0 (RF-11, RF-12,
 // RF-17 to RF-20).
 func (t Tree) Aggregate(id uuid.UUID, s schedule.Settings) schedule.Figures {
-	members := t.Members(id)
+	f := Combine(t.Members(id), s)
+	if t.Nodes[id].Lifecycle != lifecycleActive { // RF-20
+		f = schedule.Figures{Real: f.Real}
+	}
+	return f
+}
+
+// Combine is the mean of the plan and the real progress of some projects,
+// weighted by their weight (spec 011, RF-13).
+func Combine(members []Node, s schedule.Settings) schedule.Figures {
 	var w, wr, wp, pw, plain, plans float64
 	var planned int
 	for _, m := range members {
@@ -116,9 +127,6 @@ func (t Tree) Aggregate(id uuid.UUID, s schedule.Settings) schedule.Figures {
 		plan = wp / pw
 	case planned > 0:
 		plan = plans / float64(planned)
-	}
-	if t.Nodes[id].Lifecycle != lifecycleActive { // RF-20
-		hasPlan = false
 	}
 	return schedule.Make(clamp(plan), hasPlan, clamp(real), s)
 }

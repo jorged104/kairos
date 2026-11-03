@@ -40,7 +40,9 @@ func Load(ctx context.Context, q *sqlc.Queries, today time.Time) (Tree, schedule
 		nodes = append(nodes, Node{ID: p.ID, ParentID: p.ParentID, Identifier: p.Identifier, Name: p.Name, Lifecycle: p.Lifecycle,
 			IsProgram: p.IsProgram, ManualWeight: p.PortfolioWeight, Effort: p.Effort, Plan: plan, HasPlan: ok, Real: schedule.Real(its)})
 	}
-	return NewTree(nodes), set, nil
+	tree := NewTree(nodes)
+	tree.Items = items
+	return tree, set, nil
 }
 
 // Portfolio is every program and the projects without one (RF-22 to RF-29).
