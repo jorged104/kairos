@@ -173,7 +173,11 @@ var workOps = []workOp{
 	{"ligar work item a hito", func(m *workMatrix, c *Client, a string) *Response {
 		p := m.project(a)
 		return c.Post("/api/milestones/"+m.milestone(p).ID.String()+"/work-items", map[string]any{"work_item_id": m.workItem(p).ID})
-	}, managers(204)},
+	}, writers(204)},
+	{"desligar work items de un hito", func(m *workMatrix, c *Client, a string) *Response {
+		p := m.project(a)
+		return c.Post("/api/milestones/"+m.milestone(p).ID.String()+"/work-items/unlink", map[string]any{"work_item_ids": []uuid.UUID{m.workItem(p).ID}})
+	}, writers(200)},
 	{"cumplir hito", func(m *workMatrix, c *Client, a string) *Response {
 		ms := m.milestone(m.project(a))
 		return c.Post("/api/milestones/"+ms.ID.String()+"/complete", map[string]any{"version": ms.Version})

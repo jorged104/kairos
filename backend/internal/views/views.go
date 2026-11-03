@@ -209,9 +209,9 @@ func availability(ctx context.Context, q *sqlc.Queries, projectID uuid.UUID) (fu
 	}
 	return func(field, value string) bool {
 		switch field {
-		case "status_id", "type_id", "priority_id", "label_id", "milestone_id":
+		case "status_id", "type_id", "priority_id", "label_id":
 			return known[field][value]
-		case "size_id":
+		case "size_id", "milestone_id":
 			return value == "none" || known[field][value]
 		case "assignee_id":
 			if value == "none" || value == "me" {

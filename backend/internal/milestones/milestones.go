@@ -64,6 +64,8 @@ type Milestone struct {
 	Progress    Progress                `json:"progress"`
 	Can         struct {
 		Manage bool `json:"manage"`
+		// Linking work items is editing them (spec 004, RF-161).
+		LinkWorkItems bool `json:"link_work_items"`
 	} `json:"can"`
 }
 
@@ -98,8 +100,24 @@ type statusRequest struct {
 	CompletedOn *workcore.Date `json:"completed_on"`
 }
 
+// linkRequest brings one work item, as previous clients do, or several
+// (RF-164, RF-166).
 type linkRequest struct {
-	WorkItemID uuid.UUID `json:"work_item_id" validate:"required"`
+	WorkItemID  uuid.UUID   `json:"work_item_id"`
+	WorkItemIDs []uuid.UUID `json:"work_item_ids" validate:"max=200"`
+}
+
+// ids is every work item of the request, each once.
+func (r linkRequest) ids() []uuid.UUID {
+	seen := map[uuid.UUID]bool{}
+	var out []uuid.UUID
+	for _, id := range append([]uuid.UUID{r.WorkItemID}, r.WorkItemIDs...) {
+		if id != uuid.Nil && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 var (
@@ -144,6 +162,19 @@ func manageable(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uui
 		return m, project, err
 	}
 	if !p.CanManageProject(projects.Ref(project)) {
+		return m, project, apperr.ErrForbidden
+	}
+	return m, project, projects.Writable(project)
+}
+
+// linkable loads a milestone whose project's work items the caller edits and
+// can write (RF-161).
+func linkable(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID) (sqlc.Milestone, sqlc.Project, error) {
+	m, project, err := load(ctx, q, p, id, true)
+	if err != nil {
+		return m, project, err
+	}
+	if !p.CanWriteWorkItems(projects.Ref(project)) {
 		return m, project, apperr.ErrForbidden
 	}
 	return m, project, projects.Writable(project)
@@ -372,41 +403,62 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 	})
 }
 
-// Link makes a work item count for a milestone (RF-50, RF-51). It needs the
-// permission to manage the milestone (RF-127).
-func (s *Service) Link(ctx context.Context, p *authz.Principal, id, workItemID uuid.UUID, linked bool) error {
-	return s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		_, project, err := manageable(ctx, q, p, id)
+// Link makes work items count for a milestone, or stops it (RF-50, RF-51,
+// RF-164 to RF-169): all or none, auditing only the ones that changed. It
+// needs the permission to edit the project's work items (RF-161). It returns
+// how many changed.
+func (s *Service) Link(ctx context.Context, p *authz.Principal, id uuid.UUID, workItemIDs []uuid.UUID, linked bool) (int, error) {
+	if len(workItemIDs) == 0 || len(workItemIDs) > maxLinks {
+		return 0, apperr.ErrValidation.WithDetail("field", "work_item_ids")
+	}
+	changed := 0
+	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
+		_, project, err := linkable(ctx, q, p, id)
 		if err != nil {
 			return err
 		}
-		wi, err := q.GetWorkItem(ctx, workItemID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return apperr.ErrValidation.WithDetail("field", "work_item_id")
-		}
+		rows, err := q.WorkItemProjects(ctx, workItemIDs)
 		if err != nil {
-			return fmt.Errorf("leer work item: %w", err)
+			return fmt.Errorf("leer work items: %w", err)
 		}
-		if wi.ProjectID != project.ID {
-			return errCrossProject.WithDetail("field", "work_item_id")
+		if len(rows) != len(workItemIDs) {
+			return apperr.ErrValidation.WithDetail("field", "work_item_ids")
 		}
-		action := "milestone.work_item_linked"
-		if linked {
-			err = q.LinkMilestoneWorkItem(ctx, sqlc.LinkMilestoneWorkItemParams{MilestoneID: id, WorkItemID: workItemID, ProjectID: project.ID})
-		} else {
-			action = "milestone.work_item_unlinked"
-			var n int64
-			if n, err = q.UnlinkMilestoneWorkItem(ctx, sqlc.UnlinkMilestoneWorkItemParams{MilestoneID: id, WorkItemID: workItemID}); err == nil && n == 0 {
-				return apperr.ErrNotFound
+		for _, r := range rows {
+			if r.ProjectID != project.ID {
+				return errCrossProject.WithDetail("field", "work_item_ids")
 			}
 		}
-		if err != nil {
-			return fmt.Errorf("ligar work item: %w", err)
+		action := "milestone.work_item_linked"
+		if !linked {
+			action = "milestone.work_item_unlinked"
 		}
-		return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: action, TargetType: "milestone",
-			TargetID: id.String(), After: map[string]any{"work_item_id": workItemID}})
+		for _, wi := range workItemIDs {
+			var n int64
+			if linked {
+				n, err = q.LinkMilestoneWorkItem(ctx, sqlc.LinkMilestoneWorkItemParams{MilestoneID: id, WorkItemID: wi, ProjectID: project.ID})
+			} else {
+				n, err = q.UnlinkMilestoneWorkItem(ctx, sqlc.UnlinkMilestoneWorkItemParams{MilestoneID: id, WorkItemID: wi})
+			}
+			if err != nil {
+				return fmt.Errorf("ligar work item: %w", err)
+			}
+			if n == 0 {
+				continue // already so (RF-169)
+			}
+			changed++
+			if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: action, TargetType: "milestone",
+				TargetID: id.String(), After: map[string]any{"work_item_id": wi}}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
+	return changed, err
 }
+
+// maxLinks is the most work items linked or unlinked at once (RF-166).
+const maxLinks = 200
 
 // WorkItems lists the effective work items of a milestone (RF-52).
 func (s *Service) WorkItems(ctx context.Context, p *authz.Principal, id uuid.UUID) ([]Item, error) {
@@ -483,6 +535,7 @@ func (s *Service) base(p *authz.Principal, m sqlc.Milestone, project sqlc.Projec
 	today := time.Date(s.now().Year(), s.now().Month(), s.now().Day(), 0, 0, 0, 0, time.UTC)
 	out.Overdue = m.Status == StatusOpen && m.DueDate != nil && m.DueDate.Before(today) // RF-48
 	out.Can.Manage = p.CanManageProject(projects.Ref(project)) && projects.Writable(project) == nil
+	out.Can.LinkWorkItems = p.CanWriteWorkItems(projects.Ref(project)) && projects.Writable(project) == nil
 	return out
 }
 

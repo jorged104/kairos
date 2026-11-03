@@ -119,7 +119,7 @@ func (q *Queries) GetMilestoneForUpdate(ctx context.Context, id uuid.UUID) (Mile
 	return i, err
 }
 
-const linkMilestoneWorkItem = `-- name: LinkMilestoneWorkItem :exec
+const linkMilestoneWorkItem = `-- name: LinkMilestoneWorkItem :execrows
 INSERT INTO milestone_work_items (milestone_id, work_item_id, project_id) VALUES ($1, $2, $3)
 ON CONFLICT DO NOTHING
 `
@@ -130,9 +130,12 @@ type LinkMilestoneWorkItemParams struct {
 	ProjectID   uuid.UUID
 }
 
-func (q *Queries) LinkMilestoneWorkItem(ctx context.Context, arg LinkMilestoneWorkItemParams) error {
-	_, err := q.db.Exec(ctx, linkMilestoneWorkItem, arg.MilestoneID, arg.WorkItemID, arg.ProjectID)
-	return err
+func (q *Queries) LinkMilestoneWorkItem(ctx context.Context, arg LinkMilestoneWorkItemParams) (int64, error) {
+	result, err := q.db.Exec(ctx, linkMilestoneWorkItem, arg.MilestoneID, arg.WorkItemID, arg.ProjectID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listProjectMilestones = `-- name: ListProjectMilestones :many
@@ -501,6 +504,36 @@ func (q *Queries) WorkItemEffectiveMilestones(ctx context.Context, id uuid.UUID)
 			&i.DueDate,
 			&i.Direct,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const workItemProjects = `-- name: WorkItemProjects :many
+SELECT id, project_id FROM work_items WHERE id = ANY ($1::uuid[])
+`
+
+type WorkItemProjectsRow struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+}
+
+// The project of each work item, to link several at once (RF-164, RF-165).
+func (q *Queries) WorkItemProjects(ctx context.Context, ids []uuid.UUID) ([]WorkItemProjectsRow, error) {
+	rows, err := q.db.Query(ctx, workItemProjects, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkItemProjectsRow
+	for rows.Next() {
+		var i WorkItemProjectsRow
+		if err := rows.Scan(&i.ID, &i.ProjectID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
