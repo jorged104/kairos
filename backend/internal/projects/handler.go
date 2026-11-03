@@ -3,6 +3,7 @@ package projects
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -38,6 +39,13 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Patch("/phases/{id}", h.updatePhase)
 		r.Post("/phases/{id}/gates/{gate}", h.gate)
 		r.Post("/projects/from-template", h.fromTemplate)
+		r.Get("/projects/{id}/members", h.members)
+		r.Post("/projects/{id}/members", h.addMember)
+		r.Patch("/projects/{id}/members/{userId}", h.setRole)
+		r.Delete("/projects/{id}/members/{userId}", h.removeMember)
+		r.Get("/projects/{id}/assignment-suggestions", h.suggestions)
+		r.Get("/projects/{id}/overview", h.overview)
+		r.Put("/projects/{id}/column-limits/{statusId}", h.columnLimit)
 	})
 	r.With(auth.RequirePermission(authz.TemplatesUse, h.logger)).Get("/templates", h.templates)
 	r.Group(func(r chi.Router) {
@@ -79,6 +87,113 @@ func (h *Handler) id(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 		apperr.Write(w, h.logger, apperr.ErrNotFound)
 	}
 	return id, ok
+}
+
+// Team of the project (spec 008).
+
+func (h *Handler) members(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	ms, err := h.svc.Members(r.Context(), authz.FromContext(r.Context()), id)
+	h.reply(w, http.StatusOK, map[string]any{"items": ms}, err)
+}
+
+func (h *Handler) addMember(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	var req memberRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	ms, err := h.svc.SetMember(r.Context(), authz.FromContext(r.Context()), id, req.UserID, req.Role, true)
+	h.reply(w, http.StatusOK, map[string]any{"items": ms}, err)
+}
+
+func (h *Handler) setRole(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	userID, ok := httpx.PathUUID(r, "userId")
+	if !ok {
+		apperr.Write(w, h.logger, apperr.ErrNotFound)
+		return
+	}
+	var req roleRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	ms, err := h.svc.SetMember(r.Context(), authz.FromContext(r.Context()), id, userID, req.Role, false)
+	h.reply(w, http.StatusOK, map[string]any{"items": ms}, err)
+}
+
+func (h *Handler) removeMember(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	userID, ok := httpx.PathUUID(r, "userId")
+	if !ok {
+		apperr.Write(w, h.logger, apperr.ErrNotFound)
+		return
+	}
+	ms, err := h.svc.RemoveMember(r.Context(), authz.FromContext(r.Context()), id, userID)
+	h.reply(w, http.StatusOK, map[string]any{"items": ms}, err)
+}
+
+func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	items, err := h.svc.Suggestions(r.Context(), authz.FromContext(r.Context()), id)
+	h.reply(w, http.StatusOK, map[string]any{"items": items}, err)
+}
+
+// overview takes today as the caller's date (YYYY-MM-DD) (spec 008, RF-6).
+func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	today := time.Now().UTC()
+	if v := r.URL.Query().Get("today"); v != "" {
+		t, err := time.Parse(time.DateOnly, v)
+		if err != nil {
+			apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "today"))
+			return
+		}
+		today = t
+	}
+	out, err := h.svc.Overview(r.Context(), authz.FromContext(r.Context()), id, today)
+	h.reply(w, http.StatusOK, out, err)
+}
+
+func (h *Handler) columnLimit(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	statusID, ok := httpx.PathUUID(r, "statusId")
+	if !ok {
+		apperr.Write(w, h.logger, apperr.ErrNotFound)
+		return
+	}
+	var req struct {
+		Limit *int32 `json:"limit"`
+	}
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	p, err := h.svc.SetColumnLimit(r.Context(), authz.FromContext(r.Context()), id, statusID, req.Limit)
+	h.reply(w, http.StatusOK, p, err)
 }
 
 func (h *Handler) reply(w http.ResponseWriter, status int, v any, err error) {

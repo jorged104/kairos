@@ -223,6 +223,12 @@ export interface WorkItemCreateInput {
   parent_id?: string | null
   assignee_id?: string | null
   description?: RichDoc
+  /** The values of the filters of the view where it is made (spec 008, RF-59, RF-69). */
+  status_id?: string
+  priority_id?: string
+  size_id?: string
+  label_ids?: string[]
+  assignee_ids?: string[]
 }
 
 export const createWorkItem = (projectId: string, input: WorkItemCreateInput) =>

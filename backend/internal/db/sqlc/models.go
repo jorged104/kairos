@@ -263,6 +263,12 @@ type Project struct {
 	PageVersion       int32
 }
 
+type ProjectColumnLimit struct {
+	ProjectID uuid.UUID
+	StatusID  uuid.UUID
+	WipLimit  int32
+}
+
 type ProjectCustomField struct {
 	ProjectID uuid.UUID
 	FieldID   uuid.UUID
@@ -272,6 +278,14 @@ type ProjectCustomValue struct {
 	ProjectID uuid.UUID
 	FieldID   uuid.UUID
 	Value     json.RawMessage
+	UpdatedAt time.Time
+}
+
+type ProjectMember struct {
+	ProjectID uuid.UUID
+	UserID    uuid.UUID
+	Role      string
+	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
@@ -286,6 +300,25 @@ type ProjectPhase struct {
 	StartGatePassedBy  *uuid.UUID
 	FinishGatePassedAt *time.Time
 	FinishGatePassedBy *uuid.UUID
+}
+
+type ProjectProgressDaily struct {
+	ProjectID uuid.UUID
+	Day       time.Time
+	Progress  int16
+	UpdatedAt time.Time
+}
+
+type ProjectView struct {
+	ID             uuid.UUID
+	ProjectID      uuid.UUID
+	OwnerID        *uuid.UUID
+	Name           string
+	NameNormalized string
+	Config         json.RawMessage
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type ProjectWorkItemType struct {
@@ -338,6 +371,7 @@ type User struct {
 	Status          string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	WeeklyCapacity  *int32
 }
 
 type UserAttributeValue struct {

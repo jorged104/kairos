@@ -132,6 +132,7 @@ func (s *Service) view(ctx context.Context, p *authz.Principal, t target) (User,
 	}
 	hasPassword := err == nil
 	u.HasPassword = &hasPassword
+	u.Capacity = t.user.WeeklyCapacity
 	u.Can = &Abilities{
 		Edit:        p.CanActOn(authz.UsersUpdateAll, authz.UsersUpdateTeam, t.authzT),
 		SetStatus:   p.CanActOn(authz.UsersStatusAll, authz.UsersStatusTeam, t.authzT),
@@ -270,6 +271,32 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			}
 		}
 		return attributes.Apply(ctx, q, id, req.Attributes, true)
+	})
+	if err != nil {
+		return User{}, err
+	}
+	return s.Get(ctx, p, id)
+}
+
+// SetCapacity changes someone's weekly capacity, or clears it (spec 008,
+// RF-46, RF-47): administrators, and leaders of one of their teams.
+func (s *Service) SetCapacity(ctx context.Context, p *authz.Principal, id uuid.UUID, capacity *int32) (User, error) {
+	if capacity != nil && (*capacity < 0 || *capacity > 1000) {
+		return User{}, apperr.ErrValidation.WithDetail("field", "capacity")
+	}
+	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
+		t, err := loadTarget(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if !p.CanActOn(authz.UsersUpdateAll, authz.UsersUpdateTeam, t.authzT) {
+			return apperr.ErrForbidden
+		}
+		if _, err := q.SetUserCapacity(ctx, sqlc.SetUserCapacityParams{ID: id, Capacity: capacity}); err != nil {
+			return fmt.Errorf("guardar capacidad: %w", err)
+		}
+		return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "user.capacity_changed", TargetType: "user",
+			TargetID: id.String(), Before: map[string]any{"capacity": t.user.WeeklyCapacity}, After: map[string]any{"capacity": capacity}})
 	})
 	if err != nil {
 		return User{}, err

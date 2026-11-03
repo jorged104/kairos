@@ -127,7 +127,7 @@ func (h *Handler) tree(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	nodes, err := h.svc.Tree(r.Context(), authz.FromContext(r.Context()), id)
+	nodes, err := h.svc.Tree(r.Context(), authz.FromContext(r.Context()), id, r.URL.Query())
 	h.reply(w, http.StatusOK, map[string]any{"items": nodes}, err)
 }
 

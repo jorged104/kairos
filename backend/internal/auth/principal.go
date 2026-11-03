@@ -83,7 +83,15 @@ func (l *PrincipalLoader) fetch(ctx context.Context, id uuid.UUID) (*authz.Princ
 	if err != nil {
 		return nil, fmt.Errorf("cargar equipos: %w", err)
 	}
-	return authz.NewPrincipal(u.ID, u.Status, roles, scope).WithParticipantTeams(participant), nil
+	rolesIn, err := l.store.ListUserProjectRoles(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("cargar papeles: %w", err)
+	}
+	inProjects := make(map[uuid.UUID]authz.ProjectRole, len(rolesIn))
+	for _, r := range rolesIn {
+		inProjects[r.ProjectID] = authz.ProjectRole(r.Role)
+	}
+	return authz.NewPrincipal(u.ID, u.Status, roles, scope).WithParticipantTeams(participant).WithProjectRoles(inProjects), nil
 }
 
 // Invalidate drops one user's cached principal after a change made here.

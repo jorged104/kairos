@@ -14,6 +14,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/files"
 	"openscum/internal/health"
+	"openscum/internal/projects"
 	"openscum/internal/server"
 )
 
@@ -41,9 +42,11 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("almacenamiento de archivos: %w", err)
 	}
-	app := server.NewApp(cfg, db.NewStore(pool), storage, logger)
+	store := db.NewStore(pool)
+	app := server.NewApp(cfg, store, storage, logger)
 	go app.Hub.Run(ctx)
 	go app.Events.Run(ctx)
+	go projects.RecordProgress(ctx, store, logger, time.Hour) // spec 008, RF-12
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

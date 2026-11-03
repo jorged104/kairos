@@ -157,6 +157,16 @@ var workOps = []workOp{
 	{"proyecto desde plantilla", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/projects/from-template", map[string]any{"template_id": m.template, "identifier": m.identifier(), "name": "N", "team_id": m.teamFor(a)})
 	}, map[string]int{"admin": 201, "lead:in": 201}},
+	// Team of the project (spec 008, RF-4, RF-33, RF-52): its managers.
+	{"ver equipo del proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/projects/" + m.project(a).String() + "/members")
+	}, managers(200)},
+	{"dar papel en el proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/projects/"+m.project(a).String()+"/members", map[string]any{"user_id": m.actors["stranger"], "role": "member"})
+	}, managers(200)},
+	{"ver sugerencias de asignación", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/projects/" + m.project(a).String() + "/assignment-suggestions")
+	}, managers(200)},
 	{"crear hito", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/projects/"+m.project(a).String()+"/milestones", map[string]any{"name": "M"})
 	}, managers(201)},

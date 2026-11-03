@@ -113,6 +113,20 @@ type Node struct {
 	Position   int32          `json:"position"`
 	DueDate    *workcore.Date `json:"due_date"`
 	Weight     int16          `json:"weight"`
+	// For the kanban and the timeline (spec 008, RF-61, RF-70); only from the
+	// tree and the list.
+	StartDate    *workcore.Date `json:"start_date,omitempty"`
+	ClosedAt     *time.Time     `json:"closed_at,omitempty"`
+	Blocked      bool           `json:"blocked"`
+	MilestoneIDs []uuid.UUID    `json:"milestone_ids,omitempty"`
+	// What this one blocks or precedes, for the timeline (RF-79).
+	Successors []Successor `json:"successors,omitempty"`
+}
+
+type Successor struct {
+	ToID    uuid.UUID `json:"to_id"`
+	Type    string    `json:"type"`
+	LagDays int16     `json:"lag_days"`
 }
 
 type createRequest struct {
