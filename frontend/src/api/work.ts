@@ -229,6 +229,9 @@ export interface WorkItemCreateInput {
   size_id?: string
   label_ids?: string[]
   assignee_ids?: string[]
+  /** The timeline creates them with dates (spec 008, RF-86, RF-88). */
+  start_date?: string
+  due_date?: string
 }
 
 export const createWorkItem = (projectId: string, input: WorkItemCreateInput) =>
