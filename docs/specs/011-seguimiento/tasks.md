@@ -6,7 +6,7 @@
 - [x] **T2 — Columnas de tareas (API)**
   - RF: RF-30 a RF-41
   - Hecho cuando: unitarios del reparto y apitest de las columnas.
-- [ ] **T3 — Frontend**
+- [x] **T3 — Frontend**
   - RF: RF-1 a RF-43
   - Hecho cuando: Vitest de filtros en la URL, Gantt, columnas y enlaces.
 - [ ] **T4 — Prueba manual** (tú)
