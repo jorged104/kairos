@@ -144,7 +144,7 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 - RF-84: SI una tarea padre no tiene fechas y alguna de sus subtareas del grupo sí, ENTONCES EL SISTEMA mostrará su fila sin barra arrastrable, con una marca del intervalo que cubren sus subtareas.
 - RF-85: EL SISTEMA permitirá plegar y desplegar las subtareas de una tarea padre.
 - RF-86: CUANDO el usuario cree una tarea desde el pie de un grupo, EL SISTEMA la creará con inicio hoy y fin seis días después.
-- RF-87: CUANDO el usuario cree una tarea desde el pie del grupo de un hito y pueda gestionar los hitos, EL SISTEMA la vinculará a ese hito.
+- RF-87: CUANDO el usuario cree una tarea desde el pie del grupo de un hito, EL SISTEMA la vinculará a ese hito (ligar es editar la tarea, spec 004, RF-161).
 - RF-88: CUANDO el usuario cree una subtarea desde una fila, EL SISTEMA la creará como hija de esa tarea con sus fechas de inicio y fin, o con las de RF-86 si la tarea no las tiene.
 - RF-89: CUANDO se cree una tarea en el cronograma mientras hay filtros activos, EL SISTEMA le pondrá los valores de los filtros que tengan un único valor, como en RF-59.
 

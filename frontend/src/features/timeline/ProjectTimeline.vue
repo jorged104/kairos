@@ -218,7 +218,7 @@ async function create(g: Group, parent: WorkNode | null) {
     })
     // A sub-item takes its parent's milestones by itself.
     const milestone = parent ? undefined : g.key || milestoneId
-    if (milestone && props.project.can.manage) await linkMilestoneWorkItem(milestone, created.id).catch(() => undefined)
+    if (milestone && milestone !== 'none') await linkMilestoneWorkItem(milestone, created.id).catch(() => undefined)
     newTitle.value = ''
     if (parent) adding.value = null
   } catch (e) {

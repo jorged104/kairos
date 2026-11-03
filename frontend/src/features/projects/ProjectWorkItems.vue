@@ -84,7 +84,7 @@ async function create(title: string, parentId: string | null) {
     parent_id: parentId,
     ...values,
   })
-  if (milestoneId && props.project.can.manage) await linkMilestoneWorkItem(milestoneId, created.id).catch(() => undefined)
+  if (milestoneId && milestoneId !== 'none') await linkMilestoneWorkItem(milestoneId, created.id).catch(() => undefined)
   if (parentId) expanded.value = new Set([...expanded.value, parentId])
   await refresh()
 }
