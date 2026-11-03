@@ -9,11 +9,16 @@ import (
 )
 
 type overviewDTO struct {
-	Progress  int  `json:"progress"`
-	HasPlan   bool `json:"has_plan"`
-	Expected  int  `json:"expected"`
-	Deviation int  `json:"deviation"`
-	Statuses  []struct {
+	Progress   int        `json:"progress"`
+	HasPlan    bool       `json:"has_plan"`
+	Expected   int        `json:"expected"`
+	Deviation  int        `json:"deviation"`
+	Figures    figuresDTO `json:"figures"`
+	PlanSeries []struct {
+		Day  string  `json:"day"`
+		Plan float64 `json:"plan"`
+	} `json:"plan_series"`
+	Statuses []struct {
 		StatusID uuid.UUID `json:"status_id"`
 		Count    int       `json:"count"`
 	} `json:"statuses"`
@@ -27,7 +32,8 @@ type overviewDTO struct {
 		Percent  int    `json:"percent"`
 	} `json:"next_milestone"`
 	Milestones []struct {
-		Name string `json:"name"`
+		Name    string     `json:"name"`
+		Figures figuresDTO `json:"figures"`
 	} `json:"milestones"`
 	Risks []struct {
 		Key       string `json:"key"`
@@ -78,8 +84,10 @@ func TestOverview(t *testing.T) {
 	s.link(t, s.lead, ms.ID, done.ID).Expect(t, http.StatusNoContent)
 
 	o := s.overview(t, s.viewer, p.ID, "2026-03-06")
-	if o.Progress != 70 || o.Expected != 60 || o.Deviation != 10 {
-		t.Fatalf("progress = %+v, want 70 against 60 (RF-6)", o)
+	// The plan counts the work items with a planned end: «Vencida» (weight 1,
+	// due) is all planned and «Retrasada» weighs 0, so 100 % (spec 009, RF-20).
+	if o.Progress != 70 || o.Expected != 100 || o.Deviation != -30 || o.Figures.Level != "late" || o.Figures.Gap != -30 {
+		t.Fatalf("progress = %+v, want 70 against 100 (spec 009, RF-44)", o)
 	}
 	if o.Total != 4 || o.Closed != 1 || o.Overdue != 1 || o.Blocked != 1 {
 		t.Fatalf("counts = %+v (RF-8, RF-9)", o)

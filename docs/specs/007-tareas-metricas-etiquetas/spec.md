@@ -53,11 +53,11 @@ actividad** de cada tarea.
 
 ### Métricas: avance frente al tiempo
 - RF-9: MIENTRAS una tarea abierta tenga fecha de inicio y fecha fin, EL SISTEMA mostrará su avance, su avance esperado y su desvío de avance.
-- RF-10: EL SISTEMA calculará el avance esperado como los días naturales transcurridos desde la fecha de inicio entre los días naturales del plazo (ambas fechas incluidas), en porcentaje entero.
-- RF-11: MIENTRAS la fecha actual sea anterior a la fecha de inicio, EL SISTEMA mostrará un avance esperado de 0 %.
-- RF-12: MIENTRAS la fecha actual sea posterior a la fecha fin, EL SISTEMA mostrará un avance esperado de 100 %.
-- RF-13: EL SISTEMA clasificará la tarea como «adelantada» si su desvío es mayor que +10 puntos, «retrasada» si es menor que −10 puntos y «al día» en otro caso.
-- RF-14: SI la tarea no tiene fecha de inicio o fecha fin, ENTONCES EL SISTEMA mostrará «Sin plazo» en lugar del avance esperado, el desvío y la clasificación.
+- RF-10 (sustituido por la spec 009, RF-43): EL SISTEMA calculará el avance esperado como los días naturales transcurridos desde la fecha de inicio entre los días naturales del plazo (ambas fechas incluidas), en porcentaje entero.
+- RF-11 (sustituido por la spec 009, RF-43): MIENTRAS la fecha actual sea anterior a la fecha de inicio, EL SISTEMA mostrará un avance esperado de 0 %.
+- RF-12 (sustituido por la spec 009, RF-43): MIENTRAS la fecha actual sea posterior a la fecha fin, EL SISTEMA mostrará un avance esperado de 100 %.
+- RF-13 (sustituido por la spec 009, RF-43): EL SISTEMA clasificará la tarea como «adelantada» si su desvío es mayor que +10 puntos, «retrasada» si es menor que −10 puntos y «al día» en otro caso.
+- RF-14 (sustituido por la spec 009, RF-43): SI la tarea no tiene fecha de inicio o fecha fin, ENTONCES EL SISTEMA mostrará «Sin plazo» en lugar del avance esperado, el desvío y la clasificación.
 - RF-15: MIENTRAS la tarea esté cerrada, EL SISTEMA no mostrará el avance esperado, el desvío ni la clasificación.
 
 ### Métricas: aporte al padre y al proyecto

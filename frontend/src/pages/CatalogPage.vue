@@ -6,6 +6,7 @@ import { useErrorMessage } from '@/composables/useErrorMessage'
 import CustomFieldsAdmin from '@/features/catalog/CustomFieldsAdmin.vue'
 import MethodologiesAdmin from '@/features/catalog/MethodologiesAdmin.vue'
 import NamedCatalog from '@/features/catalog/NamedCatalog.vue'
+import ScheduleSettingsAdmin from '@/features/catalog/ScheduleSettingsAdmin.vue'
 import WorkflowEditor from '@/features/catalog/WorkflowEditor.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 
@@ -47,5 +48,6 @@ function onSaved() {
     </div>
     <WorkflowEditor :catalog="catalog" @error="onError" @saved="onSaved" />
     <CustomFieldsAdmin :fields="fields" :types="catalog.work_item_types.filter((x) => !x.retired)" @error="onError" />
+    <ScheduleSettingsAdmin @error="onError" @saved="onSaved" />
   </div>
 </template>

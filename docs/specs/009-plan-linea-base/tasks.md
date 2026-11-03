@@ -1,0 +1,24 @@
+# Tareas 009 — Plan, línea base y semáforo
+
+- [x] **T1 — Esquema** (migración 00009, queries sqlc)
+  - Hecho cuando: `make sqlc` limpio.
+- [x] **T2 — Cálculo del plan y semáforo**
+  - RF: RF-14 a RF-22, RF-26 a RF-31
+  - Hecho cuando: tests de tabla del paquete `schedule` en verde.
+- [x] **T3 — Configuración del semáforo**
+  - RF: RF-32, RF-36 a RF-42, RF-50
+  - Hecho cuando: apitest de validaciones, permisos, conflicto y auditoría; fila de matriz.
+- [x] **T4 — Línea base**
+  - RF: RF-1 a RF-12, RF-49
+  - Hecho cuando: apitest de versiones, motivo, permisos, proyecto cerrado, tarea movida y tarea nueva; fila de matriz.
+- [x] **T5 — Resumen, hitos, riesgos y métricas**
+  - RF: RF-23 a RF-25, RF-33 a RF-35, RF-43 a RF-47
+  - Hecho cuando: apitest del Resumen y de las métricas con plan, brecha y nivel.
+- [x] **T6 — Frontend: semáforo, Resumen y ficha**
+  - RF: RF-5, RF-6, RF-11, RF-12, RF-35, RF-43 a RF-47
+  - Hecho cuando: Vitest del Resumen con línea base y de las métricas.
+- [x] **T7 — Frontend: cronograma y administración del semáforo**
+  - RF: RF-13, RF-36 a RF-40, RF-48
+  - Hecho cuando: Vitest de la sombra de la línea base, los colores y el formulario.
+- [ ] **T8 — Prueba manual** (tú)
+  - Hecho cuando: la demo de los criterios de finalización de la spec funciona en la previsualización.

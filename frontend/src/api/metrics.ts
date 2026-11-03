@@ -1,3 +1,4 @@
+import type { Level } from './schedule'
 import type { Ref } from '@/types/work'
 import { api } from './client'
 
@@ -11,8 +12,22 @@ export interface Share {
 
 export interface WorkMetrics {
   today: string
-  /** null while closed (RF-15). */
-  schedule: { has_plan: boolean; expected: number; actual: number; deviation: number; state: 'ahead' | 'on_track' | 'behind' | '' } | null
+  /** null while closed (RF-15). Plan, gap and level against the baseline (spec 009, RF-11, RF-12, RF-43). */
+  schedule: {
+    has_plan: boolean
+    expected: number
+    actual: number
+    deviation: number
+    state: Level | ''
+    plan: number
+    real: number
+    gap: number
+    in_baseline: boolean
+    base_start: string | null
+    base_due: string | null
+    changed: boolean
+    shift_days: number | null
+  } | null
   contribution: { tracking: boolean; parent: Share | null; project: Share }
   /** In days; null is «Sin datos» or, for the cycle time, «—». */
   times: {

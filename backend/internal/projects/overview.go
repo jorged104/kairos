@@ -17,6 +17,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/schedule"
 	"openscum/internal/workcore"
 )
 
@@ -24,10 +25,14 @@ import (
 type Overview struct {
 	Today string `json:"today"`
 	// Weighted by weight, closed ones at 100 % (spec 008, Conceptos).
-	Progress  int  `json:"progress"`
-	HasPlan   bool `json:"has_plan"` // false: «Sin plazo» (RF-7)
-	Expected  int  `json:"expected"`
-	Deviation int  `json:"deviation"`
+	Progress int `json:"progress"`
+	// Plan, real, gap and level (spec 009, RF-44); has_plan, expected and
+	// deviation are the same rounded, for the earlier API.
+	Figures    schedule.Figures `json:"figures"`
+	PlanSeries []PlanPoint      `json:"plan_series"` // RF-46
+	HasPlan    bool             `json:"has_plan"`    // false: «Sin plazo» (spec 009, RF-24)
+	Expected   int              `json:"expected"`
+	Deviation  int              `json:"deviation"`
 
 	Statuses []StatusCount `json:"statuses"`
 	Total    int           `json:"total"`
@@ -56,6 +61,8 @@ type MilestoneLine struct {
 	Closed   int32          `json:"closed"`
 	Total    int32          `json:"total"`
 	DaysLeft *int           `json:"days_left,omitempty"`
+	// Spec 009, RF-45; no plan once met or cancelled (RF-34).
+	Figures schedule.Figures `json:"figures"`
 }
 
 // Risk is an open work item that is overdue, blocked or behind (RF-15).
@@ -63,11 +70,19 @@ type Risk struct {
 	ID        uuid.UUID      `json:"id"`
 	Key       string         `json:"key"`
 	Title     string         `json:"title"`
-	Reason    string         `json:"reason"` // overdue, blocked or behind
-	Days      int            `json:"days"`   // overdue
-	Deviation int            `json:"deviation"`
+	Reason    string         `json:"reason"`    // overdue, blocked or behind
+	Days      int            `json:"days"`      // overdue
+	Deviation int            `json:"deviation"` // the gap, rounded
+	Gap       float64        `json:"gap"`
+	Level     schedule.Level `json:"level,omitempty"` // behind: at_risk or late (spec 009, RF-47)
 	DueDate   *workcore.Date `json:"due_date"`
 	Assignees []workcore.Ref `json:"assignees"`
+}
+
+// PlanPoint is the plan of one day, for the chart (spec 009, RF-46).
+type PlanPoint struct {
+	Day  workcore.Date `json:"day"`
+	Plan float64       `json:"plan"`
 }
 
 type DayProgress struct {
@@ -76,9 +91,9 @@ type DayProgress struct {
 }
 
 const (
-	maxRisks     = 10
-	maxLoad      = 5
-	behindPoints = 10 // as the «retrasada» of spec 007 (RF-13)
+	maxRisks      = 10
+	maxLoad       = 5
+	maxPlanPoints = 400
 )
 
 func (s *Service) Overview(ctx context.Context, p *authz.Principal, id uuid.UUID, today time.Time) (Overview, error) {
@@ -88,15 +103,25 @@ func (s *Service) Overview(ctx context.Context, p *authz.Principal, id uuid.UUID
 		return Overview{}, err
 	}
 	out := Overview{Today: today.Format(time.DateOnly), Statuses: []StatusCount{}, Milestones: []MilestoneLine{},
-		Risks: []Risk{}, Load: []Member{}, History: []DayProgress{}}
+		Risks: []Risk{}, Load: []Member{}, History: []DayProgress{}, PlanSeries: []PlanPoint{}}
 	progress, err := q.ProjectProgress(ctx, id)
 	if err != nil {
 		return out, fmt.Errorf("avance: %w", err)
 	}
 	out.Progress = int(progress)
-	if row.StartDate != nil && row.EndDate != nil && !row.EndDate.Before(*row.StartDate) {
+	plan, err := schedule.LoadProject(ctx, q, id, today)
+	if err != nil {
+		return out, err
+	}
+	if row.Lifecycle == LifecycleActive { // RF-34
+		value, ok := projectPlan(row, plan.Items, today)
+		out.Figures = schedule.Make(value, ok, plan.Real, plan.Settings)
+	} else {
+		out.Figures = schedule.Figures{Real: plan.Real}
+	}
+	if out.Figures.HasPlan {
 		out.HasPlan = true
-		out.Expected = expected(*row.StartDate, *row.EndDate, today)
+		out.Expected = int(math.Round(out.Figures.Plan))
 		out.Deviation = out.Progress - out.Expected
 	}
 
@@ -118,10 +143,10 @@ func (s *Service) Overview(ctx context.Context, p *authz.Principal, id uuid.UUID
 		}
 	}
 
-	if err := s.overviewMilestones(ctx, q, id, today, &out); err != nil {
+	if err := s.overviewMilestones(ctx, q, id, today, plan, &out); err != nil {
 		return out, err
 	}
-	if err := s.overviewRisks(ctx, q, row, today, &out); err != nil {
+	if err := s.overviewRisks(ctx, q, row, today, plan, &out); err != nil {
 		return out, err
 	}
 	team, err := members(ctx, q, row)
@@ -140,10 +165,65 @@ func (s *Service) Overview(ctx context.Context, p *authz.Principal, id uuid.UUID
 	for _, h := range history {
 		out.History = append(out.History, DayProgress{Day: workcore.Date{Time: h.Day}, Progress: h.Progress})
 	}
+	if out.HasPlan {
+		out.PlanSeries = planSeries(row, plan.Items, history, today)
+	}
 	return out, nil
 }
 
-func (s *Service) overviewMilestones(ctx context.Context, q *sqlc.Queries, id uuid.UUID, today time.Time, out *Overview) error {
+// projectPlan is the plan of the work items, or the linear one between the
+// project's dates when none has a planned end (spec 009, RF-20, RF-23).
+func projectPlan(row sqlc.Project, items []schedule.Item, day time.Time) (float64, bool) {
+	if v, ok := schedule.Plan(items, day); ok {
+		return v, true
+	}
+	if row.StartDate != nil && row.EndDate != nil && !row.EndDate.Before(*row.StartDate) {
+		f, _ := schedule.Fraction(row.StartDate, row.EndDate, day)
+		return 100 * f, true
+	}
+	return 0, false
+}
+
+// planSeries is the plan of each day of the chart: from the start of the
+// project (or the first day recorded) to its end (or the last planned end),
+// at most maxPlanPoints days apart evenly (spec 009, RF-46).
+func planSeries(row sqlc.Project, items []schedule.Item, history []sqlc.ListDailyProgressRow, today time.Time) []PlanPoint {
+	from, to := today, today
+	switch {
+	case row.StartDate != nil:
+		from = *row.StartDate
+	case len(history) > 0:
+		from = history[0].Day
+	}
+	if row.EndDate != nil {
+		to = *row.EndDate
+	} else {
+		for _, it := range items {
+			if it.Due != nil && it.Due.After(to) {
+				to = *it.Due
+			}
+		}
+	}
+	if to.Before(from) {
+		from, to = to, from
+	}
+	span := schedule.Days(from, to)
+	step := max(1, (span+maxPlanPoints-1)/maxPlanPoints)
+	out := make([]PlanPoint, 0, span/step+2)
+	for d := 0; ; d += step {
+		if d > span {
+			d = span
+		}
+		day := from.AddDate(0, 0, d)
+		v, _ := projectPlan(row, items, day)
+		out = append(out, PlanPoint{Day: workcore.Date{Time: day}, Plan: math.Round(v*10) / 10})
+		if d == span {
+			return out
+		}
+	}
+}
+
+func (s *Service) overviewMilestones(ctx context.Context, q *sqlc.Queries, id uuid.UUID, today time.Time, plan schedule.ProjectPlan, out *Overview) error {
 	ms, err := q.ListProjectMilestones(ctx, id)
 	if err != nil {
 		return fmt.Errorf("hitos: %w", err)
@@ -160,9 +240,13 @@ func (s *Service) overviewMilestones(ctx context.Context, q *sqlc.Queries, id uu
 		pr := byID[m.ID]
 		line := MilestoneLine{ID: m.ID, Name: m.Name, DueDate: workcore.FromTime(m.DueDate), Status: m.Status,
 			Closed: pr.Closed, Total: pr.Total}
+		real := 0.0
 		if pr.Weight > 0 {
 			line.Percent = int(pr.WeightClosed * 100 / pr.Weight)
+			real = float64(pr.WeightClosed*100) / float64(pr.Weight)
 		}
+		mp := plan.Milestones[m.ID]
+		line.Figures = schedule.Make(mp.Plan, mp.HasPlan && m.Status == "abierto", real, plan.Settings) // RF-25, RF-34
 		out.Milestones = append(out.Milestones, line)
 	}
 	sort.SliceStable(out.Milestones, func(i, j int) bool {
@@ -185,7 +269,7 @@ func (s *Service) overviewMilestones(ctx context.Context, q *sqlc.Queries, id uu
 	return nil
 }
 
-func (s *Service) overviewRisks(ctx context.Context, q *sqlc.Queries, row sqlc.Project, today time.Time, out *Overview) error {
+func (s *Service) overviewRisks(ctx context.Context, q *sqlc.Queries, row sqlc.Project, today time.Time, plan schedule.ProjectPlan, out *Overview) error {
 	items, err := q.ProjectOpenItems(ctx, row.ID)
 	if err != nil {
 		return fmt.Errorf("tareas abiertas: %w", err)
@@ -202,19 +286,21 @@ func (s *Service) overviewRisks(ctx context.Context, q *sqlc.Queries, row sqlc.P
 		if it.Blocked {
 			out.Blocked++
 		}
-		ratio := 0
-		if it.WeightedDoneRatio != nil {
-			ratio = int(*it.WeightedDoneRatio)
+		// Behind is at risk or late in the traffic light (spec 009, RF-47).
+		f := plan.ByItem[it.ID]
+		if f.HasPlan {
+			r.Gap, r.Deviation = f.Gap, int(math.Round(f.Gap))
 		}
-		if it.StartDate != nil && it.DueDate != nil && !it.DueDate.Before(*it.StartDate) {
-			r.Deviation = ratio - expected(*it.StartDate, *it.DueDate, today)
+		behind := f.Level == schedule.AtRisk || f.Level == schedule.Late
+		if behind {
+			r.Level = f.Level
 		}
 		switch {
 		case late:
 			r.Reason, r.Days = "overdue", days(*it.DueDate, today)
 		case it.Blocked:
 			r.Reason = "blocked"
-		case r.Deviation < -behindPoints:
+		case behind:
 			r.Reason = "behind"
 		default:
 			continue
@@ -229,7 +315,7 @@ func (s *Service) overviewRisks(ctx context.Context, q *sqlc.Queries, row sqlc.P
 		if a.Days != b.Days {
 			return a.Days > b.Days
 		}
-		return a.Deviation < b.Deviation
+		return a.Gap < b.Gap
 	})
 	risks = risks[:min(maxRisks, len(risks))]
 	ids := make([]uuid.UUID, len(risks))
@@ -249,13 +335,6 @@ func (s *Service) overviewRisks(ctx context.Context, q *sqlc.Queries, row sqlc.P
 	}
 	out.Risks = append(out.Risks, risks...)
 	return nil
-}
-
-// expected is the share of a span of dates already gone, both ends included.
-func expected(start, end, today time.Time) int {
-	total := days(start, end) + 1
-	gone := min(max(days(start, today)+1, 0), total)
-	return int(math.Round(100 * float64(gone) / float64(total)))
 }
 
 func days(a, b time.Time) int {

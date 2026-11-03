@@ -6,6 +6,9 @@ import { RouterLink } from 'vue-router'
 import { getOverview } from '@/api/projectScreens'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import BaselinePanel from '@/features/schedule/BaselinePanel.vue'
+import LevelBadge from '@/features/schedule/LevelBadge.vue'
+import { signed, useLevels } from '@/features/schedule/useLevels'
 import AvatarStack from '@/features/work/AvatarStack.vue'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog } from '@/features/work/useCatalog'
@@ -16,6 +19,7 @@ const props = defineProps<{ project: Project }>()
 const { t, locale } = useI18n()
 const errorMessage = useErrorMessage()
 const { statuses } = useCatalog()
+const levels = useLevels()
 
 const { data: o, error } = useQuery({ queryKey: computed(() => ['overview', props.project.id]), queryFn: () => getOverview(props.project.id) })
 
@@ -29,8 +33,8 @@ const byStatus = computed(() =>
     .sort((a, b) => a.position - b.position),
 )
 
-// The chart: the plan from 0 % at the start to 100 % at the end, and the
-// days recorded (RF-13, RF-14).
+// The chart: the plan of each day from the baseline (spec 009, RF-46) and the
+// days recorded (spec 008, RF-13, RF-14).
 const W = 760
 const H = 220
 const chart = computed(() => {
@@ -40,13 +44,14 @@ const chart = computed(() => {
   const today = day(ov.today)
   const points = [...ov.history.map((h) => ({ at: day(h.day), v: h.progress }))]
   if (!points.length || points[points.length - 1]!.at !== today) points.push({ at: today, v: ov.progress })
-  const start = props.project.start_date ? day(props.project.start_date) : Math.min(...points.map((p) => p.at))
-  const end = props.project.end_date ? day(props.project.end_date) : Math.max(today, start + 86400000)
+  const series = ov.plan_series.map((p) => ({ at: day(p.day), v: p.plan }))
+  const start = Math.min(...points.map((p) => p.at), ...series.map((p) => p.at))
+  const end = Math.max(today, start + 86400000, ...series.map((p) => p.at))
   const span = Math.max(end - start, 86400000)
   const x = (at: number) => 40 + ((Math.min(Math.max(at, start), end) - start) / span) * (W - 50)
   const y = (v: number) => 10 + (1 - v / 100) * (H - 30)
   return {
-    plan: ov.has_plan ? `${x(start)},${y(0)} ${x(end)},${y(100)}` : '',
+    plan: ov.has_plan ? series.map((p) => `${x(p.at)},${y(p.v)}`).join(' ') : '',
     real: points.map((p) => `${x(p.at)},${y(p.v)}`).join(' '),
     todayX: x(today),
     todayY: y(ov.progress),
@@ -54,7 +59,10 @@ const chart = computed(() => {
     grid: [0, 25, 50, 75, 100].map((v) => ({ v, y: y(v) })),
   }
 })
-const riskClass = { overdue: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300', blocked: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300', behind: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300' }
+const riskClass = { overdue: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300', blocked: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' }
+// Behind takes the color of its level (spec 009, RF-47).
+const riskStyle = (r: { reason: 'overdue' | 'blocked' | 'behind'; level?: 'ahead' | 'on_track' | 'at_risk' | 'late' }) =>
+  r.reason === 'behind' ? levels.classes(r.level ?? 'late').badge : riskClass[r.reason]
 </script>
 
 <template>
@@ -73,11 +81,9 @@ const riskClass = { overdue: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-
           <h2 class="text-sm font-medium text-muted-foreground">{{ t('overview.progress') }}</h2>
           <p class="flex items-baseline gap-2">
             <span class="text-3xl font-bold tracking-tight">{{ o.progress }} %</span>
-            <span v-if="o.has_plan" class="text-sm font-semibold" :class="o.deviation < -10 ? 'text-destructive' : o.deviation > 10 ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'">
-              {{ t('overview.deviation', { n: (o.deviation > 0 ? '+' : '') + o.deviation }) }}
-            </span>
           </p>
           <ProgressBar :value="o.progress" />
+          <LevelBadge :figures="o.figures" />
           <p class="text-xs text-muted-foreground">{{ o.has_plan ? t('overview.expected', { n: o.expected }) : t('overview.noPlan') }}</p>
         </article>
         <article class="flex flex-col gap-2 rounded-xl border bg-background p-4" data-testid="overview-tasks">
@@ -150,6 +156,7 @@ const riskClass = { overdue: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-
             </div>
             <ProgressBar :value="m.percent" />
             <span class="text-xs text-muted-foreground">{{ t(`milestones.statuses.${m.status}`) }} · {{ t('overview.milestoneCount', { closed: m.closed, total: m.total }) }}</span>
+            <LevelBadge :figures="m.figures" data-testid="overview-milestone-level" />
           </div>
         </section>
       </div>
@@ -176,8 +183,14 @@ const riskClass = { overdue: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-
                     </RouterLink>
                   </td>
                   <td class="p-2">
-                    <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="riskClass[r.reason]">
-                      {{ r.reason === 'overdue' ? t('overview.reasons.overdue', { count: r.days }, r.days) : r.reason === 'behind' ? t('overview.reasons.behind', { n: -r.deviation }) : t('overview.reasons.blocked') }}
+                    <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="riskStyle(r)">
+                      {{
+                        r.reason === 'overdue'
+                          ? t('overview.reasons.overdue', { count: r.days }, r.days)
+                          : r.reason === 'behind'
+                            ? t('overview.reasons.behind', { level: levels.name(r.level ?? 'late'), gap: signed(r.gap) })
+                            : t('overview.reasons.blocked')
+                      }}
                     </span>
                   </td>
                   <td class="p-2">
@@ -206,6 +219,8 @@ const riskClass = { overdue: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-
           </div>
         </section>
       </div>
+
+      <BaselinePanel :project="project" />
 
       <section class="rounded-xl border bg-background p-4 text-sm" data-testid="overview-health">
         <h2 class="mb-1 text-base font-semibold">{{ t('overview.health') }}: {{ t(`projects.healths.${project.health}`) }}</h2>

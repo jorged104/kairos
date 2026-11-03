@@ -1,3 +1,4 @@
+import type { ProjectSchedule } from '@/api/schedule'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
@@ -43,11 +44,23 @@ const project: Project = {
 
 const overview: Overview = {
   today: '2026-03-15', progress: 40, has_plan: true, expected: 48, deviation: -8,
+  figures: { has_plan: true, plan: 48, real: 40, gap: -8, level: 'at_risk' },
+  plan_series: [{ day: '2026-03-01', plan: 0 }, { day: '2026-03-15', plan: 48 }, { day: '2026-03-31', plan: 100 }],
   statuses: [{ status_id: 'st-new', count: 3 }, { status_id: 'st-done', count: 1 }], total: 4, closed: 1, overdue: 2, blocked: 1,
-  next_milestone: { id: 'm1', name: 'Piloto', due_date: '2026-03-20', status: 'abierto', percent: 50, closed: 1, total: 2, days_left: 5 },
-  milestones: [{ id: 'm1', name: 'Piloto', due_date: '2026-03-20', status: 'abierto', percent: 50, closed: 1, total: 2 }],
-  risks: [{ id: 'w9', key: 'KAI-9', title: 'Pruebas de carga', reason: 'overdue', days: 4, deviation: -30, due_date: '2026-03-11', assignees: [] }],
+  next_milestone: { id: 'm1', name: 'Piloto', due_date: '2026-03-20', status: 'abierto', percent: 50, closed: 1, total: 2, days_left: 5, figures: { has_plan: false, plan: 0, real: 50, gap: 0 } },
+  milestones: [{ id: 'm1', name: 'Piloto', due_date: '2026-03-20', status: 'abierto', percent: 50, closed: 1, total: 2, figures: { has_plan: true, plan: 80, real: 50, gap: -30, level: 'late' } }],
+  risks: [
+    { id: 'w9', key: 'KAI-9', title: 'Pruebas de carga', reason: 'overdue', days: 4, deviation: -30, gap: -30, due_date: '2026-03-11', assignees: [] },
+    { id: 'w8', key: 'KAI-8', title: 'Diseño', reason: 'behind', days: 0, deviation: -7, gap: -7.5, level: 'at_risk', due_date: '2026-03-25', assignees: [] },
+  ],
   load: [], history: [{ day: '2026-03-14', progress: 38 }],
+}
+
+const schedule: ProjectSchedule = {
+  today: '2026-03-15',
+  baseline: { version: 2, reason: 'Cambio de alcance', created_at: '2026-03-10T10:00:00Z', author: { id: 'u', name: 'Ana Pérez' } },
+  versions: [{ version: 1, reason: null, created_at: '2026-03-01T10:00:00Z', author: { id: 'u', name: 'Ana Pérez' } }],
+  items: [],
 }
 
 const members: Member[] = [
@@ -67,6 +80,8 @@ beforeEach(() => {
     if (url.startsWith('/api/projects/p1/views') && method === 'POST') return json({ ...bodyOf([url, init]), id: 'v2', mine: true, can_edit: true, count: 1, unavailable: [] }, 201)
     if (url.startsWith('/api/projects/p1/views')) return json(views)
     if (url.startsWith('/api/projects/p1/overview')) return json(overview)
+    if (url.startsWith('/api/projects/p1/baseline') && method === 'POST') return json({ ...schedule.baseline, version: 3 }, 201)
+    if (url.startsWith('/api/projects/p1/schedule')) return json(schedule)
     if (url.startsWith('/api/projects/p1/tree')) return json({ items: nodes })
     if (url.startsWith('/api/projects/p1/members')) return json({ items: members })
     if (url.startsWith('/api/projects/p1/assignment-suggestions')) return json({ items: suggestions })
@@ -108,11 +123,30 @@ describe('pestañas del proyecto (spec 008)', () => {
     expect(tabs).toEqual(['Resumen', 'Tabla', 'Kanban', 'Cronograma', 'Equipo', 'Hitos', 'Fases', 'Datos'])
     const ov = wrapper.find('[data-testid=overview]')
     expect(ov.find('[data-testid=overview-progress]').text()).toContain('40 %')
-    expect(ov.find('[data-testid=overview-progress]').text()).toContain('-8 pts frente al plan')
+    // The traffic light with plan, real and gap (spec 009, RF-35, RF-44, RF-45, RF-47).
+    expect(ov.find('[data-testid=overview-progress]').text()).toContain('En riesgo')
+    expect(ov.find('[data-testid=overview-progress]').text()).toContain('Plan 48 % · Real 40 % · Brecha -8 pp')
+    expect(ov.find('[data-testid=overview-milestones]').text()).toContain('Atrasado')
+    expect(ov.find('[data-testid=overview-risks]').text()).toContain('En riesgo, -7,5 pp')
     expect(ov.find('[data-testid=overview-attention]').text()).toContain('2 vencidas')
     expect(ov.find('[data-testid=overview-next]').text()).toContain('faltan 5 días')
     expect(ov.findAll('[data-testid=overview-risk]')[0]!.text()).toContain('Vencida 4 días')
     expect(ov.find('[data-testid=overview-overdue]').attributes('href')).toContain('overdue=true')
+  })
+
+  it('muestra la línea base y pide el motivo para volver a fijarla (spec 009, RF-2, RF-5, RF-6)', async () => {
+    const { wrapper } = await renderPage()
+    const panel = wrapper.find('[data-testid=baseline]')
+    expect(panel.find('[data-testid=baseline-current]').text()).toContain('Versión 2')
+    expect(panel.text()).toContain('Cambio de alcance')
+    expect(panel.find('[data-testid=baseline-versions]').text()).toContain('Versión 1')
+    await panel.find('[data-testid=baseline-set]').trigger('click')
+    expect(calls('POST').some(([u]) => String(u).includes('/baseline'))).toBe(false)
+    await panel.find('[data-testid=baseline-reason]').setValue('Nuevo alcance')
+    await panel.find('form').trigger('submit')
+    await flushPromises()
+    const post = calls('POST').find(([u]) => String(u).includes('/baseline'))!
+    expect(bodyOf(post)).toEqual({ reason: 'Nuevo alcance' })
   })
 
   it('oculta Equipo a quien no gestiona el equipo (RF-4)', async () => {
@@ -222,6 +256,21 @@ describe('cronograma (spec 008)', () => {
     const days = ticks(s - 1, s + 1, 'days', 'es').map((x) => x.label)
     expect(days).toHaveLength(3)
     expect(days[1]).toBe('1 mar')
+  })
+
+  it('dibuja la línea base detrás de la barra y la colorea con su semáforo (spec 009, RF-13, RF-48)', async () => {
+    const later = node('w7', 'KAI-7', { start_date: '2099-01-10', due_date: '2099-01-20' })
+    nodes.push(later)
+    schedule.items = [{ id: 'w7', figures: { has_plan: true, plan: 50, real: 40, gap: -10, level: 'at_risk' }, in_baseline: true,
+      base_start: '2099-01-01', base_due: '2099-01-10', changed: true, shift_days: 10 }]
+    try {
+      const { wrapper } = await renderPage('/projects/p1?tab=timeline')
+      expect(wrapper.findAll('[data-testid=timeline-baseline]')).toHaveLength(1)
+      expect(wrapper.findAll('[data-testid=timeline-bar]').map((b) => b.attributes('data-level'))).toContain('at_risk')
+    } finally {
+      nodes.pop()
+      schedule.items = []
+    }
   })
 
   it('arrastra una barra y lista las tareas sin fechas (RF-70, RF-74, RF-75)', async () => {

@@ -263,6 +263,22 @@ type Project struct {
 	PageVersion       int32
 }
 
+type ProjectBaseline struct {
+	ID        uuid.UUID
+	ProjectID uuid.UUID
+	Version   int32
+	Reason    *string
+	CreatedBy uuid.UUID
+	CreatedAt time.Time
+}
+
+type ProjectBaselineItem struct {
+	BaselineID uuid.UUID
+	WorkItemID uuid.UUID
+	StartDate  *time.Time
+	DueDate    *time.Time
+}
+
 type ProjectColumnLimit struct {
 	ProjectID uuid.UUID
 	StatusID  uuid.UUID
@@ -324,6 +340,23 @@ type ProjectView struct {
 type ProjectWorkItemType struct {
 	ProjectID uuid.UUID
 	TypeID    uuid.UUID
+}
+
+type ScheduleSetting struct {
+	ID           bool
+	Upper        float64
+	Risk         float64
+	Late         float64
+	NameAhead    *string
+	NameOnTrack  *string
+	NameAtRisk   *string
+	NameLate     *string
+	ColorAhead   string
+	ColorOnTrack string
+	ColorAtRisk  string
+	ColorLate    string
+	Version      int32
+	UpdatedAt    time.Time
 }
 
 type Status struct {
