@@ -3,6 +3,7 @@ package workitems
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -37,6 +38,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/work-items/{id}/ancestors", h.ancestors)
 		r.Get("/work-items/{id}/descendants", h.descendants)
 		r.Get("/work-items/{id}/metrics", h.metrics)
+		r.Get("/work-items/{id}/history", h.history)
 		r.Post("/work-items/{id}/dependencies", h.addDependency)
 		r.Delete("/dependencies/{id}", h.removeDependency)
 	})
@@ -67,6 +69,25 @@ func (h *Handler) metrics(w http.ResponseWriter, r *http.Request) {
 		today = t
 	}
 	out, err := h.svc.Metrics(r.Context(), authz.FromContext(r.Context()), id, today)
+	h.reply(w, http.StatusOK, out, err)
+}
+
+// history pages by the cursor of the previous answer (spec 007, RF-52).
+func (h *Handler) history(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	var before *int64
+	if v := r.URL.Query().Get("before"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "before"))
+			return
+		}
+		before = &n
+	}
+	out, err := h.svc.History(r.Context(), authz.FromContext(r.Context()), id, before)
 	h.reply(w, http.StatusOK, out, err)
 }
 
