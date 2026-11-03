@@ -70,6 +70,8 @@ type Project struct {
 	CustomValues      map[uuid.UUID]json.RawMessage `json:"custom_values"`
 	Can               Can                           `json:"can"`
 	MyRole            authz.ProjectRole             `json:"my_role"` // "" without one (spec 008)
+	// Limit of work items per status column of the kanban (spec 008, RF-66).
+	ColumnLimits map[uuid.UUID]int32 `json:"column_limits"`
 }
 
 // Summary is a row of the project list.

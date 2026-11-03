@@ -166,6 +166,16 @@ func TestWorkPerformance(t *testing.T) {
 		return c.Get("/api/projects/" + kai.String() + "/work-items?milestone_id=" + m.ID.String())
 	})
 	median("árbol de 5 000 work items", 500*time.Millisecond, func() *Response { return c.Get("/api/projects/" + kai.String() + "/tree") })
+	// Spec 008: the overview and a filter, here over 5 000 work items (the limits are for 2 000).
+	median("resumen del proyecto", 500*time.Millisecond, func() *Response { return c.Get("/api/projects/" + kai.String() + "/overview") })
+	median("árbol filtrado (1 de cada 3)", 300*time.Millisecond, func() *Response {
+		return c.Get("/api/projects/" + kai.String() + "/tree?status_id=" + cerrado.String())
+	})
+	for i := 0; i < 10; i++ {
+		c.Post("/api/projects/"+kai.String()+"/views", map[string]any{"name": fmt.Sprintf("Vista %d", i),
+			"config": map[string]any{"filters": map[string][]string{"closed": {"false"}, "q": {"tarea"}}}}).Expect(t, 201)
+	}
+	median("vistas con sus contadores (10)", 300*time.Millisecond, func() *Response { return c.Get("/api/projects/" + kai.String() + "/views") })
 	median("ficha de hito con avance", 200*time.Millisecond, func() *Response { return c.Get("/api/milestones/" + m.ID.String()) })
 	median("ficha de objetivo con avance", 300*time.Millisecond, func() *Response { return c.Get("/api/objectives/" + objective.String()) })
 	median("listado de objetivos", 300*time.Millisecond, func() *Response { return c.Get("/api/objectives?page_size=100") })

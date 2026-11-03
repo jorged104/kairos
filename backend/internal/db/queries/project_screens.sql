@@ -153,3 +153,12 @@ ON CONFLICT (project_id, day) DO UPDATE SET progress = EXCLUDED.progress, update
 -- name: ListDailyProgress :many
 SELECT day, progress FROM project_progress_daily
 WHERE project_id = $1 AND day > sqlc.arg(since)::date ORDER BY day;
+
+-- name: ProjectOpenItems :many
+-- The open work items of a project, to find the ones at risk (RF-15).
+SELECT w.id, w.sequence_number, w.title, w.start_date, w.due_date, w.weighted_done_ratio,
+       EXISTS (SELECT 1 FROM work_item_dependencies d JOIN work_items b ON b.id = d.from_id
+               JOIN statuses bs ON bs.id = b.status_id
+               WHERE d.to_id = w.id AND d.type = 'blocks' AND NOT bs.is_closed) AS blocked
+FROM work_items w JOIN statuses s ON s.id = w.status_id
+WHERE w.project_id = $1 AND NOT s.is_closed;

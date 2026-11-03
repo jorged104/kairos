@@ -3,6 +3,7 @@ package projects
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -43,6 +44,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Patch("/projects/{id}/members/{userId}", h.setRole)
 		r.Delete("/projects/{id}/members/{userId}", h.removeMember)
 		r.Get("/projects/{id}/assignment-suggestions", h.suggestions)
+		r.Get("/projects/{id}/overview", h.overview)
+		r.Put("/projects/{id}/column-limits/{statusId}", h.columnLimit)
 	})
 	r.With(auth.RequirePermission(authz.TemplatesUse, h.logger)).Get("/templates", h.templates)
 	r.Group(func(r chi.Router) {
@@ -151,6 +154,46 @@ func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.svc.Suggestions(r.Context(), authz.FromContext(r.Context()), id)
 	h.reply(w, http.StatusOK, map[string]any{"items": items}, err)
+}
+
+// overview takes today as the caller's date (YYYY-MM-DD) (spec 008, RF-6).
+func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	today := time.Now().UTC()
+	if v := r.URL.Query().Get("today"); v != "" {
+		t, err := time.Parse(time.DateOnly, v)
+		if err != nil {
+			apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "today"))
+			return
+		}
+		today = t
+	}
+	out, err := h.svc.Overview(r.Context(), authz.FromContext(r.Context()), id, today)
+	h.reply(w, http.StatusOK, out, err)
+}
+
+func (h *Handler) columnLimit(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	statusID, ok := httpx.PathUUID(r, "statusId")
+	if !ok {
+		apperr.Write(w, h.logger, apperr.ErrNotFound)
+		return
+	}
+	var req struct {
+		Limit *int32 `json:"limit"`
+	}
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	p, err := h.svc.SetColumnLimit(r.Context(), authz.FromContext(r.Context()), id, statusID, req.Limit)
+	h.reply(w, http.StatusOK, p, err)
 }
 
 func (h *Handler) reply(w http.ResponseWriter, status int, v any, err error) {

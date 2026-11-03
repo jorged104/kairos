@@ -545,6 +545,14 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Pro
 	if err != nil {
 		return out, fmt.Errorf("nombres del proyecto: %w", err)
 	}
+	limits, err := q.ListColumnLimits(ctx, row.ID)
+	if err != nil {
+		return out, fmt.Errorf("límites del kanban: %w", err)
+	}
+	out.ColumnLimits = map[uuid.UUID]int32{}
+	for _, l := range limits {
+		out.ColumnLimits[l.StatusID] = l.WipLimit
+	}
 	if len(names) == 1 {
 		n := names[0]
 		out.Team.Name, out.Owner.Name = n.TeamName, n.OwnerName

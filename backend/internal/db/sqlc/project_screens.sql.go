@@ -417,6 +417,54 @@ func (q *Queries) PeopleLabels(ctx context.Context, arg PeopleLabelsParams) ([]P
 	return items, nil
 }
 
+const projectOpenItems = `-- name: ProjectOpenItems :many
+SELECT w.id, w.sequence_number, w.title, w.start_date, w.due_date, w.weighted_done_ratio,
+       EXISTS (SELECT 1 FROM work_item_dependencies d JOIN work_items b ON b.id = d.from_id
+               JOIN statuses bs ON bs.id = b.status_id
+               WHERE d.to_id = w.id AND d.type = 'blocks' AND NOT bs.is_closed) AS blocked
+FROM work_items w JOIN statuses s ON s.id = w.status_id
+WHERE w.project_id = $1 AND NOT s.is_closed
+`
+
+type ProjectOpenItemsRow struct {
+	ID                uuid.UUID
+	SequenceNumber    int32
+	Title             string
+	StartDate         *time.Time
+	DueDate           *time.Time
+	WeightedDoneRatio *int16
+	Blocked           bool
+}
+
+// The open work items of a project, to find the ones at risk (RF-15).
+func (q *Queries) ProjectOpenItems(ctx context.Context, projectID uuid.UUID) ([]ProjectOpenItemsRow, error) {
+	rows, err := q.db.Query(ctx, projectOpenItems, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectOpenItemsRow
+	for rows.Next() {
+		var i ProjectOpenItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SequenceNumber,
+			&i.Title,
+			&i.StartDate,
+			&i.DueDate,
+			&i.WeightedDoneRatio,
+			&i.Blocked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const projectProgress = `-- name: ProjectProgress :one
 
 SELECT coalesce(round(sum(w.weight * CASE WHEN s.is_closed THEN 100 ELSE w.done_ratio END)::numeric
