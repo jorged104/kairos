@@ -137,6 +137,7 @@ var workOps = []workOp{
 		return c.Post("/api/projects/"+m.project(a).String()+"/baseline", map[string]any{})
 	}, managers(201)},
 	// Spec 010: everyone sees the portfolio; only the administrator marks programs.
+	{"ver seguimiento", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/tracking") }, workAll(200)}, // spec 011
 	{"ver portafolio", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/portfolio") }, workAll(200)},
 	{"gestionar programa", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/portfolio", map[string]any{"version": 1, "is_program": true, "weight": nil})
