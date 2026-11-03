@@ -187,7 +187,7 @@ func (s *Service) nodes(ctx context.Context, project sqlc.Project, sel sq.Select
 	sql, args, err := sel.Columns(
 		"w.id", "w.parent_id", "w.sequence_number", "w.title", "w.type_id", "w.status_id", "w.priority_id",
 		"w.assignee_id", "u.name", "w.weighted_done_ratio", "w.agg_estimated", "w.agg_remaining",
-		"w.depth", "w.position", "w.due_date", "w.weight", "w.size_id", "w.start_date",
+		"w.depth", "w.position", "w.due_date", "w.weight", "w.size_id", "w.start_date", "w.closed_at",
 	).LeftJoin("users u ON u.id = w.assignee_id").ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("construir listado: %w", err)
@@ -200,15 +200,15 @@ func (s *Service) nodes(ctx context.Context, project sqlc.Project, sel sq.Select
 	out := []Node{}
 	for rows.Next() {
 		var r sqlc.WorkItemDescendantsRow
-		var due, start *time.Time
+		var due, start, closed *time.Time
 		if err := rows.Scan(&r.ID, &r.ParentID, &r.SequenceNumber, &r.Title, &r.TypeID, &r.StatusID, &r.PriorityID,
 			&r.AssigneeID, &r.AssigneeName, &r.DerivedDoneRatio, &r.AggEstimated, &r.AggRemaining, &r.Depth, &r.Position,
-			&due, &r.Weight, &r.SizeID, &start); err != nil {
+			&due, &r.Weight, &r.SizeID, &start, &closed); err != nil {
 			return nil, fmt.Errorf("leer work item: %w", err)
 		}
 		r.DueDate = due
 		n := NodeFrom(project.Identifier, r)
-		n.StartDate = workcore.FromTime(start)
+		n.StartDate, n.ClosedAt = workcore.FromTime(start), closed
 		out = append(out, n)
 	}
 	if err := rows.Err(); err != nil {
@@ -238,9 +238,18 @@ func (s *Service) fillPlanning(ctx context.Context, projectID uuid.UUID, nodes [
 	for _, e := range eff {
 		milestones[e.ID] = append(milestones[e.ID], e.MilestoneID)
 	}
+	deps, err := s.store.ProjectTimelineDependencies(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("leer dependencias: %w", err)
+	}
+	successors := map[uuid.UUID][]Successor{}
+	for _, d := range deps {
+		successors[d.FromID] = append(successors[d.FromID], Successor{ToID: d.ToID, Type: d.Type, LagDays: d.LagDays})
+	}
 	for i := range nodes {
 		nodes[i].Blocked = isBlocked[nodes[i].ID]
 		nodes[i].MilestoneIDs = milestones[nodes[i].ID]
+		nodes[i].Successors = successors[nodes[i].ID]
 		if nodes[i].MilestoneIDs == nil {
 			nodes[i].MilestoneIDs = []uuid.UUID{}
 		}

@@ -220,6 +220,12 @@ JOIN statuses bs ON bs.id = b.status_id
 JOIN work_items t ON t.id = d.to_id
 WHERE t.project_id = $1 AND d.type = 'blocks' AND NOT bs.is_closed;
 
+-- name: ProjectTimelineDependencies :many
+-- The blocks and precedes of a project's work items, for the timeline (spec 008, RF-79).
+SELECT d.from_id, d.to_id, d.type, d.lag_days FROM work_item_dependencies d
+JOIN work_items f ON f.id = d.from_id
+WHERE f.project_id = $1 AND d.type IN ('blocks', 'precedes');
+
 -- name: ProjectEffectiveMilestones :many
 -- The effective milestones of the work items of a project (spec 008, RF-70).
 WITH RECURSIVE eff AS (

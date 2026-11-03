@@ -15,6 +15,11 @@ type planNode struct {
 	StartDate    *string     `json:"start_date"`
 	Blocked      bool        `json:"blocked"`
 	MilestoneIDs []uuid.UUID `json:"milestone_ids"`
+	ClosedAt     *string     `json:"closed_at"`
+	Successors   []struct {
+		ToID uuid.UUID `json:"to_id"`
+		Type string    `json:"type"`
+	} `json:"successors"`
 }
 
 func (s *workSetup) filtered(t *testing.T, c *Client, project uuid.UUID, q url.Values) []string {
@@ -102,9 +107,17 @@ func TestFilters(t *testing.T) {
 			if n.StartDate == nil || *n.StartDate != "2026-02-20" || !slices.Equal(n.MilestoneIDs, []uuid.UUID{ms.ID}) {
 				t.Fatalf("KAI-1 = %+v", n)
 			}
+		case b.ID:
+			if len(n.Successors) != 1 || n.Successors[0].ToID != c.ID || n.Successors[0].Type != "blocks" {
+				t.Fatalf("KAI-2 = %+v, want it blocking KAI-3 (RF-79)", n)
+			}
 		case c.ID:
 			if !n.Blocked {
 				t.Fatalf("KAI-3 = %+v, want blocked", n)
+			}
+		case d.ID:
+			if n.ClosedAt == nil {
+				t.Fatalf("KAI-4 = %+v, want its closing time (RF-68)", n)
 			}
 		}
 	}

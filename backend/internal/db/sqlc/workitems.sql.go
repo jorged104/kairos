@@ -836,6 +836,45 @@ func (q *Queries) ProjectEffectiveMilestones(ctx context.Context, projectID uuid
 	return items, nil
 }
 
+const projectTimelineDependencies = `-- name: ProjectTimelineDependencies :many
+SELECT d.from_id, d.to_id, d.type, d.lag_days FROM work_item_dependencies d
+JOIN work_items f ON f.id = d.from_id
+WHERE f.project_id = $1 AND d.type IN ('blocks', 'precedes')
+`
+
+type ProjectTimelineDependenciesRow struct {
+	FromID  uuid.UUID
+	ToID    uuid.UUID
+	Type    string
+	LagDays int16
+}
+
+// The blocks and precedes of a project's work items, for the timeline (spec 008, RF-79).
+func (q *Queries) ProjectTimelineDependencies(ctx context.Context, projectID uuid.UUID) ([]ProjectTimelineDependenciesRow, error) {
+	rows, err := q.db.Query(ctx, projectTimelineDependencies, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectTimelineDependenciesRow
+	for rows.Next() {
+		var i ProjectTimelineDependenciesRow
+		if err := rows.Scan(
+			&i.FromID,
+			&i.ToID,
+			&i.Type,
+			&i.LagDays,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const projectWeight = `-- name: ProjectWeight :one
 SELECT coalesce(sum(weight), 0)::bigint FROM work_items WHERE project_id = $1
 `
