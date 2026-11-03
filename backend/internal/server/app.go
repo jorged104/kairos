@@ -26,6 +26,7 @@ import (
 	"openscum/internal/pages"
 	"openscum/internal/projects"
 	"openscum/internal/realtime"
+	"openscum/internal/schedule"
 	"openscum/internal/teams"
 	"openscum/internal/users"
 	"openscum/internal/views"
@@ -63,6 +64,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	auditH := audit.NewHandler(store, logger)
 	eventsH := events.NewHandler(store, logger)
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
+	scheduleH := schedule.NewHandler(schedule.NewService(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
 	filesSvc := files.NewService(store, storage)
 	projectsH := projects.NewHandler(projects.NewService(store, filesSvc).OnRolesChanged(loader.Invalidate), logger)
@@ -94,6 +96,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 			attributesH.Routes(p)
 			usersH.Routes(p)
 			catalogH.Routes(p)
+			scheduleH.Routes(p)
 			fieldsH.Routes(p)
 			projectsH.Routes(p)
 			workItemsH.Routes(p)
