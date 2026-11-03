@@ -47,7 +47,7 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 - RF-11: EL SISTEMA calculará el real de un programa como la media de los reales de sus miembros ponderada por su peso en el programa, en porcentaje con un decimal.
 - RF-12: EL SISTEMA calculará el plan de un programa como la media de los planes de sus miembros con plan, ponderada por su peso en el programa.
 - RF-13: EL SISTEMA contará cada proyecto descendiente una sola vez en el avance de cada programa que lo contenga, aunque haya programas anidados entre medias.
-- RF-14: EL SISTEMA contará como miembro las tareas propias del programa, con su esfuerzo como peso.
+- RF-14: EL SISTEMA contará como miembro las tareas propias del programa, con su peso en el programa (su esfuerzo si no tiene uno fijado), igual que cualquier otro proyecto.
 - RF-15: EL SISTEMA contará un proyecto cerrado con su plan y su real a la fecha de hoy.
 - RF-16: EL SISTEMA no contará los proyectos archivados ni las plantillas.
 - RF-17: SI todos los miembros pesan 0, ENTONCES EL SISTEMA calculará el plan y el real como la media simple de sus miembros.
@@ -61,7 +61,7 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 - RF-23: EL SISTEMA mostrará en cada tarjeta el nombre del programa, su real, su plan, su brecha y su semáforo.
 - RF-24: EL SISTEMA mostrará en cada tarjeta el número de proyectos descendientes y cuántos están bajo plan.
 - RF-25: EL SISTEMA mostrará en cada tarjeta una tabla con una fila por cada hijo directo del programa que no esté archivado ni sea plantilla.
-- RF-26: EL SISTEMA mostrará en cada fila el nombre, una barra del real con la marca del plan, el plan, el real, la brecha y el semáforo.
+- RF-26: EL SISTEMA mostrará en cada fila el nombre, una barra del real con la marca del plan, el plan, el real, la brecha y el semáforo del propio proyecto, sin sus subproyectos.
 - RF-27: DONDE una fila sea un programa anidado, EL SISTEMA mostrará en ella su avance agregado y lo indicará como programa.
 - RF-28: EL SISTEMA mostrará una tarjeta «Sin programa» con los proyectos activos o cerrados que no son programas ni tienen ningún programa entre sus ancestros.
 - RF-29: EL SISTEMA mostrará la fecha de hoy como fecha de los datos del portafolio.
