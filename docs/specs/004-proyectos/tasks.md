@@ -144,7 +144,7 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-149 a RF-158 (verificación)
   - Hecho cuando: con peso por defecto 3 en «Bug», un bug creado con la fila rápida tiene peso 3; con una subtarea abierta a peso 0, el avance del padre y del hito no la cuenta; al cerrar un work item, `work_item.closed` lleva su peso.
 
-- [ ] **T29 — Asignación simple a hitos** (RF-161 a RF-169; rama `feat/004-hitos-asignacion`)
+- [x] **T29 — Asignación simple a hitos** (RF-161 a RF-169; rama `feat/004-hitos-asignacion`)
   - Hecho cuando: apitest de ligar y desligar en bloque, del filtro «sin hito» y de la matriz; Vitest de la búsqueda, la selección y quitar varios.
 - [ ] **T30 — Comprobación de la asignación a hitos (tú)**
   - Depende de: T29

@@ -436,7 +436,7 @@ A petición del responsable de producto:
 - **Se mantiene el modelo:** un work item puede contar para varios hitos y sus descendientes los heredan.
 - **Asignar es más simple:** en la ficha del hito se buscan por título o clave y se ligan o quitan varios a la vez (RF-162 a RF-168), en lugar de escribir la clave de uno en uno.
 - **Permiso:** ligar y desligar es como editar el work item (RF-161); crear, cumplir o borrar el hito sigue siendo de quien lo gestiona.
-- **API:** ligar acepta `work_item_ids` además de `work_item_id` y responde `{ "linked": n }` en lugar de un cuerpo vacío; desligar varios es `POST /milestones/{id}/work-items/unlink`.
+- **API:** ligar acepta `work_item_ids` además de `work_item_id`; con la lista responde `{ "linked": n }` y con uno solo sigue respondiendo sin cuerpo. Desligar varios es `POST /milestones/{id}/work-items/unlink` y responde `{ "unlinked": n }`.
 
 ## Dudas abiertas
 - Ninguna bloqueante. El tamaño de diseño (500 proyectos, 50 000 work items) es una estimación del agente; confírmalo o corrígelo al aprobar.
