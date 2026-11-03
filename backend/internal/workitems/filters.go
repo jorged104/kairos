@@ -19,7 +19,7 @@ import (
 //
 //   - q: text in the title, or the number (KAI-12 or 12)
 //   - status_id, type_id, priority_id, size_id (or "none"), label_id,
-//     milestone_id (effective), assignee_id (or "none", "me")
+//     milestone_id (effective, or "none"), assignee_id (or "none", "me")
 //   - closed, blocked: true or false
 //   - due_before, due_after: dates, both included; overdue=true: open and
 //     due before today (today, or the server's date in UTC)
@@ -127,17 +127,28 @@ func Where(projectID uuid.UUID, identifier string, me uuid.UUID, query url.Value
 	if len(labels) > 0 {
 		where = append(where, sq.Expr("EXISTS (SELECT 1 FROM work_item_labels l WHERE l.work_item_id = w.id AND l.label_id = ANY (?))", labels))
 	}
-	milestones, _, err := ids("milestone_id")
+	// By effective milestone; "none" is without any, direct or inherited
+	// (spec 004, RF-163).
+	milestones, noMilestone, err := ids("milestone_id", "none")
 	if err != nil {
 		return nil, err
 	}
-	if len(milestones) > 0 {
-		where = append(where, sq.Expr(`w.id IN (
-			WITH RECURSIVE eff AS (
-				SELECT mw.work_item_id AS id FROM milestone_work_items mw WHERE mw.milestone_id = ANY (?)
+	effective := func(linked string) string {
+		return `(WITH RECURSIVE eff AS (
+				SELECT mw.work_item_id AS id FROM milestone_work_items mw WHERE ` + linked + `
 				UNION
 				SELECT c.id FROM work_items c JOIN eff ON c.parent_id = eff.id
-			) SELECT id FROM eff)`, milestones))
+			) SELECT id FROM eff)`
+	}
+	if len(milestones) > 0 || len(noMilestone) > 0 {
+		cond := sq.Or{}
+		if len(milestones) > 0 {
+			cond = append(cond, sq.Expr("w.id IN "+effective("mw.milestone_id = ANY (?)"), milestones))
+		}
+		if len(noMilestone) > 0 {
+			cond = append(cond, sq.Expr("w.id NOT IN "+effective("mw.project_id = ?"), projectID))
+		}
+		where = append(where, cond)
 	}
 	flag := func(param string) (*bool, error) {
 		switch v := query.Get(param); v {

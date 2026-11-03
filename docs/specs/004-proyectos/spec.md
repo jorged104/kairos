@@ -13,6 +13,8 @@ del borrador original quedan tomadas en «Decisiones de la revisión».
 
 **Cambio:** Aprobado (2026-10-28) · PR #12. Pesos de work items y peso por defecto por tipo: RF-54, RF-81 y RF-82 se sustituyen por RF-149 a RF-159.
 
+**Cambio:** 2026-11-03. Asignar work items a hitos de forma más simple: ligan quienes editan work items (RF-127 se sustituye por RF-161) y la ficha del hito busca y liga o desliga varios a la vez (RF-162 a RF-167).
+
 ## Contexto y objetivo
 Kairos necesita gestionar proyectos con metodologías distintas (ágil, PM², PRINCE2, OKR…)
 sin un modelo distinto por metodología. Como OpenProject, se usan piezas genéricas
@@ -246,8 +248,8 @@ responsable del proyecto. «Participante» según Conceptos.
 | Crear proyectos | sí | con equipo de su ámbito | no | no |
 | Editar, cerrar, reabrir y archivar un proyecto; tipos y campos activos; fases y gates | sí | en su ámbito | si es responsable | no |
 | Marcar y desmarcar plantillas | sí | no | no | no |
-| Crear, editar, cumplir, cancelar y borrar hitos; ligar work items a hitos | sí | en su ámbito | si es responsable | no |
-| Crear y editar work items, cambiar su estado, composición y dependencias | sí | en su ámbito | si participa | no |
+| Crear, editar, cumplir, cancelar y borrar hitos | sí | en su ámbito | si es responsable | no |
+| Crear y editar work items, cambiar su estado, composición y dependencias; ligarlos a hitos y desligarlos (RF-161) | sí | en su ámbito | si participa | no |
 | Borrar work items | sí | en su ámbito | si es responsable del proyecto o autor del work item sin hijos | no |
 | Crear objetivos de alcance organización | sí | no | no | no |
 | Crear objetivos de alcance equipo o proyecto | sí | en su ámbito | no | no |
@@ -255,7 +257,8 @@ responsable del proyecto. «Participante» según Conceptos.
 | Actualizar el valor actual de un resultado clave manual | sí | si el alcance está en su ámbito | si es responsable del objetivo | no |
 
 - RF-126: SI un usuario responsable de un objetivo o proyecto pierde los permisos que le daba ese papel (por ejemplo, pasa a `viewer`), ENTONCES EL SISTEMA dejará de concederle esas operaciones en el plazo de la ventana de permisos de la spec 003 (RF-44 de 003).
-- RF-127: SI un `member` intenta ligar a un work item un hito u objetivo, ENTONCES EL SISTEMA aplicará el permiso de gestión del hito u objetivo, no el del work item.
+- ~~RF-127: SI un `member` intenta ligar a un work item un hito u objetivo, ENTONCES EL SISTEMA aplicará el permiso de gestión del hito u objetivo, no el del work item.~~ Sustituida por RF-161 (2026-11-03).
+- RF-161: EL SISTEMA permitirá ligar work items a un hito y desligarlos a quien puede crear y editar work items en su proyecto; ligar hitos o work items a objetivos sigue requiriendo el permiso de gestión del objetivo.
 
 ### Listados y búsqueda
 - RF-128: EL SISTEMA listará proyectos paginados (25 por defecto, máximo 100) con filtros por texto, equipo (incluidos subequipos), responsable, ciclo de vida, salud y metodología.
@@ -298,6 +301,16 @@ responsable del proyecto. «Participante» según Conceptos.
 - RF-157: CUANDO se copie el contenido de ejemplo de una plantilla (RF-37), EL SISTEMA conservará el peso de cada work item copiado.
 - RF-158: CUANDO cambie el peso de un work item, EL SISTEMA dejará actualizados los valores derivados de todos sus ancestros al confirmar el cambio, como en RF-83.
 - RF-159: EL SISTEMA seguirá sumando las horas estimadas y restantes de los work items de peso 0 a las de su hito (RF-55) y a las derivadas de sus ancestros (RF-80): el peso solo afecta al avance.
+
+### Asignación a hitos
+- RF-162: EL SISTEMA permitirá buscar desde la ficha de un hito los work items de su proyecto por texto en el título o en la clave.
+- RF-163: DONDE el usuario marque «Solo sin hito», EL SISTEMA mostrará en la búsqueda solo los work items que no tienen ningún hito efectivo.
+- RF-164: CUANDO el usuario marque varios work items de la búsqueda y confirme, EL SISTEMA los ligará al hito en una sola operación.
+- RF-165: SI alguno de los work items de esa operación no existe o es de otro proyecto, ENTONCES EL SISTEMA no ligará ninguno e informará del motivo.
+- RF-166: SI una operación de ligar o desligar trae más de 200 work items, ENTONCES EL SISTEMA la rechazará.
+- RF-167: EL SISTEMA mostrará en la búsqueda como no seleccionables los work items que ya están en el hito, indicando si están ligados directamente o por su padre.
+- RF-168: CUANDO el usuario marque varios work items ligados directamente al hito y pida quitarlos, EL SISTEMA los desligará en una sola operación.
+- RF-169: CUANDO se ligue o desligue un work item que ya estaba en ese estado, EL SISTEMA no hará nada con él ni lo auditará.
 
 ## Dependencias con otras specs (contrato, no se implementa aquí)
 - **Spec 003 (usuarios):** responsables, autores y asignados se referencian por el id interno del usuario. Se reutilizan los equipos y su jerarquía, la matriz de permisos, la auditoría y el formato de errores.
@@ -417,6 +430,13 @@ A petición del responsable de producto:
 - **El peso sustituye a las horas como ponderación del avance** (RF-153, RF-154). Las horas quedan como información y siguen sumándose (RF-55, RF-80).
 - **Peso 0 para tareas de seguimiento:** se registran sin mover el avance del proyecto.
 - **XP:** el peso viaja en `work_item.closed` (RF-155); cómo se convierte en XP lo decide la spec de gamificación.
+
+## Asignación a hitos (2026-11-03)
+A petición del responsable de producto:
+- **Se mantiene el modelo:** un work item puede contar para varios hitos y sus descendientes los heredan.
+- **Asignar es más simple:** en la ficha del hito se buscan por título o clave y se ligan o quitan varios a la vez (RF-162 a RF-168), en lugar de escribir la clave de uno en uno.
+- **Permiso:** ligar y desligar es como editar el work item (RF-161); crear, cumplir o borrar el hito sigue siendo de quien lo gestiona.
+- **API:** ligar acepta `work_item_ids` además de `work_item_id`; con la lista responde `{ "linked": n }` y con uno solo sigue respondiendo sin cuerpo. Desligar varios es `POST /milestones/{id}/work-items/unlink` y responde `{ "unlinked": n }`.
 
 ## Dudas abiertas
 - Ninguna bloqueante. El tamaño de diseño (500 proyectos, 50 000 work items) es una estimación del agente; confírmalo o corrígelo al aprobar.

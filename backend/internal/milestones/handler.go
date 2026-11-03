@@ -34,6 +34,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Post("/milestones/{id}/{action:complete|reopen|cancel}", h.status)
 		r.Get("/milestones/{id}/work-items", h.workItems)
 		r.Post("/milestones/{id}/work-items", h.link)
+		r.Post("/milestones/{id}/work-items/unlink", h.unlinkMany)
 		r.Delete("/milestones/{id}/work-items/{work_item_id}", h.unlink)
 		r.Get("/work-items/{id}/milestones", h.ofWorkItem)
 	})
@@ -146,11 +147,32 @@ func (h *Handler) link(w http.ResponseWriter, r *http.Request) {
 		apperr.Write(w, h.logger, err)
 		return
 	}
-	if err := h.svc.Link(r.Context(), authz.FromContext(r.Context()), id, req.WorkItemID, true); err != nil {
+	n, err := h.svc.Link(r.Context(), authz.FromContext(r.Context()), id, req.ids(), true)
+	if err != nil {
 		apperr.Write(w, h.logger, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	// One work item answers as before; several, how many were linked.
+	if req.WorkItemIDs == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	h.reply(w, http.StatusOK, map[string]int{"linked": n}, nil)
+}
+
+// unlinkMany unlinks several work items at once (RF-168).
+func (h *Handler) unlinkMany(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.uuid(w, r, "id")
+	if !ok {
+		return
+	}
+	var req linkRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	n, err := h.svc.Link(r.Context(), authz.FromContext(r.Context()), id, req.ids(), false)
+	h.reply(w, http.StatusOK, map[string]int{"unlinked": n}, err)
 }
 
 func (h *Handler) unlink(w http.ResponseWriter, r *http.Request) {
@@ -162,7 +184,11 @@ func (h *Handler) unlink(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.svc.Link(r.Context(), authz.FromContext(r.Context()), id, wid, false); err != nil {
+	n, err := h.svc.Link(r.Context(), authz.FromContext(r.Context()), id, []uuid.UUID{wid}, false)
+	if err == nil && n == 0 {
+		err = apperr.ErrNotFound // one that was not linked, as before
+	}
+	if err != nil {
 		apperr.Write(w, h.logger, err)
 		return
 	}

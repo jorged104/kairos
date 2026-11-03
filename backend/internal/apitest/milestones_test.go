@@ -23,7 +23,8 @@ type milestoneDTO struct {
 		RemainingHours float64 `json:"remaining_hours"`
 	} `json:"progress"`
 	Can struct {
-		Manage bool `json:"manage"`
+		Manage        bool `json:"manage"`
+		LinkWorkItems bool `json:"link_work_items"`
 	} `json:"can"`
 }
 
@@ -133,10 +134,11 @@ func TestMilestoneRules(t *testing.T) {
 	s.lead.Post("/api/projects/"+project.String()+"/milestones", map[string]any{"name": "X", "phase_id": phases.Items[0].ID}).
 		Expect(t, http.StatusBadRequest, "cross_project") // RF-58
 
-	// Only managers link or edit; members do not (RF-127).
+	// Whoever edits work items links them; others do not (RF-161).
 	wi := s.item(t, s.member, project, map[string]any{})
-	s.link(t, s.member, m.ID, wi.ID).Expect(t, http.StatusForbidden, "forbidden")
-	s.link(t, s.lead, m.ID, wi.ID).Expect(t, http.StatusNoContent)
+	s.link(t, s.viewer, m.ID, wi.ID).Expect(t, http.StatusForbidden, "forbidden")
+	s.link(t, s.outsider, m.ID, wi.ID).Expect(t, http.StatusForbidden, "forbidden")
+	s.link(t, s.member, m.ID, wi.ID).Expect(t, http.StatusNoContent)
 
 	// Complete with open items, reopen, cancel (RF-45 to RF-49).
 	var done milestoneDTO
@@ -175,5 +177,83 @@ func TestMilestoneRules(t *testing.T) {
 	s.viewer.Get("/api/projects/"+project.String()+"/work-items?milestone_id="+m2.ID.String()).Expect(t, http.StatusOK).JSON(t, &page)
 	if page.Total != 2 {
 		t.Fatalf("filtered = %d, want parent and child", page.Total)
+	}
+}
+
+func TestMilestoneBulkLink(t *testing.T) {
+	s := newWorkSetup(t)
+	project := s.workProject(t)
+	other := s.project(t, s.lead, map[string]any{"identifier": "OTR", "name": "Otro", "methodology_id": s.env.CatalogID("methodologies", "Scrum")}).ID
+	m := s.milestone(t, project, map[string]any{"name": "M1"})
+	m2 := s.milestone(t, project, map[string]any{"name": "M2"})
+	path := "/api/milestones/" + m.ID.String() + "/work-items"
+
+	// The member sees it can link, not manage (RF-161).
+	var seen milestoneDTO
+	s.member.Get("/api/milestones/"+m.ID.String()).Expect(t, http.StatusOK).JSON(t, &seen)
+	if seen.Can.Manage || !seen.Can.LinkWorkItems {
+		t.Fatalf("member can = %+v", seen.Can)
+	}
+
+	a := s.item(t, s.member, project, map[string]any{"title": "Alfa"})
+	b := s.item(t, s.member, project, map[string]any{"title": "Beta"})
+	child := s.item(t, s.member, project, map[string]any{"title": "Hija", "parent_id": b.ID})
+	free := s.item(t, s.member, project, map[string]any{"title": "Libre"})
+	inM2 := s.item(t, s.member, project, map[string]any{"title": "En M2"})
+	s.link(t, s.member, m2.ID, inM2.ID).Expect(t, http.StatusNoContent)
+	foreign := s.item(t, s.member, other, map[string]any{})
+
+	// All or none (RF-165).
+	s.member.Post(path, map[string]any{"work_item_ids": []uuid.UUID{a.ID, foreign.ID}}).Expect(t, http.StatusBadRequest, "cross_project")
+	s.member.Post(path, map[string]any{"work_item_ids": []uuid.UUID{a.ID, uuid.New()}}).Expect(t, http.StatusBadRequest, "validation_failed")
+	if got := s.getMilestone(t, m.ID).Progress.Total; got != 0 {
+		t.Fatalf("total after a rejected link = %d, want 0", got)
+	}
+	tooMany := make([]uuid.UUID, 201)
+	for i := range tooMany {
+		tooMany[i] = uuid.New()
+	}
+	s.member.Post(path, map[string]any{"work_item_ids": tooMany}).Expect(t, http.StatusBadRequest, "validation_failed") // RF-166
+	s.member.Post(path, map[string]any{"work_item_ids": []uuid.UUID{}}).Expect(t, http.StatusBadRequest, "validation_failed")
+
+	// Several at once; one already linked does nothing (RF-164, RF-169).
+	s.link(t, s.member, m.ID, a.ID).Expect(t, http.StatusNoContent)
+	var res struct {
+		Linked int `json:"linked"`
+	}
+	s.member.Post(path, map[string]any{"work_item_ids": []uuid.UUID{a.ID, b.ID, a.ID}}).Expect(t, http.StatusOK).JSON(t, &res)
+	if res.Linked != 1 {
+		t.Fatalf("linked = %d, want only b", res.Linked)
+	}
+	if got := s.getMilestone(t, m.ID).Progress.Total; got != 3 {
+		t.Fatalf("total = %d, want a, b and its child", got)
+	}
+	if acts := s.env.AuditActions(m.ID.String()); len(acts) != 3 || acts[1] != "milestone.work_item_linked" || acts[2] != "milestone.work_item_linked" {
+		t.Fatalf("audit = %v, want created and one link each", acts)
+	}
+
+	// Without any milestone: neither direct nor inherited (RF-163).
+	var page struct {
+		Items []struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"items"`
+	}
+	s.member.Get("/api/projects/"+project.String()+"/work-items?milestone_id=none").Expect(t, http.StatusOK).JSON(t, &page)
+	if len(page.Items) != 1 || page.Items[0].ID != free.ID {
+		t.Fatalf("without milestone = %+v, want only %s (not %s)", page.Items, free.ID, child.ID)
+	}
+	s.member.Get("/api/projects/"+project.String()+"/work-items?milestone_id=none&milestone_id="+m2.ID.String()).Expect(t, http.StatusOK).JSON(t, &page)
+	if len(page.Items) != 2 {
+		t.Fatalf("none or M2 = %+v, want free and inM2", page.Items)
+	}
+
+	// Several out at once; the observer can not (RF-168).
+	var out struct {
+		Unlinked int `json:"unlinked"`
+	}
+	s.viewer.Post(path+"/unlink", map[string]any{"work_item_ids": []uuid.UUID{a.ID}}).Expect(t, http.StatusForbidden, "forbidden")
+	s.member.Post(path+"/unlink", map[string]any{"work_item_ids": []uuid.UUID{a.ID, b.ID, free.ID}}).Expect(t, http.StatusOK).JSON(t, &out)
+	if out.Unlinked != 2 || s.getMilestone(t, m.ID).Progress.Total != 0 {
+		t.Fatalf("unlinked = %d, total = %d", out.Unlinked, s.getMilestone(t, m.ID).Progress.Total)
 	}
 }

@@ -2,17 +2,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import {
   changeMilestoneStatus,
   deleteMilestone,
   getMilestone,
-  getWorkItemByKey,
-  linkMilestoneWorkItem,
   listPhases,
   milestoneWorkItems,
   unlinkMilestoneWorkItem,
+  unlinkMilestoneWorkItems,
   updateMilestone,
   type MilestoneAction,
 } from '@/api/work'
@@ -22,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import LinkWorkItems from '@/features/milestones/LinkWorkItems.vue'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import type { SavedPage } from '@/api/pages'
 import PageSection from '@/features/pages/PageSection.vue'
@@ -34,6 +34,7 @@ import type { Milestone } from '@/types/work'
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const qc = useQueryClient()
 const errorMessage = useErrorMessage()
 const { statuses } = useCatalog()
@@ -55,6 +56,9 @@ function refresh(m?: Milestone) {
   if (m) qc.setQueryData(key.value, m)
   qc.invalidateQueries({ queryKey: ['milestones', projectId.value] })
   qc.invalidateQueries({ queryKey: ['milestone-items', props.id] })
+  qc.invalidateQueries({ queryKey: ['milestone-search', projectId.value] })
+  qc.invalidateQueries({ queryKey: ['tree', projectId.value] })
+  qc.invalidateQueries({ queryKey: ['views', projectId.value] })
   return qc.invalidateQueries({ queryKey: key.value })
 }
 
@@ -103,18 +107,25 @@ const remove = useMutation({
   onError: (e) => (error.value = e),
 })
 
-const linkKey = ref('')
-const link = useMutation({
-  mutationFn: async () => linkMilestoneWorkItem(props.id, (await getWorkItemByKey(linkKey.value)).id),
-  onSuccess: () => {
-    linkKey.value = ''
-    return refresh()
-  },
-  onError: (e) => (error.value = e),
-})
+// Linking several from a search, and taking several out (spec 004, RF-162 to RF-168).
+const adding = ref(route.query.add === '1')
+const marked = ref(new Set<string>())
+function mark(id: string) {
+  const next = new Set(marked.value)
+  if (!next.delete(id)) next.add(id)
+  marked.value = next
+}
 const unlink = useMutation({
   mutationFn: (workItemId: string) => unlinkMilestoneWorkItem(props.id, workItemId),
   onSuccess: () => refresh(),
+  onError: (e) => (error.value = e),
+})
+const unlinkMarked = useMutation({
+  mutationFn: () => unlinkMilestoneWorkItems(props.id, [...marked.value]),
+  onSuccess: () => {
+    marked.value = new Set()
+    return refresh()
+  },
   onError: (e) => (error.value = e),
 })
 </script>
@@ -213,19 +224,41 @@ const unlink = useMutation({
       </section>
 
       <section class="flex flex-col gap-2">
-        <h2 class="font-medium">{{ t('milestones.workItems') }}</h2>
-        <form v-if="milestone.can.manage" class="flex items-center gap-2" @submit.prevent="link.mutate()">
-          <Input v-model="linkKey" class="w-48" :placeholder="t('milestones.linkPlaceholder')" :aria-label="t('milestones.link')" required />
-          <Button type="submit" size="sm" variant="outline">{{ t('milestones.link') }}</Button>
-        </form>
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 class="font-medium">{{ t('milestones.workItems') }}</h2>
+          <template v-if="milestone.can.link_work_items">
+            <Button v-if="marked.size" size="sm" variant="outline" class="ml-auto" :disabled="unlinkMarked.isPending.value" data-testid="milestone-remove-marked" @click="unlinkMarked.mutate()">
+              {{ t('milestones.removeN', { count: marked.size }, marked.size) }}
+            </Button>
+            <Button v-if="!adding" size="sm" :class="!marked.size && 'ml-auto'" data-testid="milestone-add-tasks" @click="adding = true">{{ t('milestones.addTasks') }}</Button>
+          </template>
+        </div>
+        <LinkWorkItems
+          v-if="adding && milestone.can.link_work_items"
+          :milestone-id="milestone.id"
+          :project-id="milestone.project.id"
+          :items="items ?? []"
+          @done="refresh()"
+          @close="adding = false"
+        />
         <ul class="divide-y rounded-lg border bg-background text-sm">
           <li v-for="it in items ?? []" :key="it.id" class="flex flex-wrap items-center gap-2 p-2" data-testid="milestone-item">
+            <input
+              v-if="milestone.can.link_work_items && !it.inherited"
+              type="checkbox"
+              class="size-4 accent-primary"
+              :checked="marked.has(it.id)"
+              :aria-label="`${it.key} ${it.title}`"
+              data-testid="milestone-mark"
+              @change="mark(it.id)"
+            />
+            <span v-else-if="milestone.can.link_work_items" class="size-4" />
             <RouterLink :to="`/work-items/${it.key}`" class="hover:underline">
               <span class="font-mono text-xs text-muted-foreground">{{ it.key }}</span> {{ it.title }}
             </RouterLink>
             <Badge v-if="it.inherited" variant="outline">{{ t('milestones.inherited') }}</Badge>
             <span class="text-xs text-muted-foreground">{{ statuses.get(it.status_id)?.name }}</span>
-            <Button v-if="milestone.can.manage && !it.inherited" size="sm" variant="ghost" class="ml-auto" @click="unlink.mutate(it.id)">
+            <Button v-if="milestone.can.link_work_items && !it.inherited" size="sm" variant="ghost" class="ml-auto" @click="unlink.mutate(it.id)">
               {{ t('common.remove') }}
             </Button>
           </li>

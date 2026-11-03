@@ -25,9 +25,13 @@ SELECT (EXISTS (SELECT 1 FROM milestone_work_items mw WHERE mw.milestone_id = sq
 -- name: DeleteMilestone :exec
 DELETE FROM milestones WHERE id = $1;
 
--- name: LinkMilestoneWorkItem :exec
+-- name: LinkMilestoneWorkItem :execrows
 INSERT INTO milestone_work_items (milestone_id, work_item_id, project_id) VALUES ($1, $2, $3)
 ON CONFLICT DO NOTHING;
+
+-- name: WorkItemProjects :many
+-- The project of each work item, to link several at once (RF-164, RF-165).
+SELECT id, project_id FROM work_items WHERE id = ANY (sqlc.arg(ids)::uuid[]);
 
 -- name: UnlinkMilestoneWorkItem :execrows
 DELETE FROM milestone_work_items WHERE milestone_id = $1 AND work_item_id = $2;

@@ -144,6 +144,12 @@ Las tareas marcadas **(tú)** necesitan una comprobación manual tuya.
   - RF: RF-149 a RF-158 (verificación)
   - Hecho cuando: con peso por defecto 3 en «Bug», un bug creado con la fila rápida tiene peso 3; con una subtarea abierta a peso 0, el avance del padre y del hito no la cuenta; al cerrar un work item, `work_item.closed` lleva su peso.
 
+- [x] **T29 — Asignación simple a hitos** (RF-161 a RF-169; rama `feat/004-hitos-asignacion`)
+  - Hecho cuando: apitest de ligar y desligar en bloque, del filtro «sin hito» y de la matriz; Vitest de la búsqueda, la selección y quitar varios.
+- [ ] **T30 — Comprobación de la asignación a hitos (tú)**
+  - Depende de: T29
+  - Hecho cuando: como miembro, buscar en un hito, ligar tres de golpe y quitar dos.
+
 ## Desviaciones respecto al plan
 
 - **Pesos (T25/T26):** T25 solo trae la migración y el código sqlc regenerado; los cambios de parámetros de las queries (`weight`, `default_weight`, `weighted_done_ratio`) van en T26 junto al código que los usa, para que cada commit compile.
