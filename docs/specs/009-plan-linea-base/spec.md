@@ -39,7 +39,7 @@ varios proyectos y mapa estratégico. Los conceptos sirven a cualquier industria
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### Línea base
-- RF-1: CUANDO quien gestiona el proyecto fije la línea base, EL SISTEMA guardará las fechas de inicio y fin vigentes de todas las tareas no canceladas del proyecto.
+- RF-1: CUANDO quien gestiona el proyecto fije la línea base, EL SISTEMA guardará las fechas de inicio y fin vigentes de todas las tareas del proyecto.
 - RF-2: CUANDO quien gestiona el proyecto vuelva a fijar la línea base, EL SISTEMA le exigirá un motivo de entre 1 y 500 caracteres.
 - RF-3: CUANDO se fije una línea base, EL SISTEMA la numerará con el siguiente número de versión del proyecto, empezando por 1.
 - RF-4: EL SISTEMA medirá el plan contra la versión más reciente de la línea base.
@@ -68,7 +68,7 @@ varios proyectos y mapa estratégico. Los conceptos sirven a cualquier industria
 - RF-23: SI ninguna tarea del proyecto cuenta para el plan, ENTONCES EL SISTEMA calculará el plan del proyecto con el cálculo lineal entre sus fechas de inicio y fin (spec 008, RF-6).
 - RF-24: SI ninguna tarea del proyecto cuenta para el plan y el proyecto no tiene fechas de inicio y fin, ENTONCES EL SISTEMA mostrará «Sin plazo» en lugar del plan, la brecha y el semáforo.
 - RF-25: SI ninguna tarea de un hito cuenta para el plan, ENTONCES EL SISTEMA mostrará «Sin plazo» en lugar del plan, la brecha y el semáforo del hito.
-- RF-26: EL SISTEMA no contará las tareas canceladas ni para el plan ni para el real.
+- RF-26: EL SISTEMA contará una tarea en cualquier estado cerrado con un real del 100 % y con su plan según sus fechas, igual que hoy (las tareas no tienen estado «cancelada»).
 
 ### Brecha y semáforo
 - RF-27: EL SISTEMA calculará la brecha como el real menos el plan, en puntos porcentuales con un decimal.
@@ -112,7 +112,7 @@ varios proyectos y mapa estratégico. Los conceptos sirven a cualquier industria
 - Tarea con fin anterior al inicio: no puede existir (spec 004); la línea base nunca la contiene.
 - Tarea de peso 0: no aporta al plan ni al real, igual que hoy.
 - Tarea que estaba en la línea base y se borra: deja de contar para el plan y para el real.
-- Tarea que estaba en la línea base y se cancela: deja de contar (RF-26).
+- Tarea rechazada o cerrada sin hacer: cuenta como cerrada (RF-26); quien no quiera que cuente la borra o le pone peso 0.
 - Tarea que cambia de proyecto: deja de contar en la línea base del proyecto de origen y entra en el nuevo como fuera de línea base.
 - Fijar la línea base dos veces el mismo día: crea dos versiones; manda la más reciente.
 - Proyecto sin tareas y sin fechas: «Sin plazo» (RF-24).
