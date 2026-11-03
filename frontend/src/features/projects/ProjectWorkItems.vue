@@ -9,7 +9,7 @@ import { createWorkItem, getWorkItem, linkMilestoneWorkItem, listMilestones, pro
 import { EditableCell, GridTable, QuickAddRow, type CellOption } from '@/components/data-table'
 import NativeSelect from '@/components/NativeSelect.vue'
 import { Button } from '@/components/ui/button'
-import { GROUPS } from '@/features/views/useProjectFilters'
+import { GROUPS, filterDefaults } from '@/features/views/useProjectFilters'
 import ProgressBar from '@/features/work/ProgressBar.vue'
 import { useCatalog } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
@@ -76,28 +76,15 @@ const newTypeId = ref('')
 const addingChild = ref<string | null>(null)
 // A new one takes the filters with a single value (RF-59).
 const auth = useAuthStore()
-const inherited = computed(() => {
-  const one = (k: string) => (props.filters[k]?.length === 1 ? props.filters[k]![0]! : undefined)
-  const person = one('assignee_id') === 'me' ? auth.me?.id : one('assignee_id')
-  const size = one('size_id')
-  return {
-    status_id: one('status_id'),
-    priority_id: one('priority_id'),
-    size_id: size === 'none' ? undefined : size,
-    label_ids: one('label_id') ? [one('label_id')!] : undefined,
-    assignee_ids: person && person !== 'none' ? [person] : undefined,
-    milestone_id: one('milestone_id'),
-  }
-})
 async function create(title: string, parentId: string | null) {
-  const { milestone_id, ...values } = filtering.value ? inherited.value : ({} as typeof inherited.value)
+  const { values, milestoneId } = filtering.value ? filterDefaults(props.filters, auth.me?.id) : { values: {}, milestoneId: undefined }
   const created = await createWorkItem(props.project.id, {
     title,
     type_id: newTypeId.value || enabledTypes.value[0]?.id || '',
     parent_id: parentId,
-    ...Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined && !(Array.isArray(v) && !v.length))),
+    ...values,
   })
-  if (milestone_id && milestone_id !== 'none') await linkMilestoneWorkItem(milestone_id, created.id).catch(() => undefined)
+  if (milestoneId && milestoneId !== 'none') await linkMilestoneWorkItem(milestoneId, created.id).catch(() => undefined)
   if (parentId) expanded.value = new Set([...expanded.value, parentId])
   await refresh()
 }

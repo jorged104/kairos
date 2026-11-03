@@ -693,6 +693,7 @@
   "timeline": {
     "scale": "Escala",
     "scales": {
+      "days": "Días",
       "weeks": "Semanas",
       "months": "Meses",
       "quarters": "Trimestres"
@@ -700,6 +701,13 @@
     "dependencies": "Dependencias",
     "hint": "Arrastra una barra para moverla y sus extremos para cambiar el inicio o el fin. Con el teclado: flechas, y Mayús para el fin.",
     "task": "Tarea",
+    "days": "{count} día | {count} días",
+    "expand": "Mostrar las subtareas de {key}",
+    "collapse": "Ocultar las subtareas de {key}",
+    "summary": "Fechas que cubren sus subtareas",
+    "add": "Añadir tarea",
+    "addChild": "Añadir una subtarea a {key}",
+    "newTitle": "Título de la tarea y Intro",
     "noMilestone": "Sin hito",
     "milestoneOn": "Hito {name}, {date}",
     "bar": "{key}: del {start} al {end}",

@@ -131,13 +131,22 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 - RF-70: EL SISTEMA mostrará las tareas con fecha de inicio y de fin como barras sobre una línea de tiempo, agrupadas por hito efectivo, con un grupo «Sin hito».
 - RF-71: EL SISTEMA mostrará en cada barra el avance de la tarea y la marcará en rojo si está vencida, bloqueada o retrasada.
 - RF-72: EL SISTEMA mostrará cada hito como un rombo en su fecha y una línea vertical en la fecha de hoy.
-- RF-73: EL SISTEMA permitirá cambiar la escala entre semanas, meses y trimestres.
+- ~~RF-73: EL SISTEMA permitirá cambiar la escala entre semanas, meses y trimestres.~~ Sustituido por RF-81 (2026-11-03).
+- RF-81: EL SISTEMA permitirá cambiar la escala entre días, semanas, meses y trimestres.
 - RF-74: EL SISTEMA listará al final, en «Sin fechas», las tareas a las que les falta la fecha de inicio o la de fin.
 - RF-75: CUANDO el usuario arrastre una barra, EL SISTEMA moverá sus fechas de inicio y fin conservando su duración.
 - RF-76: CUANDO el usuario arrastre un extremo de una barra, EL SISTEMA cambiará solo la fecha de ese extremo.
 - RF-77: SI el arrastre dejaría la fecha de fin antes que la de inicio, ENTONCES EL SISTEMA no permitirá soltar la barra en esa posición.
 - RF-78: SI el cambio de fechas se rechaza, ENTONCES EL SISTEMA devolverá la barra a su posición y mostrará el motivo.
 - RF-79: DONDE el usuario active «Dependencias», EL SISTEMA dibujará las dependencias `blocks` y `precedes` entre tareas visibles y marcará las `precedes` cuyas fechas se incumplen (spec 004, RF-96).
+- RF-82: MIENTRAS el usuario arrastra una barra o uno de sus extremos, EL SISTEMA mostrará junto al puntero la fecha de inicio y la de fin con que quedaría la tarea y su duración en días.
+- RF-83: EL SISTEMA mostrará las tareas de cada grupo en su jerarquía, con cada subtarea sangrada bajo su tarea padre.
+- RF-84: SI una tarea padre no tiene fechas y alguna de sus subtareas del grupo sí, ENTONCES EL SISTEMA mostrará su fila sin barra arrastrable, con una marca del intervalo que cubren sus subtareas.
+- RF-85: EL SISTEMA permitirá plegar y desplegar las subtareas de una tarea padre.
+- RF-86: CUANDO el usuario cree una tarea desde el pie de un grupo, EL SISTEMA la creará con inicio hoy y fin seis días después.
+- RF-87: CUANDO el usuario cree una tarea desde el pie del grupo de un hito, EL SISTEMA la vinculará a ese hito (ligar es editar la tarea, spec 004, RF-161).
+- RF-88: CUANDO el usuario cree una subtarea desde una fila, EL SISTEMA la creará como hija de esa tarea con sus fechas de inicio y fin, o con las de RF-86 si la tarea no las tiene.
+- RF-89: CUANDO se cree una tarea en el cronograma mientras hay filtros activos, EL SISTEMA le pondrá los valores de los filtros que tengan un único valor, como en RF-59.
 
 ## Requisitos no funcionales
 - **Rendimiento** (entorno local, proyecto con 2 000 tareas): el Resumen carga en < 500 ms; aplicar un filtro o cambiar de vista responde en < 300 ms; el kanban y el cronograma se pintan en < 1 s.
@@ -156,6 +165,8 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 - **Vista compartida con «Yo»:** cada usuario ve sus propias tareas.
 - **Dos personas mueven la misma tarjeta a la vez:** la segunda recibe `version_conflict` y su tarjeta vuelve (RF-64).
 - **Tarea en dos hitos:** en el cronograma aparece en el grupo de cada hito.
+- **Subtarea cuyo padre está en otro grupo:** se muestra en su grupo como tarea de primer nivel.
+- **Tarea creada en el cronograma que no cumple los filtros activos:** se crea, pero no aparece hasta quitar los filtros.
 - **Día sin registro de avance (servidor apagado):** la gráfica une los días registrados; no se inventan valores.
 
 ## Fuera de alcance
@@ -169,6 +180,7 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 - Exportar las vistas a Excel, PDF o imágenes.
 - Reconstruir el avance de días anteriores a la activación de esta spec.
 - Papeles personalizados o permisos configurables por papel.
+- Crear tareas arrastrando sobre la línea de tiempo vacía, o cambiar el padre de una tarea arrastrándola en el cronograma.
 
 ## Criterios de finalización
 - Todos los RF con tests en verde: API (papeles en el test de matriz, capacidad, vistas, registro diario, sugerencias) y frontend (cada pestaña, filtros, vistas, arrastre y sus alternativas).
@@ -190,6 +202,9 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 - **Gráfica del resumen:** avance registrado cada día desde la activación, plan lineal (RF-12 a RF-14).
 
 - **Dudas cerradas con lo propuesto:** la pestaña Equipo solo la ven quienes gestionan el equipo (RF-4); el líder técnico gestiona solo tareas (RF-80); los límites del kanban los fijan el PM y los gestores (RF-66); el resumen muestra 10 riesgos y 5 personas (RF-15, RF-16). Las pestañas Hitos, Fases y Datos se conservan detrás de las nuevas (RF-1).
+
+## Decisiones tomadas con el usuario (2026-11-03)
+- **Cronograma:** escala por días (RF-81), fecha bajo el puntero al arrastrar (RF-82), tareas en árbol (RF-83 a RF-85) y alta de tareas y subtareas (RF-86 a RF-89).
 
 ## Dudas abiertas
 Ninguna.
