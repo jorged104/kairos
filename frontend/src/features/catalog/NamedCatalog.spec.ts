@@ -82,3 +82,32 @@ describe('catálogo de tallas (spec 006)', () => {
     wrapper.unmount()
   })
 })
+
+describe('catálogo de etiquetas (spec 007)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('crea una etiqueta con su color y la retira (RF-36)', async () => {
+    const fetch = vi.fn((_url: string, _init?: RequestInit) => json({}))
+    vi.stubGlobal('fetch', fetch)
+    const front = { id: 'lb', name: 'Frontend', color: '#22c55e', position: 1, retired: false }
+    const wrapper = mount(NamedCatalog, {
+      props: { kind: 'labels', title: 'Etiquetas', items: [front] },
+      global: { plugins: [createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('td[aria-label=Color]').exists()).toBe(true)
+    await wrapper.find('[data-testid=quick-add] button').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid=quick-add] input[aria-label="Nueva etiqueta"]').setValue('Backend')
+    await wrapper.find('[data-testid=quick-add] form').trigger('submit')
+    await flushPromises()
+    const post = fetch.mock.calls.find(([, init]) => init?.method === 'POST')!
+    expect(post[0]).toBe('/api/labels')
+    expect(JSON.parse(String(post[1]!.body))).toMatchObject({ name: 'Backend', color: '#64748b' })
+
+    await wrapper.find('[data-testid=labels-row] button').trigger('click')
+    await flushPromises()
+    expect(fetch.mock.calls.some(([url]) => url === '/api/labels/lb/retire')).toBe(true)
+    wrapper.unmount()
+  })
+})
