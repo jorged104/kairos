@@ -1,6 +1,6 @@
 # Spec 012 — Vistas de proyectos
 
-**Estado:** Borrador, pendiente de aprobación.
+**Estado:** Aprobada (2026-11-04) («Dale demole»).
 
 ## Contexto y objetivo
 La lista de proyectos es hoy una tabla con cuatro filtros fijos. Las tareas, en cambio, tienen tabla,

@@ -1,0 +1,27 @@
+# Tareas 012 — Vistas de proyectos
+
+- [ ] **T1 — Esquema y permiso** (migración 00011, sqlc, `project_views:share`)
+  - Hecho cuando: `make sqlc` limpio, la matriz de `authz` está actualizada y la migración rellena los proyectos existentes.
+- [ ] **T2 — Catálogo de estados de proyecto**
+  - RF: RF-1 a RF-12
+  - Hecho cuando: hay apitest de alta, cambio, retirada, estados inicial y de cierre obligatorios, nombre duplicado y auditoría.
+- [ ] **T3 — Estado de un proyecto**
+  - RF: RF-13 a RF-26
+  - Hecho cuando: hay apitest de cambio de estado con cierre y reapertura, conflicto, permisos y archivado, y de `SetLifecycle` con el estado; y una fila en la matriz.
+- [ ] **T4 — Tablero y vistas de proyectos (API)**
+  - RF: RF-29, RF-35 a RF-37, RF-46 a RF-52, RF-69 a RF-80
+  - Hecho cuando: hay apitest del tablero (cifras, programa, línea base, hitos) y de las vistas (límites, nombres, permisos para compartir, auditoría); y una fila en la matriz.
+- [ ] **T5 — Frontend: catálogo y ficha**
+  - RF: RF-1 a RF-10, RF-26
+  - Hecho cuando: hay Vitest del administrador de estados y del selector de la ficha.
+- [ ] **T6 — Frontend: pantalla, filtros, vistas y Tabla**
+  - RF: RF-27 a RF-32, RF-60 a RF-79
+  - Hecho cuando: hay Vitest de las funciones de filtro, de la barra de vistas y del modo en la URL.
+- [ ] **T7 — Frontend: Kanban**
+  - RF: RF-33 a RF-45
+  - Hecho cuando: hay Vitest de columnas, arrastre, «Mover a…», error y tope.
+- [ ] **T8 — Frontend: Cronograma**
+  - RF: RF-46 a RF-59
+  - Hecho cuando: hay Vitest de barras, agrupación, escala y arrastre de fechas.
+- [ ] **T9 — Prueba manual** (tú)
+  - Hecho cuando: la demo de los criterios de finalización funciona en la previsualización.
