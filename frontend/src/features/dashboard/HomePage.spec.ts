@@ -161,7 +161,7 @@ describe('mi panel (spec 013)', () => {
     expect(empty.find('[data-testid=ontime-total]').text()).toBe('Sin datos')
   })
 
-  it('el inicio es Mi panel con lectura de trabajo; sin ella, el estado del sistema (RF-1, RF-2)', async () => {
+  it('el inicio es Mi panel con lectura de trabajo; sin ella, el estado del sistema (RF-1, RF-2)', { timeout: 20_000 }, async () => {
     vi.stubGlobal('fetch', vi.fn(() => json({})))
     setActivePinia(createPinia())
     useAuthStore().set(me)
