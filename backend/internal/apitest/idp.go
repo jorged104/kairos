@@ -64,6 +64,17 @@ func NewIdP(t *testing.T) *IdP {
 	return idp
 }
 
+// WithMode starts the app in an access mode; the SSO modes get a complete
+// (unreachable) SSO, since an incomplete one starts as local (spec 015).
+func WithMode(mode string) Option {
+	return func(c *config.Config) {
+		c.Auth.Mode = mode
+		if mode != config.AuthModeLocal && c.OIDC.Issuer == "" {
+			c.OIDC = config.OIDCConfig{Issuer: "http://idp.invalid", DiscoveryURL: "http://idp.invalid", ClientID: idpClientID, ClientSecret: idpClientSecret, RoleSource: config.RoleSourceIdP}
+		}
+	}
+}
+
 // WithIdP configures the app for this IdP in "both" mode.
 func WithIdP(idp *IdP) Option {
 	return func(c *config.Config) {

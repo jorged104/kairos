@@ -36,6 +36,12 @@ func loadMe(ctx context.Context, store *db.Store, p *authz.Principal, method str
 		Roles:       make([]RoleAssignment, 0, len(roles)),
 		Teams:       make([]TeamAssignment, 0, len(teams)),
 		Permissions: p.Permissions,
+		ThemeMode:   "system", // RF-49
+	}
+	if mode, err := store.GetThemeMode(ctx, p.UserID); err == nil {
+		me.ThemeMode = mode
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return MeResponse{}, fmt.Errorf("cargar preferencias: %w", err)
 	}
 	for _, r := range roles {
 		me.Roles = append(me.Roles, RoleAssignment{Role: r.Role, Source: r.Source})

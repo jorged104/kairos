@@ -1,0 +1,60 @@
+package settings
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	"openscum/internal/apperr"
+	"openscum/internal/auth"
+	"openscum/internal/authz"
+	"openscum/pkg/httpx"
+)
+
+type Handler struct {
+	svc    *Service
+	logger *slog.Logger
+}
+
+func NewHandler(svc *Service, logger *slog.Logger) *Handler {
+	return &Handler{svc: svc, logger: logger}
+}
+
+// Routes need system:manage (RF-1, RF-2).
+func (h *Handler) Routes(r chi.Router) {
+	r.Group(func(r chi.Router) {
+		r.Use(auth.RequirePermission(authz.SystemManage, h.logger))
+		r.Get("/system/settings", h.view)
+		r.Put("/system/settings/access", put(h, h.svc.UpdateAccess))
+		r.Put("/system/settings/sso", put(h, h.svc.UpdateSSO))
+		r.Put("/system/settings/storage", put(h, h.svc.UpdateStorage))
+		r.Put("/system/settings/appearance", put(h, h.svc.UpdateAppearance))
+	})
+}
+
+func (h *Handler) view(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.View(r.Context())
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+func put[Req any](h *Handler, fn func(context.Context, *authz.Principal, Req) (View, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req Req
+		if err := apperr.Decode(r, &req); err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		out, err := fn(r.Context(), authz.FromContext(r.Context()), req)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, out)
+	}
+}

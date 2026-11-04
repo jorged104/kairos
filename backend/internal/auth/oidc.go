@@ -18,6 +18,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"openscum/internal/apperr"
+	"openscum/internal/authz"
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
@@ -36,8 +37,10 @@ const (
 // OIDC is the backend side of the SSO login: Kairos is a confidential
 // client that runs Authorization Code + PKCE and keeps its own session (BFF).
 type OIDC struct {
-	cfg      config.OIDCConfig
-	authCfg  config.AuthConfig
+	cfg     func() config.OIDCConfig
+	authCfg func() config.AuthConfig
+	// tested receives the result of an administrator's test login (spec 015, RF-29).
+	tested   func(ctx context.Context, email, name string, err error) error
 	store    *db.Store
 	svc      *Service
 	sessions *Sessions
@@ -47,10 +50,11 @@ type OIDC struct {
 
 	mu         sync.Mutex
 	provider   *oidc.Provider
+	providerOf string // the issuer and discovery URL it was found with
 	endSession string
 }
 
-func NewOIDC(cfg config.OIDCConfig, authCfg config.AuthConfig, store *db.Store, svc *Service, sessions *Sessions, logger *slog.Logger) *OIDC {
+func NewOIDC(cfg func() config.OIDCConfig, authCfg func() config.AuthConfig, store *db.Store, svc *Service, sessions *Sessions, logger *slog.Logger) *OIDC {
 	return &OIDC{
 		cfg: cfg, authCfg: authCfg, store: store, svc: svc, sessions: sessions, logger: logger,
 		client: &http.Client{Timeout: IdPTimeout}, now: time.Now,
@@ -63,20 +67,29 @@ func (o *OIDC) Routes(r chi.Router) {
 	r.Get("/auth/oidc/callback", o.Callback)
 }
 
-// discover fetches the IdP metadata once; failures are retried on the next login.
+// SetTested receives the result of the test logins (spec 015, RF-29).
+func (o *OIDC) SetTested(f func(ctx context.Context, email, name string, err error) error) {
+	o.tested = f
+}
+
+// discover fetches the IdP metadata once per issuer and discovery URL, so a
+// change of the settings finds the new IdP (spec 015); failures are retried on
+// the next login.
 func (o *OIDC) discover() (*oidc.Provider, error) {
+	cfg := o.cfg()
+	of := cfg.Issuer + " " + cfg.DiscoveryURL
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.provider != nil {
+	if o.provider != nil && o.providerOf == of {
 		return o.provider, nil
 	}
 	// The key set keeps this context for later fetches, so it must not be a
 	// request context; the client timeout bounds every call instead.
 	ctx := oidc.ClientContext(context.Background(), o.client)
-	if o.cfg.DiscoveryURL != o.cfg.Issuer {
-		ctx = oidc.InsecureIssuerURLContext(ctx, o.cfg.Issuer)
+	if cfg.DiscoveryURL != cfg.Issuer {
+		ctx = oidc.InsecureIssuerURLContext(ctx, cfg.Issuer)
 	}
-	p, err := oidc.NewProvider(ctx, o.cfg.DiscoveryURL)
+	p, err := oidc.NewProvider(ctx, cfg.DiscoveryURL)
 	if err != nil {
 		return nil, fmt.Errorf("descubrir el IdP: %w", err)
 	}
@@ -84,20 +97,29 @@ func (o *OIDC) discover() (*oidc.Provider, error) {
 		EndSession string `json:"end_session_endpoint"`
 	}
 	_ = p.Claims(&meta)
-	o.provider, o.endSession = p, meta.EndSession
+	o.provider, o.providerOf, o.endSession = p, of, meta.EndSession
 	return p, nil
 }
 
 func (o *OIDC) oauth(p *oidc.Provider) *oauth2.Config {
+	cfg := o.cfg()
 	return &oauth2.Config{
-		ClientID: o.cfg.ClientID, ClientSecret: o.cfg.ClientSecret, RedirectURL: o.cfg.RedirectURL,
+		ClientID: cfg.ClientID, ClientSecret: cfg.ClientSecret, RedirectURL: cfg.RedirectURL,
 		Endpoint: p.Endpoint(), Scopes: []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 }
 
-// Start redirects the browser to the IdP (RF-15).
+// Start redirects the browser to the IdP (RF-15). With ?test=1 it is the
+// administrator's test of the saved SSO, allowed in any mode (spec 015, RF-28).
 func (o *OIDC) Start(w http.ResponseWriter, r *http.Request) {
-	if !o.authCfg.OIDCEnabled() {
+	purpose := "login"
+	if r.URL.Query().Get("test") == "1" {
+		if !o.canTest(r) {
+			o.fail(w, r, apperr.ErrForbidden)
+			return
+		}
+		purpose = "test"
+	} else if !o.authCfg().OIDCEnabled() {
 		o.fail(w, r, errOIDCDisabled)
 		return
 	}
@@ -114,32 +136,36 @@ func (o *OIDC) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := o.store.InsertOIDCState(ctx, sqlc.InsertOIDCStateParams{
-		State: state, Nonce: nonce, CodeVerifier: verifier, ReturnTo: safeReturnTo(r.URL.Query().Get("return_to")),
+		State: state, Nonce: nonce, CodeVerifier: verifier, ReturnTo: safeReturnTo(r.URL.Query().Get("return_to")), Purpose: purpose,
 	}); err != nil {
 		o.fail(w, r, err)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: stateCookie, Value: state, Path: statePath, MaxAge: int(StateTTL.Seconds()),
-		HttpOnly: true, Secure: o.authCfg.CookieSecure, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: o.authCfg().CookieSecure, SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, o.oauth(p).AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier)), http.StatusFound)
 }
 
 // Callback completes the login when the IdP sends the browser back (RF-16 to RF-39).
 func (o *OIDC) Callback(w http.ResponseWriter, r *http.Request) {
-	if !o.authCfg.OIDCEnabled() {
-		o.fail(w, r, errOIDCDisabled)
-		return
-	}
 	ctx := r.Context()
 	q := r.URL.Query()
-	http.SetCookie(w, &http.Cookie{Name: stateCookie, Path: statePath, MaxAge: -1, HttpOnly: true, Secure: o.authCfg.CookieSecure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: stateCookie, Path: statePath, MaxAge: -1, HttpOnly: true, Secure: o.authCfg().CookieSecure, SameSite: http.SameSiteLaxMode})
 
 	// The state is checked before talking to the IdP (RF-17).
 	saved, err := o.consumeState(ctx, r, q.Get("state"))
 	if err != nil {
 		o.fail(w, r, err)
+		return
+	}
+	if saved.Purpose == "test" {
+		o.finishTest(w, r, saved)
+		return
+	}
+	if !o.authCfg().OIDCEnabled() {
+		o.fail(w, r, errOIDCDisabled)
 		return
 	}
 	if e := q.Get("error"); e != "" {
@@ -176,7 +202,7 @@ func (o *OIDC) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := o.svc.LoginOIDC(ctx, o.cfg, claims)
+	userID, err := o.svc.LoginOIDC(ctx, o.cfg(), claims)
 	if err != nil {
 		o.fail(w, r, err)
 		return
@@ -185,7 +211,7 @@ func (o *OIDC) Callback(w http.ResponseWriter, r *http.Request) {
 		o.fail(w, r, err)
 		return
 	}
-	http.Redirect(w, r, o.authCfg.PublicURL+saved.ReturnTo, http.StatusFound)
+	http.Redirect(w, r, o.authCfg().PublicURL+saved.ReturnTo, http.StatusFound)
 }
 
 func (o *OIDC) consumeState(ctx context.Context, r *http.Request, state string) (sqlc.OidcLoginState, error) {
@@ -218,7 +244,7 @@ func (o *OIDC) verify(ctx context.Context, p *oidc.Provider, token *oauth2.Token
 	if !ok || raw == "" {
 		return Claims{}, errors.New("la respuesta no trae id_token")
 	}
-	idToken, err := p.Verifier(&oidc.Config{ClientID: o.cfg.ClientID, Now: o.now}).Verify(ctx, raw)
+	idToken, err := p.Verifier(&oidc.Config{ClientID: o.cfg().ClientID, Now: o.now}).Verify(ctx, raw)
 	if err != nil {
 		return Claims{}, err
 	}
@@ -244,8 +270,8 @@ func (o *OIDC) EndSessionURL(context.Context) string {
 		return ""
 	}
 	q := u.Query()
-	q.Set("client_id", o.cfg.ClientID)
-	q.Set("post_logout_redirect_uri", o.authCfg.PublicURL+"/login")
+	q.Set("client_id", o.cfg().ClientID)
+	q.Set("post_logout_redirect_uri", o.authCfg().PublicURL+"/login")
 	u.RawQuery = q.Encode()
 	return u.String()
 }
@@ -259,7 +285,7 @@ func (o *OIDC) fail(w http.ResponseWriter, r *http.Request, err error) {
 	} else {
 		o.logger.Error("error en el login OIDC", slog.String("error", err.Error()))
 	}
-	http.Redirect(w, r, o.authCfg.PublicURL+"/login?error="+url.QueryEscape(code), http.StatusFound)
+	http.Redirect(w, r, o.authCfg().PublicURL+"/login?error="+url.QueryEscape(code), http.StatusFound)
 }
 
 // safeReturnTo only accepts paths inside Kairos.
@@ -274,4 +300,49 @@ func randomToken() string {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// TestReturnPath is where a test login ends, on the SSO tab (spec 015).
+const TestReturnPath = "/admin/system?tab=sso"
+
+// canTest: only a signed-in administrator of the system tests the SSO.
+func (o *OIDC) canTest(r *http.Request) bool {
+	id, err := o.sessions.Parse(r)
+	if err != nil {
+		return false
+	}
+	p, err := o.svc.loader.Load(r.Context(), id)
+	return err == nil && p.Has(authz.SystemManage)
+}
+
+// finishTest validates the IdP's answer like a login but opens no session and
+// creates or links nobody; it only records the result (spec 015, RF-29, RF-30).
+func (o *OIDC) finishTest(w http.ResponseWriter, r *http.Request, saved sqlc.OidcLoginState) {
+	ctx := r.Context()
+	claims, err := o.exchange(ctx, r, saved)
+	if o.tested != nil {
+		if rerr := o.tested(ctx, claims.Email, displayName(claims), err); rerr != nil {
+			o.logger.Warn("guardar el login de prueba", slog.String("error", rerr.Error()))
+		}
+	}
+	http.Redirect(w, r, o.authCfg().PublicURL+TestReturnPath, http.StatusFound)
+}
+
+// exchange turns the authorization code into validated claims.
+func (o *OIDC) exchange(ctx context.Context, r *http.Request, saved sqlc.OidcLoginState) (Claims, error) {
+	q := r.URL.Query()
+	if e := q.Get("error"); e != "" {
+		return Claims{}, errors.New("el IdP devolvió un error: " + e)
+	}
+	p, err := o.discover()
+	if err != nil {
+		return Claims{}, err
+	}
+	exCtx, cancel := context.WithTimeout(oidc.ClientContext(ctx, o.client), IdPTimeout)
+	defer cancel()
+	token, err := o.oauth(p).Exchange(exCtx, q.Get("code"), oauth2.VerifierOption(saved.CodeVerifier))
+	if err != nil {
+		return Claims{}, fmt.Errorf("canjear el código: %w", err)
+	}
+	return o.verify(exCtx, p, token, saved.Nonce)
 }

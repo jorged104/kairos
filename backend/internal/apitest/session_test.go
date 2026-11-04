@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"openscum/internal/auth"
-	"openscum/internal/config"
 )
 
 func TestHealthStaysPublic(t *testing.T) {
@@ -92,9 +91,13 @@ func TestAuthConfigShowsEnabledMethods(t *testing.T) {
 	}
 	for mode, want := range cases {
 		t.Run(mode, func(t *testing.T) {
-			env := New(t, func(c *config.Config) { c.Auth.Mode = mode })
+			env := New(t, WithMode(mode))
 			var got auth.ConfigResponse
 			env.Client().Get("/api/auth/config").Expect(t, http.StatusOK).JSON(t, &got)
+			if got.Theme == nil {
+				t.Fatal("config without the appearance (spec 015, RF-45)")
+			}
+			got.Theme = nil
 			if got != want {
 				t.Fatalf("config = %+v, want %+v", got, want)
 			}

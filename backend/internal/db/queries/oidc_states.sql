@@ -1,5 +1,5 @@
 -- name: InsertOIDCState :exec
-INSERT INTO oidc_login_states (state, nonce, code_verifier, return_to) VALUES ($1, $2, $3, $4);
+INSERT INTO oidc_login_states (state, nonce, code_verifier, return_to, purpose) VALUES ($1, $2, $3, $4, $5);
 
 -- name: ConsumeOIDCState :one
 -- Single use: the row disappears as it is read (RF-17).

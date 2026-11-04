@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -17,9 +18,45 @@ import (
 // Storage keeps the content of page files in S3 when it is configured and in
 // the database otherwise (RF-21, RF-22). Each file records where it went, so
 // files stay readable from the database after S3 is configured (RF-54).
+//
+// A Storage built with NewLiveStorage follows the settings of the system
+// (spec 015): the S3 client is rebuilt when they change.
 type Storage struct {
 	client *minio.Client
 	bucket string
+
+	source func() config.FilesConfig
+	mu     sync.Mutex
+	seen   config.FilesConfig
+	built  bool
+}
+
+// NewLiveStorage reads the configuration on every use; the check of the
+// bucket happens when the administrator saves it (spec 015, RF-35).
+func NewLiveStorage(source func() config.FilesConfig) *Storage {
+	return &Storage{source: source}
+}
+
+// current returns the client and bucket for the configuration in force.
+func (s *Storage) current() (*minio.Client, string) {
+	if s.source == nil {
+		return s.client, s.bucket
+	}
+	cfg := s.source()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.built && cfg == s.seen {
+		return s.client, s.bucket
+	}
+	s.seen, s.built, s.client, s.bucket = cfg, true, nil, ""
+	if cfg.S3() {
+		if c, err := minio.New(cfg.Endpoint, &minio.Options{
+			Creds: credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""), Secure: cfg.UseSSL, Region: cfg.Region,
+		}); err == nil {
+			s.client, s.bucket = c, cfg.Bucket
+		}
+	}
+	return s.client, s.bucket
 }
 
 // NewStorage connects to S3 when cfg asks for it and checks that the bucket
@@ -48,7 +85,7 @@ func NewStorage(ctx context.Context, cfg config.FilesConfig) (*Storage, error) {
 
 // Mode is where new files go: "s3" or "db".
 func (s *Storage) Mode() string {
-	if s.client != nil {
+	if client, _ := s.current(); client != nil {
 		return "s3"
 	}
 	return "db"
@@ -62,10 +99,12 @@ func objectKey(project uuid.UUID) string {
 // first: if the transaction then fails, the object is left for the
 // maintenance of a later spec, never a row without content.
 func (s *Storage) save(ctx context.Context, q *sqlc.Queries, p sqlc.CreatePageFileParams, data []byte) (sqlc.PageFile, error) {
-	p.Storage = s.Mode()
-	if s.client != nil {
+	client, bucket := s.current()
+	p.Storage = "db"
+	if client != nil {
+		p.Storage = "s3"
 		key := objectKey(p.ProjectID)
-		if _, err := s.client.PutObject(ctx, s.bucket, key, bytes.NewReader(data), int64(len(data)),
+		if _, err := client.PutObject(ctx, bucket, key, bytes.NewReader(data), int64(len(data)),
 			minio.PutObjectOptions{ContentType: p.ContentType}); err != nil {
 			return sqlc.PageFile{}, unavailable(fmt.Errorf("subir a S3: %w", err))
 		}
@@ -75,7 +114,7 @@ func (s *Storage) save(ctx context.Context, q *sqlc.Queries, p sqlc.CreatePageFi
 	if err != nil {
 		return sqlc.PageFile{}, fmt.Errorf("crear archivo: %w", err)
 	}
-	if s.client == nil {
+	if client == nil {
 		if err := q.CreatePageFileData(ctx, sqlc.CreatePageFileDataParams{FileID: f.ID, Data: data}); err != nil {
 			return sqlc.PageFile{}, fmt.Errorf("guardar contenido: %w", err)
 		}
@@ -92,10 +131,11 @@ func (s *Storage) open(ctx context.Context, q *sqlc.Queries, f sqlc.PageFile) (i
 		}
 		return io.NopCloser(bytes.NewReader(data)), nil
 	}
-	if s.client == nil || f.S3Key == nil {
+	client, bucket := s.current()
+	if client == nil || f.S3Key == nil {
 		return nil, errStorageUnavailable
 	}
-	obj, err := s.client.GetObject(ctx, s.bucket, *f.S3Key, minio.GetObjectOptions{})
+	obj, err := client.GetObject(ctx, bucket, *f.S3Key, minio.GetObjectOptions{})
 	if err == nil {
 		_, err = obj.Stat() // GetObject is lazy: this is where a missing object or a dead S3 shows
 	}
@@ -112,13 +152,14 @@ func (s *Storage) open(ctx context.Context, q *sqlc.Queries, f sqlc.PageFile) (i
 func (s *Storage) copy(ctx context.Context, q *sqlc.Queries, f sqlc.PageFile, p sqlc.CopyPageFileParams) (sqlc.PageFile, error) {
 	p.ID = f.ID
 	if f.Storage == "s3" {
-		if s.client == nil || f.S3Key == nil {
+		client, bucket := s.current()
+		if client == nil || f.S3Key == nil {
 			return sqlc.PageFile{}, errStorageUnavailable
 		}
 		key := objectKey(p.ProjectID)
-		if _, err := s.client.CopyObject(ctx,
-			minio.CopyDestOptions{Bucket: s.bucket, Object: key},
-			minio.CopySrcOptions{Bucket: s.bucket, Object: *f.S3Key}); err != nil {
+		if _, err := client.CopyObject(ctx,
+			minio.CopyDestOptions{Bucket: bucket, Object: key},
+			minio.CopySrcOptions{Bucket: bucket, Object: *f.S3Key}); err != nil {
 			return sqlc.PageFile{}, unavailable(fmt.Errorf("copiar en S3: %w", err))
 		}
 		p.S3Key = &key

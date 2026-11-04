@@ -11,7 +11,7 @@ import (
 )
 
 const consumeOIDCState = `-- name: ConsumeOIDCState :one
-DELETE FROM oidc_login_states WHERE state = $1 RETURNING state, nonce, code_verifier, return_to, created_at
+DELETE FROM oidc_login_states WHERE state = $1 RETURNING state, nonce, code_verifier, return_to, created_at, purpose
 `
 
 // Single use: the row disappears as it is read (RF-17).
@@ -24,12 +24,13 @@ func (q *Queries) ConsumeOIDCState(ctx context.Context, state string) (OidcLogin
 		&i.CodeVerifier,
 		&i.ReturnTo,
 		&i.CreatedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
 
 const insertOIDCState = `-- name: InsertOIDCState :exec
-INSERT INTO oidc_login_states (state, nonce, code_verifier, return_to) VALUES ($1, $2, $3, $4)
+INSERT INTO oidc_login_states (state, nonce, code_verifier, return_to, purpose) VALUES ($1, $2, $3, $4, $5)
 `
 
 type InsertOIDCStateParams struct {
@@ -37,6 +38,7 @@ type InsertOIDCStateParams struct {
 	Nonce        string
 	CodeVerifier string
 	ReturnTo     string
+	Purpose      string
 }
 
 func (q *Queries) InsertOIDCState(ctx context.Context, arg InsertOIDCStateParams) error {
@@ -45,6 +47,7 @@ func (q *Queries) InsertOIDCState(ctx context.Context, arg InsertOIDCStateParams
 		arg.Nonce,
 		arg.CodeVerifier,
 		arg.ReturnTo,
+		arg.Purpose,
 	)
 	return err
 }

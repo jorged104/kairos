@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"openscum/internal/projects"
 	"openscum/internal/realtime"
 	"openscum/internal/schedule"
+	"openscum/internal/settings"
 	"openscum/internal/teams"
 	"openscum/internal/tracking"
 	"openscum/internal/users"
@@ -48,10 +50,14 @@ type App struct {
 	Hub *realtime.Hub
 	// Events must be started with Events.Run.
 	Events *events.Dispatcher
+	// Settings changes the settings of the system; tests replace its checks.
+	Settings *settings.Service
 }
 
-// storage keeps the files of the pages; files.NewStorage builds it from cfg.Files.
-func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *slog.Logger) *App {
+// live holds the settings of the system edited from the interface (spec 015);
+// the services read it on every use, so a change needs no restart.
+func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *slog.Logger) *App {
+	storage := files.NewLiveStorage(live.Files)
 	sessions := auth.NewSessions(cfg.Auth.SessionSecret, cfg.Auth.CookieSecure)
 	loader := auth.NewPrincipalLoader(store, auth.PrincipalTTL)
 
@@ -59,13 +65,26 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	health.NewHandler(health.NewService(health.NewRepository(store.Queries), health.DatabaseTimeout), logger).Routes(router)
 
 	hasher := auth.NewHasher(cfg.Auth.PasswordHashMemory, cfg.Auth.PasswordHashTime)
-	authSvc := auth.NewService(cfg.Auth, store, loader, hasher, auth.NewRateLimiter(), logger)
-	authH := auth.NewHandler(cfg.Auth, authSvc, store, sessions, logger)
-	oidcH := auth.NewOIDC(cfg.OIDC, cfg.Auth, store, authSvc, sessions, logger)
-	if cfg.Auth.OIDCEnabled() {
-		authH.SetEndSessionURL(oidcH.EndSessionURL)
-	}
-	mappingsH := idpmappings.NewHandler(store, cfg.OIDC.Issuer, logger)
+	authSvc := auth.NewService(live.Auth, store, loader, hasher, auth.NewRateLimiter(), logger)
+	authH := auth.NewHandler(live.Auth, authSvc, store, sessions, logger)
+	oidcH := auth.NewOIDC(live.OIDC, live.Auth, store, authSvc, sessions, logger)
+	authH.SetEndSessionURL(func(ctx context.Context) string {
+		if !live.Auth().OIDCEnabled() {
+			return ""
+		}
+		return oidcH.EndSessionURL(ctx)
+	})
+	settingsSvc := settings.NewService(live)
+	settingsH := settings.NewHandler(settingsSvc, logger)
+	authH.SetTheme(func() any { return live.Theme() })
+	oidcH.SetTested(func(ctx context.Context, email, name string, err error) error {
+		t := settings.SSOTest{OK: err == nil, Email: email, Name: name}
+		if err != nil {
+			t.Email, t.Name, t.Error = "", "", err.Error()
+		}
+		return settingsSvc.RecordSSOTest(ctx, t)
+	})
+	mappingsH := idpmappings.NewHandler(store, func() string { return live.OIDC().Issuer }, logger)
 	auditH := audit.NewHandler(store, logger)
 	eventsH := events.NewHandler(store, logger)
 	catalogH := catalog.NewHandler(catalog.NewService(store), logger)
@@ -90,7 +109,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	gamificationH := gamification.NewHandler(gamification.NewService(store), logger)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
-	usersH := users.NewHandler(users.NewService(cfg, store, authSvc, hasher, loader), logger)
+	usersH := users.NewHandler(users.NewService(live.Config, store, authSvc, hasher, loader), logger)
 
 	hub := realtime.NewHub(sessions, loader, cfg.Auth.PublicURL, logger)
 	router.Get("/ws", hub.ServeWS)
@@ -113,6 +132,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 			boardH.Routes(p)
 			dashboardH.Routes(p)
 			gamificationH.Routes(p)
+			settingsH.Routes(p)
 			fieldsH.Routes(p)
 			projectsH.Routes(p)
 			workItemsH.Routes(p)
@@ -128,5 +148,5 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc}
 }

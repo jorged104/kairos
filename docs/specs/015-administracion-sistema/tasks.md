@@ -1,25 +1,25 @@
 # Tareas 015 — Administración del sistema
 
-- [ ] **T1 — Configuración guardada y aplicada en caliente**
+- [x] **T1 — Configuración guardada y aplicada en caliente**
   - RF: RF-1 a RF-10
   - Hecho cuando hay:
     - apitest de la primera copia desde las variables de entorno;
     - apitest de los secretos que no salen;
     - test del cifrado;
     - la fila en la matriz.
-- [ ] **T2 — Acceso, SSO, login de prueba y acceso de emergencia**
+- [x] **T2 — Acceso, SSO, login de prueba y acceso de emergencia**
   - RF: RF-11 a RF-32
   - Hecho cuando hay apitest con el IdP simulado de:
     - cada rechazo;
     - el login de prueba, sin sesión y con su invalidación;
     - el acceso de emergencia.
-- [ ] **T3 — Almacenamiento**
+- [x] **T3 — Almacenamiento**
   - RF: RF-33 a RF-38
   - Hecho cuando hay apitest de:
     - la comprobación correcta y la fallida;
     - el bloqueo con archivos;
     - el cambio de claves.
-- [ ] **T4 — Apariencia y modo por usuario (API)**
+- [x] **T4 — Apariencia y modo por usuario (API)**
   - RF: RF-39 a RF-51
   - Hecho cuando hay apitest de:
     - la apariencia y su validación;

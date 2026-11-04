@@ -117,7 +117,7 @@ func TestLoginRateLimitByIP(t *testing.T) {
 }
 
 func TestLocalLoginDisabledInOIDCMode(t *testing.T) {
-	env := New(t, func(c *config.Config) { c.Auth.Mode = config.AuthModeOIDC })
+	env := New(t, WithMode(config.AuthModeOIDC))
 	env.CreateUser(UserSpec{Email: "ana@x.com", Roles: []string{"member"}, Password: pw})
 	login(env.Client(), "ana@x.com", pw).Expect(t, http.StatusForbidden, "local_auth_disabled")
 	env.Client().Post("/api/auth/register", map[string]string{"name": "N", "email": "n@x.com", "password": pw}).
