@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { SavedPage } from '@/api/pages'
+import { setProjectStatus } from '@/api/projectBoard'
 import PageSection from '@/features/pages/PageSection.vue'
 import PortfolioSettings from '@/features/portfolio/PortfolioSettings.vue'
 import AttributeField from '@/features/users/AttributeField.vue'
@@ -101,6 +102,13 @@ const lifecycle = useMutation({
   onSuccess: done,
   onError: (e) => emit('error', e),
 })
+// The stage of the project; a closed one closes it (spec 012, RF-26).
+const statuses = computed(() => catalog.value.project_statuses.filter((s) => !s.retired || s.id === props.project.status_id))
+const status = useMutation({
+  mutationFn: (id: string) => setProjectStatus(props.project.id, props.project.version, id),
+  onSuccess: done,
+  onError: (e) => emit('error', e),
+})
 const types = useMutation({
   mutationFn: (ids: string[]) => setProjectTypes(props.project.id, ids),
   onSuccess: done,
@@ -182,6 +190,23 @@ const actions = computed((): LifecycleAction[] => {
       </form>
       <div v-else class="flex flex-col gap-3">
         <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+          <div v-if="project.status_id">
+            <dt class="text-muted-foreground"><label for="p-status">{{ t('projects.status') }}</label></dt>
+            <dd>
+              <NativeSelect
+                v-if="project.can.manage && project.lifecycle !== 'archivado'"
+                id="p-status"
+                :model-value="project.status_id"
+                class="h-8"
+                :disabled="status.isPending.value"
+                data-testid="project-status"
+                @update:model-value="(v) => v && v !== project.status_id && status.mutate(v)"
+              >
+                <option v-for="s in statuses" :key="s.id" :value="s.id">{{ s.name }}{{ s.retired ? ` (${t('catalog.retired')})` : '' }}</option>
+              </NativeSelect>
+              <template v-else>{{ statuses.find((s) => s.id === project.status_id)?.name ?? t('common.none') }}</template>
+            </dd>
+          </div>
           <div><dt class="text-muted-foreground">{{ t('projects.team') }}</dt><dd>{{ project.team.name }}</dd></div>
           <div><dt class="text-muted-foreground">{{ t('projects.owner') }}</dt><dd>{{ project.owner.name }}</dd></div>
           <div>

@@ -32,7 +32,7 @@ const items = <T>(r: { items: T[] }) => r.items
 
 export const getCatalog = () => api<Catalog>('/api/catalog')
 
-export type CatalogKind = 'methodologies' | 'work-item-types' | 'statuses' | 'priorities' | 'work-item-sizes' | 'labels'
+export type CatalogKind = 'methodologies' | 'work-item-types' | 'statuses' | 'priorities' | 'work-item-sizes' | 'labels' | 'project-statuses'
 
 export interface CatalogInput {
   name: string
@@ -41,6 +41,9 @@ export interface CatalogInput {
   is_closed?: boolean
   is_default?: boolean
   default_weight?: number
+  /** Project statuses (spec 012, RF-4, RF-5). */
+  is_initial?: boolean
+  is_closing?: boolean
 }
 
 export const createCatalogItem = (kind: CatalogKind, input: CatalogInput) =>

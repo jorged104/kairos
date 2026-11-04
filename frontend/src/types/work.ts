@@ -56,6 +56,18 @@ export interface Status {
   retired: boolean
 }
 
+/** A stage of a project; its category drives the lifecycle (spec 012). */
+export interface ProjectStatus {
+  id: string
+  name: string
+  color: string
+  position: number
+  is_closed: boolean
+  is_initial: boolean
+  is_closing: boolean
+  retired: boolean
+}
+
 export interface Priority {
   id: string
   name: string
@@ -89,6 +101,7 @@ export interface Catalog {
   priorities: Priority[]
   sizes: Size[]
   labels: Label[]
+  project_statuses: ProjectStatus[]
 }
 
 export interface Transition {
@@ -148,6 +161,8 @@ export interface Project {
   is_program?: boolean
   portfolio_weight?: number | null
   effort?: number
+  /** Spec 012, RF-13: null for templates. */
+  status_id?: string | null
   /** The caller's role in the project, "" without one (spec 008). */
   my_role?: '' | 'pm' | 'tech_lead' | 'member' | 'observer'
   /** Limit of work items per status column of the kanban (spec 008, RF-66). */

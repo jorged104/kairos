@@ -19,6 +19,8 @@ interface Item {
   is_default?: boolean
   default_weight?: number
   weight?: number
+  is_initial?: boolean
+  is_closing?: boolean
 }
 
 const props = defineProps<{
@@ -31,6 +33,8 @@ const props = defineProps<{
   weighted?: boolean
   /** Sizes have only a name and a position (spec 006, RF-1). */
   sized?: boolean
+  /** Project statuses mark the initial and the closing one (spec 012, RF-4, RF-5). */
+  staged?: boolean
 }>()
 const emit = defineEmits<{ error: [unknown] }>()
 
@@ -44,14 +48,15 @@ const input = (item: Item): CatalogInput =>
     : {
         name: item.name, color: item.color, position: item.position, is_closed: item.is_closed, is_default: item.is_default,
         default_weight: item.default_weight,
+        ...(props.staged ? { is_initial: item.is_initial, is_closing: item.is_closing } : {}),
       }
-type Field = 'name' | 'color' | 'position' | 'is_closed' | 'is_default' | 'default_weight'
+type Field = 'name' | 'color' | 'position' | 'is_closed' | 'is_default' | 'default_weight' | 'is_initial' | 'is_closing'
 function saver(item: Item, field: Field) {
   return async (value: string) => {
     const v =
       field === 'position' || field === 'default_weight'
         ? Number(value)
-        : field === 'is_closed' || field === 'is_default'
+        : field === 'is_closed' || field === 'is_default' || field === 'is_initial' || field === 'is_closing'
           ? value === 'true'
           : value
     await updateCatalogItem(props.kind, item.id, { ...input(item), [field]: v })
@@ -69,6 +74,7 @@ async function create(name: string) {
   await createCatalogItem(props.kind, {
     name, color: newColor.value, position: props.items.length + 1, is_closed: false, is_default: false,
     ...(props.weighted ? { default_weight: Number(newWeight.value) } : {}),
+    ...(props.staged ? { is_initial: false, is_closing: false } : {}),
   })
   await done()
 }
@@ -78,7 +84,7 @@ const retire = useMutation({
   onSuccess: done,
   onError: (e) => emit('error', e),
 })
-const columns = (props.sized ? 3 : 4) + (props.closable ? 1 : 0) + (props.defaultable ? 1 : 0) + (props.weighted ? 1 : 0)
+const columns = (props.sized ? 3 : 4) + (props.closable ? 1 : 0) + (props.defaultable ? 1 : 0) + (props.weighted ? 1 : 0) + (props.staged ? 2 : 0)
 </script>
 
 <template>
@@ -93,6 +99,8 @@ const columns = (props.sized ? 3 : 4) + (props.closable ? 1 : 0) + (props.defaul
           <th v-if="closable" class="w-24">{{ t('catalog.closed') }}</th>
           <th v-if="defaultable" class="w-24">{{ t('catalog.default') }}</th>
           <th v-if="weighted" class="w-32" :title="t('workItems.weightHint')">{{ t('catalog.defaultWeight') }}</th>
+          <th v-if="staged" class="w-24" :title="t('catalog.initialHint')">{{ t('catalog.initial') }}</th>
+          <th v-if="staged" class="w-24" :title="t('catalog.closingHint')">{{ t('catalog.closing') }}</th>
           <th class="w-28" />
         </tr>
       </thead>
@@ -127,6 +135,22 @@ const columns = (props.sized ? 3 : 4) + (props.closable ? 1 : 0) + (props.defaul
             :save="saver(item, 'default_weight')"
             :editable="!item.retired"
             required
+          />
+          <EditableCell
+            v-if="staged"
+            kind="boolean"
+            :value="String(!!item.is_initial)"
+            :label="t('catalog.initial')"
+            :save="saver(item, 'is_initial')"
+            :editable="!item.retired"
+          />
+          <EditableCell
+            v-if="staged"
+            kind="boolean"
+            :value="String(!!item.is_closing)"
+            :label="t('catalog.closing')"
+            :save="saver(item, 'is_closing')"
+            :editable="!item.retired"
           />
           <td class="px-2 text-right">
             <Button size="sm" variant="ghost" @click="retire.mutate(item)">
