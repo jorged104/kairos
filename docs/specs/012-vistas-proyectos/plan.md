@@ -4,7 +4,7 @@ Plan de implementación de [spec.md](spec.md) (aprobada 2026-11-04). Aquí van l
 técnicas; el comportamiento lo fija la spec.
 
 ## Dependencias y esquema
-No hay dependencias nuevas: el arrastre usa VueDraggablePlus, como el kanban de tareas.
+No hay dependencias nuevas: el arrastre usa el arrastre nativo de HTML, como el kanban de tareas.
 
 Migración `00011_vistas_proyectos.sql`. Es aditiva, así que la versión anterior de la API sigue
 funcionando.
@@ -80,7 +80,7 @@ funcionando.
   - `FilterBar` se generaliza con las props `fields`, `kinds` y el prefijo de las etiquetas.
 - **`ProjectBoard.vue` (Kanban):**
   - columnas del catálogo más las retiradas en uso;
-  - arrastre con VueDraggablePlus solo cuando las columnas son por estado y el proyecto se puede gestionar;
+  - arrastre nativo solo cuando las columnas son por estado y el proyecto se puede gestionar;
   - un menú «Mover a…» como alternativa con teclado;
   - si algo falla, la tarjeta vuelve y se muestra el error;
   - tope de 100 por columna (RF-33 a RF-45).
