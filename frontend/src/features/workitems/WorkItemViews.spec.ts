@@ -340,19 +340,19 @@ describe('ancho completo', () => {
   it('oculta la navegación solo en las páginas que lo admiten y se recuerda (RF-40, RF-41)', async () => {
     const fullWidth = useFullWidth()
     const page = await renderLayout(true)
-    expect(page.find('header').exists()).toBe(true)
+    expect(page.find('[data-testid=sidebar]').exists()).toBe(true)
     fullWidth.toggle()
     await nextTick()
-    expect(page.find('header').exists()).toBe(false)
+    expect(page.find('[data-testid=sidebar]').exists()).toBe(false)
     expect(page.find('[data-testid=main]').classes()).not.toContain('max-w-6xl')
     expect(localStorage.getItem('kairos.page.fullWidth')).toBe('1')
 
     const other = await renderLayout(false)
-    expect(other.find('header').exists()).toBe(true) // other screens keep their navigation
+    expect(other.find('[data-testid=sidebar]').exists()).toBe(true) // other screens keep their navigation
 
     fullWidth.toggle()
     await nextTick()
-    expect(page.find('header').exists()).toBe(true)
+    expect(page.find('[data-testid=sidebar]').exists()).toBe(true)
     expect(localStorage.getItem('kairos.page.fullWidth')).toBe('0')
   })
 
@@ -363,7 +363,7 @@ describe('ancho completo', () => {
     const page = await renderLayout(true)
     useFullWidth().toggle()
     await nextTick()
-    expect(page.find('header').exists()).toBe(false)
+    expect(page.find('[data-testid=sidebar]').exists()).toBe(false)
     setItem.mockRestore()
   })
 })

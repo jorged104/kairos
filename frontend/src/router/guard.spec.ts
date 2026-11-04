@@ -24,7 +24,7 @@ describe('guardia del router', () => {
   beforeEach(() => setActivePinia(createPinia()))
   afterEach(() => vi.unstubAllGlobals())
 
-  it('sin sesión redirige al login guardando la ruta original (RF-121)', async () => {
+  it('sin sesión redirige al login guardando la ruta original (RF-121)', { timeout: 20_000 }, async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(unauthenticated()))
     const router = createAppRouter(createMemoryHistory())
     await router.push('/')

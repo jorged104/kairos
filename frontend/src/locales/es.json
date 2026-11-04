@@ -15,7 +15,13 @@
     "objectives": "Objetivos",
     "catalog": "Catálogo",
     "portfolio": "Portafolio",
-    "tracking": "Seguimiento"
+    "tracking": "Seguimiento",
+    "account": "Mi cuenta",
+    "settings": "Configuración",
+    "open": "Abrir el menú",
+    "close": "Cerrar el menú",
+    "expand": "Expandir el menú",
+    "collapse": "Contraer el menú"
   },
   "common": {
     "save": "Guardar",
