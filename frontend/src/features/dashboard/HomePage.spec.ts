@@ -48,6 +48,8 @@ beforeEach(() => {
   }
   vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
     if (url.startsWith('/api/me/dashboard')) return json(dashboard)
+    if (url.startsWith('/api/me/points'))
+      return json({ xp: 120, coins: 3, level: { id: 'l2', number: 2, name: 'Nivel 2', min_xp: 100 }, next: { id: 'l3', number: 3, name: 'Nivel 3', min_xp: 300 }, last_seq: 1 })
     if (url.startsWith('/api/catalog'))
       return json({
         methodologies: [], work_item_types: [], priorities: [], sizes: [], labels: [], project_statuses: [],
@@ -82,6 +84,7 @@ describe('mi panel (spec 013)', () => {
     expect(card.text()).toContain('Operaciones')
     expect([card.find('[data-testid=profile-open]').text(), card.find('[data-testid=profile-late]').text(), card.find('[data-testid=profile-closed]').text()]).toEqual(['4', '2', '1'])
     expect(card.find('[data-testid=profile-account]').attributes('href')).toBe('/account')
+    expect(card.find('[data-testid=level-name]').text()).toBe('Nivel 2 · Nivel 2') // spec 014, RF-37
     const projects = w.findAll('[data-testid=my-project]')
     expect(projects.map((p) => p.find('[data-testid=my-project-role]').text())).toEqual(['Con tareas', 'Responsable'])
     expect(projects[0]!.text()).toContain('2 atrasadas')

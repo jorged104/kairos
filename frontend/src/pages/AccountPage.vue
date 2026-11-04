@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import { getPoints } from '@/api/gamification'
+import LevelProgress from '@/features/gamification/LevelProgress.vue'
+import PointsHistory from '@/features/gamification/PointsHistory.vue'
 import AssignmentBadge from '@/features/users/AssignmentBadge.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -16,6 +19,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const errorMessage = useErrorMessage()
 const { data: config } = useQuery({ queryKey: ['auth', 'config'], queryFn: fetchAuthConfig })
+const { data: points } = useQuery({ queryKey: ['points', 'me'], queryFn: () => getPoints() })
 
 const current = ref('')
 const next = ref('')
@@ -58,6 +62,16 @@ async function submit() {
           <AssignmentBadge v-for="tm in auth.me.teams" :key="tm.id" :label="tm.name" :source="tm.source" />
           <span v-if="auth.me.teams.length === 0">{{ t('common.none') }}</span>
         </div>
+      </CardContent>
+    </Card>
+
+    <Card data-testid="my-points">
+      <CardHeader>
+        <CardTitle>{{ t('gamification.mine') }}</CardTitle>
+      </CardHeader>
+      <CardContent class="flex flex-col gap-4">
+        <LevelProgress v-if="points" :points="points" />
+        <PointsHistory />
       </CardContent>
     </Card>
 

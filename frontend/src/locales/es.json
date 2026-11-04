@@ -21,7 +21,9 @@
     "open": "Abrir el menú",
     "close": "Cerrar el menú",
     "expand": "Expandir el menú",
-    "collapse": "Contraer el menú"
+    "collapse": "Contraer el menú",
+    "ranking": "Ranking",
+    "gamification": "Gamificación"
   },
   "common": {
     "save": "Guardar",
@@ -41,7 +43,9 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "pageOf": "Página {page} de {pages} · {total} resultados",
-    "empty": "No hay resultados"
+    "empty": "No hay resultados",
+    "close": "Cerrar",
+    "delete": "Borrar"
   },
   "health": {
     "title": "Estado del Sistema",
@@ -350,7 +354,12 @@
     "view_name_conflict": "Ya hay una vista con ese nombre.",
     "too_many_views": "Se ha llegado al máximo de vistas.",
     "size_retired": "La talla está retirada",
-    "template_program": "Una plantilla no puede ser un programa."
+    "template_program": "Una plantilla no puede ser un programa.",
+    "points_adjust_empty": "El ajuste debe cambiar el XP o las monedas.",
+    "points_adjust_self": "No puedes ajustar tus propios puntos.",
+    "points_negative": "El ajuste dejaría el saldo por debajo de 0.",
+    "level_conflict": "Ya hay un nivel con ese XP mínimo.",
+    "level_locked": "El primer nivel empieza siempre en 0 XP y no se puede borrar."
   },
   "richtext": {
     "bold": "Negrita",
@@ -1278,6 +1287,76 @@
       "project": "Proyecto",
       "open": "Abiertas",
       "late": "Atrasadas"
+    }
+  },
+  "gamification": {
+    "mine": "Mis puntos",
+    "level": "Nivel {number} · {name}",
+    "xp": "{n} XP",
+    "coins": "{n} monedas | {n} moneda | {n} monedas",
+    "toNext": "Te faltan {xp} XP para {name}",
+    "maxLevel": "Has alcanzado el nivel máximo",
+    "reasons": {
+      "close": "Cierre",
+      "reopen": "Reapertura",
+      "adjust": "Ajuste"
+    },
+    "history": {
+      "empty": "Todavía no hay movimientos.",
+      "date": "Fecha",
+      "reason": "Motivo",
+      "xp": "XP",
+      "coins": "Monedas",
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "page": "Página {page} de {pages}"
+    },
+    "notice": {
+      "gain": "+{xp} XP · +{coins}",
+      "levelUp": "¡Subes a {name}!"
+    },
+    "ranking": {
+      "title": "Ranking",
+      "team": "Equipo",
+      "period": "Periodo",
+      "periods": {
+        "week": "Semana",
+        "month": "Mes",
+        "all": "Siempre"
+      },
+      "range": "Del {from} al {to}",
+      "you": "tú",
+      "noTeam": "No perteneces a ningún equipo, así que no tienes ranking."
+    },
+    "admin": {
+      "title": "Gamificación"
+    },
+    "values": {
+      "title": "Puntos por talla",
+      "description": "XP y monedas que recibe cada asignado al cerrarse una tarea. Los cambios no afectan a lo ya registrado.",
+      "size": "Talla",
+      "noSize": "Sin talla",
+      "retired": "retirada",
+      "hint": "De 0 a 1000. Una talla nueva vale 0 hasta que la configures.",
+      "saved": "Tabla de puntos guardada."
+    },
+    "levels": {
+      "title": "Niveles",
+      "description": "El nivel de cada persona sale de su XP: el de mayor XP mínimo que no lo supera.",
+      "name": "Nombre",
+      "minXp": "XP mínimo",
+      "add": "Añadir nivel",
+      "firstLocked": "El primer nivel empieza siempre en 0 XP"
+    },
+    "person": {
+      "title": "Puntos de una persona",
+      "description": "Consulta el saldo y el historial de alguien, o corrígelo con un ajuste.",
+      "pick": "Persona",
+      "none": "Elige una persona",
+      "adjust": "Ajuste manual",
+      "note": "Motivo",
+      "submit": "Registrar ajuste",
+      "done": "Ajuste registrado."
     }
   }
 }

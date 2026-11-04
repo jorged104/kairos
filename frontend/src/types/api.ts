@@ -30,6 +30,7 @@ export type Permission =
   | 'audit:read'
   | 'portfolio:manage'
   | 'project_views:share'
+  | 'gamification:manage'
   | 'self:password'
   // Spec 004.
   | 'work:read'

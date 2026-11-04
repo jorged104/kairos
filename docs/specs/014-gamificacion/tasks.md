@@ -26,14 +26,14 @@
     - los inactivos;
     - los subequipos;
     - el acceso.
-- [ ] **T4 — Frontend: tarjeta, Mi cuenta, historial y aviso**
+- [x] **T4 — Frontend: tarjeta, Mi cuenta, historial y aviso**
   - RF: RF-37 a RF-42
   - Hecho cuando hay Vitest de:
     - la tarjeta;
     - el nivel máximo;
     - el historial;
     - el aviso con subida de nivel.
-- [ ] **T5 — Frontend: ranking y administración**
+- [x] **T5 — Frontend: ranking y administración**
   - RF: RF-18 a RF-36, RF-43 a RF-52
   - Hecho cuando hay Vitest de:
     - el ranking;
