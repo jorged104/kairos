@@ -38,7 +38,8 @@ type boardDTO struct {
 			Name string `json:"name"`
 			Done bool   `json:"done"`
 		} `json:"milestones"`
-		Program *struct {
+		ProgramIDs []uuid.UUID `json:"program_ids"`
+		Program    *struct {
 			ID   uuid.UUID `json:"id"`
 			Name string    `json:"name"`
 		} `json:"program"`
@@ -238,7 +239,7 @@ func TestProjectBoard(t *testing.T) {
 		t.Fatalf("board projects = %+v", b.Projects)
 	}
 	h := b.Projects[byName["Hoja"]]
-	if h.Program == nil || h.Program.ID != prog.ID || b.Projects[byName["Medio"]].Program == nil || b.Projects[byName["Programa"]].Program != nil {
+	if len(h.ProgramIDs) != 1 || h.Program == nil || h.Program.ID != prog.ID || b.Projects[byName["Medio"]].Program == nil || b.Projects[byName["Programa"]].Program != nil {
 		t.Fatalf("nearest program = %+v", h.Program)
 	}
 	if !h.Figures.HasPlan || h.BaseStart == nil || *h.BaseStart != "2026-03-01" || *h.BaseEnd != "2026-03-20" { // RF-36, RF-49

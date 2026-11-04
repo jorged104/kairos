@@ -39,7 +39,7 @@ type Config struct {
 
 var (
 	modes   = []string{"", "kanban", "timeline", "table"}
-	sorts   = []string{"", "gap", "-gap", "end", "-end", "name", "-name", "real", "-real"}
+	sorts   = withDesc("gap", "end", "name", "real", "identifier", "status", "program", "owner", "health", "plan", "start")
 	columns = []string{"", "status", "level", "health", "program"}
 	groups  = []string{"", "program", "status", "owner", "none"}
 	// Filter fields and how each value is checked (RF-62 to RF-64).
@@ -56,6 +56,15 @@ var (
 		"q":          func(v string) bool { return len(v) <= 200 },
 	}
 )
+
+// withDesc lists the orders, each ascending and with «-» descending (RF-61, RF-68).
+func withDesc(keys ...string) []string {
+	out := []string{""}
+	for _, k := range keys {
+		out = append(out, k, "-"+k)
+	}
+	return out
+}
 
 func isID(v string) bool { _, err := uuid.Parse(v); return err == nil }
 

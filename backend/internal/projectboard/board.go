@@ -32,16 +32,18 @@ type Milestone struct {
 
 // Card is a project as the three modes draw it.
 type Card struct {
-	ID         uuid.UUID      `json:"id"`
-	Identifier string         `json:"identifier"`
-	Name       string         `json:"name"`
-	StatusID   uuid.UUID      `json:"status_id"`
-	Lifecycle  string         `json:"lifecycle"`
-	Health     string         `json:"health"`
-	Team       Ref            `json:"team"`
-	Owner      Ref            `json:"owner"`
-	IsProgram  bool           `json:"is_program"`
-	Program    *Ref           `json:"program"` // the nearest program above it
+	ID         uuid.UUID `json:"id"`
+	Identifier string    `json:"identifier"`
+	Name       string    `json:"name"`
+	StatusID   uuid.UUID `json:"status_id"`
+	Lifecycle  string    `json:"lifecycle"`
+	Health     string    `json:"health"`
+	Team       Ref       `json:"team"`
+	Owner      Ref       `json:"owner"`
+	IsProgram  bool      `json:"is_program"`
+	Program    *Ref      `json:"program"` // the nearest program above it
+	// Every program above it, for the filter by program (RF-67).
+	ProgramIDs []uuid.UUID    `json:"program_ids"`
 	StartDate  *workcore.Date `json:"start_date"`
 	EndDate    *workcore.Date `json:"end_date"`
 	BaseStart  *workcore.Date `json:"base_start"` // of its last baseline (RF-49)
@@ -127,6 +129,7 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 			CanManage:  p.CanManageProject(authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID}),
 			Figures:    figures(r.ID),
 			Milestones: byProject[r.ID],
+			ProgramIDs: []uuid.UUID{},
 		}
 		if c.Milestones == nil {
 			c.Milestones = []Milestone{}
@@ -137,8 +140,10 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 				break
 			}
 			if n.IsProgram && n.Lifecycle != "archivado" {
-				c.Program = &Ref{ID: n.ID, Name: n.Name}
-				break
+				if c.Program == nil {
+					c.Program = &Ref{ID: n.ID, Name: n.Name}
+				}
+				c.ProgramIDs = append(c.ProgramIDs, n.ID)
 			}
 		}
 		if r.IsProgram {
