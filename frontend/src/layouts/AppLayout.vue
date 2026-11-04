@@ -19,7 +19,7 @@ const wide = computed(() => fullWidth.on.value && !!route.meta.fullWidth)
 
 const links = computed(() =>
   [
-    { to: '/', label: t('nav.status') },
+    { to: '/', label: t('nav.home'), perm: 'work:read' as Permission },
     { to: '/projects', label: t('nav.projects'), perm: 'work:read' as Permission },
     { to: '/portfolio', label: t('nav.portfolio'), perm: 'work:read' as Permission },
     { to: '/tracking', label: t('nav.tracking'), perm: 'work:read' as Permission },
@@ -30,6 +30,7 @@ const links = computed(() =>
     { to: '/idp-mappings', label: t('nav.idpMappings'), perm: 'idp_mappings:manage' as Permission },
     { to: '/audit', label: t('nav.audit'), perm: 'audit:read' as Permission },
     { to: '/admin/catalog', label: t('nav.catalog'), perm: 'catalog:manage' as Permission },
+    { to: '/status', label: t('nav.status') },
   ].filter((l) => !l.perm || auth.can(l.perm)),
 )
 

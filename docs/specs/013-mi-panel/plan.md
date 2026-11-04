@@ -46,6 +46,6 @@ Las gráficas se dibujan con SVG y HTML propios, sin librería.
     - menú «Mover a» como alternativa;
     - guarda con `patchWorkItem`; si falla, muestra el error y vuelve a leer el panel.
   - `MyProjects.vue` (RF-23 a RF-27).
-  - `WeeklyChart.vue`, `OnTimeChart.vue` y `LoadChart.vue`: SVG con `role="img"` y texto alternativo, cada uno con su tabla de datos en un `<details>` (RF-28 a RF-35).
+  - `ProgressCharts.vue`, con las tres gráficas: SVG o barras HTML con `role="img"` y texto alternativo, y cada una con su tabla de datos en un `<details>` (RF-28 a RF-35).
 - **Textos:** `dashboard.*` en `es.json`.
 - **Vitest:** perfil, columnas y orden, arrastre y su alternativa con flujo y error, proyectos, gráficas y tablas, y la redirección sin `work:read`.

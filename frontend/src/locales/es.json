@@ -4,6 +4,7 @@
   },
   "nav": {
     "label": "Navegación principal",
+    "home": "Mi panel",
     "status": "Estado",
     "users": "Usuarios",
     "teams": "Equipos",
@@ -1204,5 +1205,73 @@
     "milestone": "Hito {name}: {date}",
     "empty": "Ningún proyecto cumple los filtros.",
     "ganttHint": "Quien gestiona un proyecto activo puede arrastrar su barra; con el teclado, las flechas mueven la barra, Mayús + flecha cambia el fin y Alt + flecha el inicio."
+  },
+  "dashboard": {
+    "title": "Mi panel",
+    "today": "Datos a {date}",
+    "profile": {
+      "title": "Mi perfil",
+      "account": "Mi cuenta",
+      "open": "Abiertas",
+      "late": "Atrasadas",
+      "closedMonth": "Cerradas este mes",
+      "noTeams": "Sin equipos"
+    },
+    "tasks": {
+      "title": "Mis tareas",
+      "empty": "No tienes tareas abiertas ni cerradas en los últimos 14 días.",
+      "late": "{count} día de atraso | {count} días de atraso",
+      "noDue": "Sin fecha fin",
+      "due": "Fin {date}",
+      "closedOn": "Cerrada el {date}",
+      "closedHint": "Solo las cerradas en los últimos 14 días",
+      "more": "y {n} más",
+      "moveTo": "Mover {key} a otro estado",
+      "noTargets": "El flujo no permite moverla a otro estado",
+      "retired": "retirado",
+      "dragHint": "Arrastra una tarea a otra columna, o usa su menú, para cambiar su estado. Las más atrasadas salen primero."
+    },
+    "projects": {
+      "title": "En qué estoy aportando",
+      "empty": "No aportas a ningún proyecto activo.",
+      "open": "{n} abiertas",
+      "late": "{n} atrasadas",
+      "roles": {
+        "owner": "Responsable",
+        "pm": "PM",
+        "tech_lead": "Líder técnico",
+        "member": "Miembro",
+        "observer": "Observador",
+        "tasks": "Con tareas"
+      }
+    },
+    "charts": {
+      "title": "Mi avance",
+      "weekly": "Tareas cerradas por semana",
+      "weeklyAlt": "Tareas cerradas en cada una de las últimas 12 semanas; total {total}.",
+      "weekOf": "Semana del {date}",
+      "closedN": "{n} cerradas",
+      "weightN": "peso {n}",
+      "onTime": "Puntualidad",
+      "onTimeAlt": "Porcentaje de tareas cerradas a tiempo en cada una de las últimas 12 semanas.",
+      "onTimeTotal": "{pct} a tiempo en 12 semanas",
+      "onTimeOf": "{on} de {all} a tiempo",
+      "noData": "Sin datos",
+      "load": "Carga actual por proyecto",
+      "loadAlt": "Tareas abiertas por proyecto, con las atrasadas.",
+      "others": "Otros",
+      "noLoad": "No tienes tareas abiertas.",
+      "lateSeries": "Atrasadas",
+      "onTrackSeries": "En plazo",
+      "table": "Ver los datos en una tabla",
+      "week": "Semana",
+      "closed": "Cerradas",
+      "weight": "Peso",
+      "withDue": "Con fecha fin",
+      "onTimeCol": "A tiempo",
+      "project": "Proyecto",
+      "open": "Abiertas",
+      "late": "Atrasadas"
+    }
   }
 }
