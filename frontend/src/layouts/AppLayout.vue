@@ -6,6 +6,7 @@ import { LogOut } from '@lucide/vue'
 import { logout } from '@/api/auth'
 import { Button } from '@/components/ui/button'
 import { useFullWidth } from '@/features/pages/useFullWidth'
+import { features } from '@/lib/features'
 import { useAuthStore } from '@/stores/auth'
 import type { Permission } from '@/types/api'
 
@@ -23,7 +24,7 @@ const links = computed(() =>
     { to: '/projects', label: t('nav.projects'), perm: 'work:read' as Permission },
     { to: '/portfolio', label: t('nav.portfolio'), perm: 'work:read' as Permission },
     { to: '/tracking', label: t('nav.tracking'), perm: 'work:read' as Permission },
-    { to: '/objectives', label: t('nav.objectives'), perm: 'work:read' as Permission },
+    ...(features.objectives ? [{ to: '/objectives', label: t('nav.objectives'), perm: 'work:read' as Permission }] : []),
     { to: '/users', label: t('nav.users') },
     { to: '/teams', label: t('nav.teams') },
     { to: '/attributes', label: t('nav.attributes'), perm: 'attributes:manage' as Permission },

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized, type Router, type RouterHistory } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
+import { features } from '@/lib/features'
 import { useAuthStore } from '@/stores/auth'
 import type { Permission } from '@/types/api'
 
@@ -73,8 +74,12 @@ export const routes = [
         props: true,
         meta: { fullWidth: true },
       },
-      { path: 'objectives', name: 'objectives', component: () => import('@/pages/ObjectivesPage.vue') },
-      { path: 'objectives/:id', name: 'objective', component: () => import('@/pages/ObjectivePage.vue'), props: true },
+      ...(features.objectives
+        ? [
+            { path: 'objectives', name: 'objectives', component: () => import('@/pages/ObjectivesPage.vue') },
+            { path: 'objectives/:id', name: 'objective', component: () => import('@/pages/ObjectivePage.vue'), props: true },
+          ]
+        : []),
       {
         path: 'admin/catalog',
         name: 'catalog',
