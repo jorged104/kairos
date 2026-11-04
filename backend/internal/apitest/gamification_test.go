@@ -211,9 +211,9 @@ func TestPointAdjustmentsAndTables(t *testing.T) {
 	}
 
 	// Only the manager sees somebody else's points (RF-40).
-	s.admin.Get("/api/gamification/users/" + s.memberID.String() + "/points").Expect(t, http.StatusOK)
-	s.admin.Get("/api/gamification/users/" + s.memberID.String() + "/movements").Expect(t, http.StatusOK)
-	s.lead.Get("/api/gamification/users/" + s.memberID.String() + "/movements").Expect(t, http.StatusForbidden)
+	s.admin.Get("/api/gamification/users/"+s.memberID.String()+"/points").Expect(t, http.StatusOK)
+	s.admin.Get("/api/gamification/users/"+s.memberID.String()+"/movements").Expect(t, http.StatusOK)
+	s.lead.Get("/api/gamification/users/"+s.memberID.String()+"/movements").Expect(t, http.StatusForbidden)
 
 	// The table of points: retired sizes keep showing while they are worth something (RF-24 to RF-28).
 	var vals struct {
@@ -237,7 +237,9 @@ func TestPointAdjustmentsAndTables(t *testing.T) {
 	if len(vals.Sizes) != 6 || !vals.Sizes[4].Retired || vals.Sizes[5].Name != "XXL" || vals.Sizes[5].XP != 0 {
 		t.Fatalf("values = %+v (RF-25, RF-26)", vals)
 	}
-	put := func(c *Client, body map[string]any) *Response { return c.Do(http.MethodPut, "/api/gamification/values", body) }
+	put := func(c *Client, body map[string]any) *Response {
+		return c.Do(http.MethodPut, "/api/gamification/values", body)
+	}
 	put(s.member, map[string]any{"no_size": map[string]any{"xp": 1, "coins": 1}}).Expect(t, http.StatusForbidden)
 	put(s.admin, map[string]any{"no_size": map[string]any{"xp": 1001, "coins": 1}}).Expect(t, http.StatusBadRequest, "validation_failed")
 	put(s.admin, map[string]any{"no_size": map[string]any{"xp": 1, "coins": 1}, "sizes": []map[string]any{{"size_id": uuid.New(), "xp": 1, "coins": 1}}}).
@@ -361,9 +363,9 @@ func TestTeamRanking(t *testing.T) {
 	}
 
 	// Direct members only, or the manager (RF-52).
-	s.member.Get("/api/gamification/teams/" + s.bi.String() + "/ranking").Expect(t, http.StatusForbidden)
-	s.member.Get("/api/gamification/teams/" + s.rep.String() + "/ranking").Expect(t, http.StatusOK)
-	s.admin.Get("/api/gamification/teams/" + s.other.String() + "/ranking").Expect(t, http.StatusOK)
-	s.lead.Get("/api/gamification/teams/" + s.bi.String() + "/ranking?period=year").Expect(t, http.StatusBadRequest)
-	s.lead.Get("/api/gamification/teams/" + uuid.NewString() + "/ranking").Expect(t, http.StatusNotFound)
+	s.member.Get("/api/gamification/teams/"+s.bi.String()+"/ranking").Expect(t, http.StatusForbidden)
+	s.member.Get("/api/gamification/teams/"+s.rep.String()+"/ranking").Expect(t, http.StatusOK)
+	s.admin.Get("/api/gamification/teams/"+s.other.String()+"/ranking").Expect(t, http.StatusOK)
+	s.lead.Get("/api/gamification/teams/"+s.bi.String()+"/ranking?period=year").Expect(t, http.StatusBadRequest)
+	s.lead.Get("/api/gamification/teams/"+uuid.NewString()+"/ranking").Expect(t, http.StatusNotFound)
 }
