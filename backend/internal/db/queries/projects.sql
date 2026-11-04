@@ -14,8 +14,9 @@ SELECT * FROM projects WHERE identifier = $1;
 -- name: CreateProject :one
 INSERT INTO projects (parent_id, template_id, team_id, owner_id, methodology_id, identifier, name,
                       description, description_text, is_template, health, health_explanation,
-                      start_date, end_date, depth)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                      start_date, end_date, depth, status_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+        (SELECT id FROM project_statuses WHERE is_initial))
 RETURNING *;
 
 -- name: UpdateProject :one

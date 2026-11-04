@@ -96,6 +96,47 @@ SELECT EXISTS (SELECT 1 FROM work_items WHERE status_id = $1);
 -- name: GetDefaultStatus :one
 SELECT * FROM statuses WHERE is_default;
 
+-- Estados de proyecto (spec 012) ---------------------------------------------
+
+-- name: ListProjectStatuses :many
+SELECT * FROM project_statuses ORDER BY position, name;
+
+-- name: GetProjectStatus :one
+SELECT * FROM project_statuses WHERE id = $1;
+
+-- name: GetProjectStatusForUpdate :one
+SELECT * FROM project_statuses WHERE id = $1 FOR UPDATE;
+
+-- name: CreateProjectStatus :one
+INSERT INTO project_statuses (name, name_normalized, color, position, is_closed, is_initial, is_closing)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
+
+-- name: UpdateProjectStatus :one
+UPDATE project_statuses
+SET name = $2, name_normalized = $3, color = $4, position = $5, is_closed = $6, is_initial = $7, is_closing = $8,
+    updated_at = now()
+WHERE id = $1 RETURNING *;
+
+-- name: ClearInitialProjectStatus :exec
+UPDATE project_statuses SET is_initial = false, updated_at = now() WHERE is_initial AND id <> $1;
+
+-- name: ClearClosingProjectStatus :exec
+UPDATE project_statuses SET is_closing = false, updated_at = now() WHERE is_closing AND id <> $1;
+
+-- name: SetProjectStatusRetired :one
+UPDATE project_statuses
+SET retired_at = CASE WHEN sqlc.arg(retired)::boolean THEN now() ELSE NULL END, updated_at = now()
+WHERE id = $1 RETURNING *;
+
+-- name: ProjectStatusInUse :one
+SELECT EXISTS (SELECT 1 FROM projects WHERE status_id = $1);
+
+-- name: GetInitialProjectStatus :one
+SELECT * FROM project_statuses WHERE is_initial;
+
+-- name: GetClosingProjectStatus :one
+SELECT * FROM project_statuses WHERE is_closing;
+
 -- Prioridades ------------------------------------------------------------------
 
 -- name: ListPriorities :many

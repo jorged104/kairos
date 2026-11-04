@@ -49,6 +49,19 @@ type Status struct {
 	Retired   bool      `json:"retired"`
 }
 
+// ProjectStatus is a stage of a project (spec 012, RF-1 to RF-5): its
+// category, open or closed, drives the project's lifecycle.
+type ProjectStatus struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Color     string    `json:"color"`
+	Position  int32     `json:"position"`
+	IsClosed  bool      `json:"is_closed"`
+	IsInitial bool      `json:"is_initial"`
+	IsClosing bool      `json:"is_closing"`
+	Retired   bool      `json:"retired"`
+}
+
 type Priority struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -89,6 +102,8 @@ type Catalog struct {
 	Priorities    []Priority    `json:"priorities"`
 	Sizes         []Size        `json:"sizes"`
 	Labels        []Label       `json:"labels"`
+	// Spec 012.
+	ProjectStatuses []ProjectStatus `json:"project_statuses"`
 }
 
 type methodologyRequest struct {
@@ -131,6 +146,28 @@ type statusRequest struct {
 func (r *statusRequest) Normalize() {
 	r.Name = strings.TrimSpace(r.Name)
 	r.Color = strings.ToLower(strings.TrimSpace(r.Color))
+}
+
+type projectStatusRequest struct {
+	Name      string `json:"name" validate:"required,max=100"`
+	Color     string `json:"color" validate:"required,len=7,hexcolor"`
+	Position  int32  `json:"position" validate:"min=0"`
+	IsClosed  bool   `json:"is_closed"`
+	IsInitial bool   `json:"is_initial"`
+	IsClosing bool   `json:"is_closing"`
+}
+
+func (r *projectStatusRequest) Normalize() {
+	r.Name = strings.TrimSpace(r.Name)
+	r.Color = strings.ToLower(strings.TrimSpace(r.Color))
+}
+
+// valid: the initial status is open and the closing one closed (RF-4, RF-5).
+func (r projectStatusRequest) valid() error {
+	if (r.IsInitial && r.IsClosed) || (r.IsClosing && !r.IsClosed) {
+		return apperr.ErrValidation.WithDetail("field", "is_closed")
+	}
+	return nil
 }
 
 type priorityRequest struct {

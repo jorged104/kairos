@@ -24,7 +24,7 @@ func NewService(store *db.Store) *Service { return &Service{store: store} }
 
 // Get returns the whole catalog, retired elements included.
 func (s *Service) Get(ctx context.Context) (Catalog, error) {
-	out := Catalog{Methodologies: []Methodology{}, Types: []Type{}, Statuses: []Status{}, Priorities: []Priority{}, Sizes: []Size{}, Labels: []Label{}}
+	out := Catalog{Methodologies: []Methodology{}, Types: []Type{}, Statuses: []Status{}, Priorities: []Priority{}, Sizes: []Size{}, Labels: []Label{}, ProjectStatuses: []ProjectStatus{}}
 	ms, err := s.store.ListMethodologies(ctx)
 	if err != nil {
 		return out, fmt.Errorf("listar metodologías: %w", err)
@@ -76,6 +76,13 @@ func (s *Service) Get(ctx context.Context) (Catalog, error) {
 	}
 	for _, l := range labels {
 		out.Labels = append(out.Labels, toLabel(l))
+	}
+	pss, err := s.store.ListProjectStatuses(ctx)
+	if err != nil {
+		return out, fmt.Errorf("listar estados de proyecto: %w", err)
+	}
+	for _, ps := range pss {
+		out.ProjectStatuses = append(out.ProjectStatuses, toProjectStatus(ps))
 	}
 	return out, nil
 }
@@ -266,6 +273,95 @@ func (s *Service) SetStatusRetired(ctx context.Context, p *authz.Principal, id u
 		}
 		r, err := q.SetStatusRetired(ctx, sqlc.SetStatusRetiredParams{ID: id, Retired: retired})
 		return toStatus(r), err
+	})
+}
+
+// Estados de proyecto (spec 012, RF-1 to RF-11) -------------------------------------------
+
+func projectStatusID(st ProjectStatus) uuid.UUID { return st.ID }
+
+// claim moves the initial or closing mark to the status id (uuid.Nil: one
+// about to be created).
+func claim(ctx context.Context, q *sqlc.Queries, id uuid.UUID, initial, closing bool) error {
+	if initial {
+		if err := q.ClearInitialProjectStatus(ctx, id); err != nil {
+			return err
+		}
+	}
+	if closing {
+		if err := q.ClearClosingProjectStatus(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) CreateProjectStatus(ctx context.Context, p *authz.Principal, req projectStatusRequest) (ProjectStatus, error) {
+	if err := req.valid(); err != nil {
+		return ProjectStatus{}, err
+	}
+	return mutate(ctx, s, p, "project_status", "created", projectStatusID, func(q *sqlc.Queries) (ProjectStatus, error) {
+		if err := claim(ctx, q, uuid.Nil, req.IsInitial, req.IsClosing); err != nil {
+			return ProjectStatus{}, err
+		}
+		r, err := q.CreateProjectStatus(ctx, sqlc.CreateProjectStatusParams{
+			Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position,
+			IsClosed: req.IsClosed, IsInitial: req.IsInitial, IsClosing: req.IsClosing,
+		})
+		return toProjectStatus(r), err
+	})
+}
+
+// UpdateProjectStatus keeps exactly one initial and one closing status, both
+// active (RF-6, RF-7): the marks can only move to another status. The category
+// is locked once a project uses the status, because it drives the lifecycle.
+func (s *Service) UpdateProjectStatus(ctx context.Context, p *authz.Principal, id uuid.UUID, req projectStatusRequest) (ProjectStatus, error) {
+	if err := req.valid(); err != nil {
+		return ProjectStatus{}, err
+	}
+	return mutate(ctx, s, p, "project_status", "updated", projectStatusID, func(q *sqlc.Queries) (ProjectStatus, error) {
+		cur, err := q.GetProjectStatusForUpdate(ctx, id)
+		if err != nil {
+			return ProjectStatus{}, err
+		}
+		if (cur.IsInitial && !req.IsInitial) || (cur.IsClosing && !req.IsClosing) {
+			return ProjectStatus{}, errDefaultRequired
+		}
+		if (req.IsInitial || req.IsClosing) && cur.RetiredAt != nil {
+			return ProjectStatus{}, errDefaultRequired
+		}
+		if cur.IsClosed != req.IsClosed {
+			used, err := q.ProjectStatusInUse(ctx, &id)
+			if err != nil {
+				return ProjectStatus{}, err
+			}
+			if used {
+				return ProjectStatus{}, errClosedLocked
+			}
+		}
+		if err := claim(ctx, q, id, req.IsInitial && !cur.IsInitial, req.IsClosing && !cur.IsClosing); err != nil {
+			return ProjectStatus{}, err
+		}
+		r, err := q.UpdateProjectStatus(ctx, sqlc.UpdateProjectStatusParams{
+			ID: id, Name: req.Name, NameNormalized: NormalizeName(req.Name), Color: req.Color, Position: req.Position,
+			IsClosed: req.IsClosed, IsInitial: req.IsInitial, IsClosing: req.IsClosing,
+		})
+		return toProjectStatus(r), err
+	})
+}
+
+// SetProjectStatusRetired retires a status; the projects in it keep it (RF-9).
+func (s *Service) SetProjectStatusRetired(ctx context.Context, p *authz.Principal, id uuid.UUID, retired bool) (ProjectStatus, error) {
+	return mutate(ctx, s, p, "project_status", retiredAction(retired), projectStatusID, func(q *sqlc.Queries) (ProjectStatus, error) {
+		cur, err := q.GetProjectStatusForUpdate(ctx, id)
+		if err != nil {
+			return ProjectStatus{}, err
+		}
+		if retired && (cur.IsInitial || cur.IsClosing) {
+			return ProjectStatus{}, errDefaultRequired
+		}
+		r, err := q.SetProjectStatusRetired(ctx, sqlc.SetProjectStatusRetiredParams{ID: id, Retired: retired})
+		return toProjectStatus(r), err
 	})
 }
 
@@ -504,6 +600,11 @@ func toType(r sqlc.WorkItemType) Type {
 
 func toStatus(r sqlc.Status) Status {
 	return Status{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, IsClosed: r.IsClosed, IsDefault: r.IsDefault, Retired: r.RetiredAt != nil}
+}
+
+func toProjectStatus(r sqlc.ProjectStatus) ProjectStatus {
+	return ProjectStatus{ID: r.ID, Name: r.Name, Color: r.Color, Position: r.Position, IsClosed: r.IsClosed,
+		IsInitial: r.IsInitial, IsClosing: r.IsClosing, Retired: r.RetiredAt != nil}
 }
 
 func toPriority(r sqlc.Priority) Priority {

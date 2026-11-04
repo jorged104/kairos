@@ -394,9 +394,16 @@
       "statuses": "Nuevo estado",
       "priorities": "Nueva prioridad",
       "work-item-sizes": "Nueva talla",
-      "labels": "Nueva etiqueta"
+      "labels": "Nueva etiqueta",
+      "project-statuses": "Nuevo estado de proyecto"
     },
-    "sizes": "Tallas"
+    "sizes": "Tallas",
+    "projectStatuses": "Estados de proyecto",
+    "initial": "Inicial",
+    "initialHint": "El estado con el que nacen los proyectos y al que vuelven al reabrirse; debe ser abierto",
+    "closing": "De cierre",
+    "closingHint": "El estado al que pasa un proyecto que se cierra desde su ficha; debe ser cerrado",
+    "retired": "retirado"
   },
   "work": {
     "reload": "Recargar"
@@ -459,7 +466,8 @@
     "phaseFinish": "Fin",
     "fromTemplate": "Desde plantilla",
     "newPlaceholder": "Nombre del proyecto",
-    "noMethodology": "Sin metodología"
+    "noMethodology": "Sin metodología",
+    "status": "Estado"
   },
   "milestones": {
     "name": "Nombre del hito",
@@ -1120,5 +1128,81 @@
     "upcomingDetail": "Empieza {start} · fin {due}",
     "noTasks": "Ninguna.",
     "more": "y {n} más"
+  },
+  "projectViews": {
+    "mode": "Modo de vista",
+    "modes": {
+      "kanban": "Kanban",
+      "timeline": "Cronograma",
+      "table": "Tabla"
+    },
+    "all": "Todos",
+    "shareAll": "Compartida con toda la organización",
+    "hint": "Guarda el modo, los filtros, el orden y la agrupación. Cada persona ve las cifras a la fecha de hoy.",
+    "noFilters": "Sin filtros: todos los proyectos que no están archivados.",
+    "fields": {
+      "status_id": "Estado",
+      "level": "Semáforo",
+      "health": "Salud",
+      "program_id": "Programa",
+      "team_id": "Equipo",
+      "owner_id": "Responsable",
+      "end": "Fecha fin",
+      "end_from": "Fin desde",
+      "end_to": "Fin hasta",
+      "q": "Texto"
+    },
+    "end": {
+      "overdue": "Vencida",
+      "month": "Este mes",
+      "quarter": "Este trimestre",
+      "none": "Sin fecha"
+    },
+    "me": "Yo",
+    "noProgram": "Sin programa",
+    "columnsBy": "Columnas por",
+    "columns": {
+      "status": "Estado del proyecto",
+      "level": "Semáforo",
+      "health": "Salud",
+      "program": "Programa"
+    },
+    "groupBy": "Agrupar por",
+    "groups": {
+      "program": "Programa",
+      "status": "Estado del proyecto",
+      "owner": "Responsable",
+      "none": "Sin agrupar"
+    },
+    "order": "Orden",
+    "sorts": {
+      "gap": "Brecha, más atrasados primero",
+      "end": "Fecha fin",
+      "name": "Nombre",
+      "-real": "Real, mayor primero"
+    },
+    "moveTo": "Mover {name} a otro estado",
+    "real": "Real {real}",
+    "plan": "plan {plan}",
+    "emptyColumn": "Ningún proyecto",
+    "more": "y {n} más: afina el filtro para verlos",
+    "dragHint": "Arrastra una tarjeta a otra columna, o usa su menú, para cambiar el estado del proyecto. Pasar a un estado cerrado cierra el proyecto.",
+    "noEnd": "Sin fecha fin",
+    "scale": "Escala",
+    "scales": {
+      "weeks": "Semanas",
+      "months": "Meses",
+      "quarters": "Trimestres"
+    },
+    "quarter": "T{q} {y}",
+    "baseline": "Línea base",
+    "milestones": "Hitos",
+    "baseRange": "Línea base: {from} → {to}",
+    "barLabel": "{name}: del {from} al {to}, real {real} %",
+    "dragDates": "Arrastra la barra para mover las fechas, o sus extremos para cambiar el inicio o el fin",
+    "noDates": "Sin fechas",
+    "milestone": "Hito {name}: {date}",
+    "empty": "Ningún proyecto cumple los filtros.",
+    "ganttHint": "Quien gestiona un proyecto activo puede arrastrar su barra; con el teclado, las flechas mueven la barra, Mayús + flecha cambia el fin y Alt + flecha el inicio."
   }
 }

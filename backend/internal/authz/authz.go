@@ -87,7 +87,8 @@ const (
 	ObjectivesManageAll       Permission = "objectives:manage:all"
 	ObjectivesManageTeam      Permission = "objectives:manage:team"
 	ObjectivesManageOwner     Permission = "objectives:manage:owner"
-	PortfolioManage           Permission = "portfolio:manage" // spec 010: programs and their weights
+	PortfolioManage           Permission = "portfolio:manage"    // spec 010: programs and their weights
+	ProjectViewsShare         Permission = "project_views:share" // spec 012: views of the project list for everybody
 )
 
 // rolePermissions is the permission matrix of specs 003 and 004.
@@ -97,12 +98,12 @@ var rolePermissions = map[Role][]Permission{
 		UsersOffboard, RolesAssignAll, TeamMembersAll, TeamsManage, AttributesManage,
 		IdpMappingsManage, PasswordsSet, AuditRead, SelfPassword,
 		WorkRead, WorkComment, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
-		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage,
+		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage, ProjectViewsShare,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,
 		RolesAssignBasic, TeamMembersTeam, SelfPassword,
-		WorkRead, WorkComment, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner,
+		WorkRead, WorkComment, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner, ProjectViewsShare,
 		WorkItemsWriteTeam, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
 		ObjectivesCreateTeam, ObjectivesManageTeam, ObjectivesManageOwner,
 	},

@@ -143,7 +143,7 @@ const setProjectPortfolio = `-- name: SetProjectPortfolio :one
 
 UPDATE projects SET is_program = $2, portfolio_weight = $3, version = version + 1, updated_at = now()
 WHERE id = $1
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id
 `
 
 type SetProjectPortfolioParams struct {
@@ -181,6 +181,7 @@ func (q *Queries) SetProjectPortfolio(ctx context.Context, arg SetProjectPortfol
 		&i.PageVersion,
 		&i.IsProgram,
 		&i.PortfolioWeight,
+		&i.StatusID,
 	)
 	return i, err
 }

@@ -263,6 +263,7 @@ type Project struct {
 	PageVersion       int32
 	IsProgram         bool
 	PortfolioWeight   *int32
+	StatusID          *uuid.UUID
 }
 
 type ProjectBaseline struct {
@@ -299,6 +300,17 @@ type ProjectCustomValue struct {
 	UpdatedAt time.Time
 }
 
+type ProjectListView struct {
+	ID             uuid.UUID
+	OwnerID        *uuid.UUID
+	Name           string
+	NameNormalized string
+	Config         json.RawMessage
+	CreatedBy      uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type ProjectMember struct {
 	ProjectID uuid.UUID
 	UserID    uuid.UUID
@@ -325,6 +337,20 @@ type ProjectProgressDaily struct {
 	Day       time.Time
 	Progress  int16
 	UpdatedAt time.Time
+}
+
+type ProjectStatus struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	IsClosed       bool
+	IsInitial      bool
+	IsClosing      bool
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type ProjectView struct {

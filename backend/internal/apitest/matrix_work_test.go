@@ -142,6 +142,21 @@ var workOps = []workOp{
 	{"gestionar programa", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/portfolio", map[string]any{"version": 1, "is_program": true, "weight": nil})
 	}, map[string]int{"admin": 200}},
+	// Spec 012: everyone reads the board and keeps personal views; whoever
+	// manages a project moves it; leads and the administrator share views.
+	{"ver tablero de proyectos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/project-board") }, workAll(200)},
+	{"crear estado de proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/project-statuses", map[string]any{"name": "E-" + uuid.NewString(), "color": "#000000"})
+	}, map[string]int{"admin": 201}},
+	{"cambiar estado de proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/status", map[string]any{"version": 1, "status_id": m.CatalogID("project_statuses", "Planificación")})
+	}, managers(200)},
+	{"guardar vista de proyectos", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/project-views", map[string]any{"name": "V-" + uuid.NewString(), "config": map[string]any{}})
+	}, workAll(201)},
+	{"compartir vista de proyectos", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/project-views", map[string]any{"name": "V-" + uuid.NewString(), "shared": true, "config": map[string]any{}})
+	}, map[string]int{"admin": 201, "lead:in": 201, "lead:out": 201}},
 	{"ver semáforo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/schedule-settings") }, workAll(200)},
 	{"configurar semáforo", func(m *workMatrix, c *Client, a string) *Response {
 		var cur map[string]any

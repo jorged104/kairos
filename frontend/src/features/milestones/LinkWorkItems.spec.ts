@@ -31,7 +31,7 @@ beforeEach(() => {
   fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (init?.method === 'POST' && url.endsWith('/unlink')) return json({ unlinked: 1 })
     if (init?.method === 'POST') return json({ linked: 2 })
-    if (url.endsWith('/api/catalog')) return json({ methodologies: [], work_item_types: [], statuses: [], priorities: [], sizes: [], labels: [] })
+    if (url.endsWith('/api/catalog')) return json({ methodologies: [], work_item_types: [], statuses: [], priorities: [], sizes: [], labels: [], project_statuses: [] })
     if (url.startsWith('/api/milestones/m1/work-items')) return json({ items: linked })
     if (url.startsWith('/api/milestones/m1')) return json(milestone)
     if (url.startsWith('/api/projects/p1/work-items')) return json({ items: found, total: 120, page: 1, page_size: 50 })

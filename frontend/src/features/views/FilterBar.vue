@@ -8,15 +8,28 @@ import { FILTER_FIELDS, SINGLE, type FilterField } from './useProjectFilters'
 import type { FilterOption } from './useFilterOptions'
 
 // The active filters as chips that go with one click, and «+ Filtro» to add
-// one: a field and its values (spec 008, RF-18 to RF-21).
-const props = defineProps<{
-  filters: Record<string, string[]>
-  options: Partial<Record<FilterField, FilterOption[]>>
-  label: (field: string, value: string) => string
-  available: (field: string, value: string) => boolean
-}>()
+// one: a field and its values (spec 008, RF-18 to RF-21). The project list
+// brings its own fields (spec 012, RF-62).
+const props = withDefaults(
+  defineProps<{
+    filters: Record<string, string[]>
+    options: Partial<Record<string, FilterOption[]>>
+    label: (field: string, value: string) => string
+    available: (field: string, value: string) => boolean
+    fields?: readonly string[]
+    kindOf?: (field: string) => 'text' | 'date' | 'one' | 'many'
+    /** Where the names of the fields are in the translations. */
+    labels?: string
+  }>(),
+  {
+    fields: () => FILTER_FIELDS,
+    kindOf: (f: string) => (f === 'q' ? 'text' : f === 'due_before' || f === 'due_after' ? 'date' : SINGLE.includes(f as FilterField) ? 'one' : 'many'),
+    labels: 'filters.fields',
+  },
+)
 const emit = defineEmits<{ set: [field: FilterField, values: string[]]; remove: [field: string, value: string] }>()
 const { t } = useI18n()
+const fieldName = (f: string) => t(`${props.labels}.${f}`)
 
 const chips = computed(() =>
   Object.entries(props.filters).flatMap(([field, values]) =>
@@ -27,12 +40,10 @@ const chips = computed(() =>
 const adding = ref(false)
 const panel = ref<HTMLElement | null>(null)
 onClickOutside(panel, () => (adding.value = false))
-const field = ref<FilterField>('status_id')
+const field = ref<FilterField>(props.fields[0] as FilterField)
 const picked = ref<string[]>([])
 const text = ref('')
-const kind = computed(() =>
-  field.value === 'q' ? 'text' : field.value === 'due_before' || field.value === 'due_after' ? 'date' : SINGLE.includes(field.value) ? 'one' : 'many',
-)
+const kind = computed(() => props.kindOf(field.value))
 watch(field, () => {
   picked.value = [...(props.filters[field.value] ?? [])]
   text.value = props.filters[field.value]?.[0] ?? ''
@@ -63,13 +74,13 @@ function add() {
       :title="c.ok ? undefined : t('filters.unavailable')"
       data-testid="filter-chip"
     >
-      <span class="text-muted-foreground">{{ t(`filters.fields.${c.field}`) }}</span>
+      <span class="text-muted-foreground">{{ fieldName(c.field) }}</span>
       <span class="font-medium">{{ c.text }}</span>
       <span v-if="!c.ok" class="text-xs text-muted-foreground">({{ t('filters.unavailable') }})</span>
       <button
         type="button"
         class="grid size-6 place-items-center rounded-full hover:bg-background"
-        :aria-label="t('filters.remove', { field: t(`filters.fields.${c.field}`), value: c.text })"
+        :aria-label="t('filters.remove', { field: fieldName(c.field), value: c.text })"
         data-testid="filter-remove"
         @click="emit('remove', c.field, c.value)"
       >
@@ -93,7 +104,7 @@ function add() {
       <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
         {{ t('filters.field') }}
         <select v-model="field" class="h-9 rounded-md border bg-background px-2 text-sm text-foreground" data-testid="filter-field">
-          <option v-for="f in FILTER_FIELDS" :key="f" :value="f">{{ t(`filters.fields.${f}`) }}</option>
+          <option v-for="f in fields" :key="f" :value="f">{{ fieldName(f) }}</option>
         </select>
       </label>
       <input
@@ -101,11 +112,11 @@ function add() {
         v-model="text"
         type="search"
         class="h-9 rounded-md border bg-background px-2 text-sm"
-        :aria-label="t('filters.fields.q')"
+        :aria-label="fieldName('q')"
         data-testid="filter-text"
         @keydown.enter.prevent="add"
       />
-      <input v-else-if="kind === 'date'" v-model="text" type="date" class="h-9 rounded-md border bg-background px-2 text-sm" :aria-label="t(`filters.fields.${field}`)" />
+      <input v-else-if="kind === 'date'" v-model="text" type="date" class="h-9 rounded-md border bg-background px-2 text-sm" :aria-label="fieldName(field)" />
       <ul v-else class="flex max-h-60 flex-col overflow-y-auto" data-testid="filter-values">
         <li v-for="o in options[field] ?? []" :key="o.value">
           <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-muted">

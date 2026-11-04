@@ -117,7 +117,7 @@ describe('crear programas y asignar proyectos (spec 010, RF-41 a RF-48)', () => 
     fetchMock = vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET'
       if (url.startsWith('/api/portfolio')) return json(portfolio)
-      if (url.startsWith('/api/teams')) return json({ items: [{ id: 't1', name: 'Equipo', parent_id: null, archived_at: null, leads: [] }] })
+      if (url.startsWith('/api/teams')) return json({ items: [{ id: 't1', name: 'Equipo', parent_id: null, archived_at: null, leaders: [] }] })
       if (method === 'POST' && url === '/api/projects') return json(project('n1', { version: 1 }))
       if (method === 'PUT') return json(project('n1', { version: 2, is_program: true }))
       if (method === 'PATCH') return json(project(url.split('/').at(-1)!, { version: 4 }))

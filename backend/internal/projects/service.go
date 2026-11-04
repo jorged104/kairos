@@ -374,6 +374,11 @@ func (s *Service) SetLifecycle(ctx context.Context, p *authz.Principal, id uuid.
 		if err != nil {
 			return fmt.Errorf("cambiar ciclo de vida: %w", err)
 		}
+		if !updated.IsTemplate {
+			if updated, err = followLifecycle(ctx, q, updated); err != nil {
+				return err
+			}
+		}
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "project." + action, TargetType: "project",
 			TargetID: id.String(), Before: row.Lifecycle, After: move.to}); err != nil {
 			return err
@@ -542,6 +547,13 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Pro
 		},
 		MyRole:    p.ProjectRoleOf(Ref(row)),
 		IsProgram: row.IsProgram, PortfolioWeight: row.PortfolioWeight,
+	}
+	if !row.IsTemplate {
+		st, err := statusOf(ctx, q, row)
+		if err != nil {
+			return out, err
+		}
+		out.StatusID = &st.ID
 	}
 	effort, err := q.ProjectEffort(ctx, row.ID)
 	if err != nil {
