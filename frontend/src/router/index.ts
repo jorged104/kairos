@@ -24,7 +24,9 @@ export const routes = [
     path: '/',
     component: AppLayout,
     children: [
-      { path: '', name: 'status', component: () => import('@/pages/StatusPage.vue') },
+      // Mi panel; without work:read the guard sends to the status of the system (spec 013, RF-1, RF-2).
+      { path: '', name: 'home', component: () => import('@/pages/HomePage.vue'), meta: { permissions: ['work:read'] as Permission[] } },
+      { path: 'status', name: 'status', component: () => import('@/pages/StatusPage.vue') },
       { path: 'users', name: 'users', component: () => import('@/pages/UsersPage.vue') },
       {
         path: 'users/new',

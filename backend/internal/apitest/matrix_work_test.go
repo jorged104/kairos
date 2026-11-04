@@ -144,6 +144,7 @@ var workOps = []workOp{
 	}, map[string]int{"admin": 200}},
 	// Spec 012: everyone reads the board and keeps personal views; whoever
 	// manages a project moves it; leads and the administrator share views.
+	{"ver mi panel", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/dashboard") }, workAll(200)}, // spec 013
 	{"ver tablero de proyectos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/project-board") }, workAll(200)},
 	{"crear estado de proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/project-statuses", map[string]any{"name": "E-" + uuid.NewString(), "color": "#000000"})
