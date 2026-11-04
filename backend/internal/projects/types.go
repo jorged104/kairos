@@ -78,6 +78,8 @@ type Project struct {
 	IsProgram       bool   `json:"is_program"`
 	PortfolioWeight *int32 `json:"portfolio_weight"`
 	Effort          int32  `json:"effort"`
+	// Spec 012, RF-13: null for templates.
+	StatusID *uuid.UUID `json:"status_id"`
 }
 
 // Summary is a row of the project list.
