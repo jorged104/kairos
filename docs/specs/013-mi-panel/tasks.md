@@ -1,6 +1,6 @@
 # Tareas 013 — Mi panel
 
-- [ ] **T1 — API de Mi panel**
+- [x] **T1 — API de Mi panel**
   - RF: RF-3 a RF-6, RF-10 a RF-14, RF-23 a RF-25, RF-28 a RF-34, RF-36
   - Hecho cuando: hay apitest de tareas, papeles, series, carga y aislamiento entre usuarios, y una fila en la matriz.
 - [ ] **T2 — Frontend: inicio, perfil y proyectos**

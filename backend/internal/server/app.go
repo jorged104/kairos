@@ -15,6 +15,7 @@ import (
 	"openscum/internal/comments"
 	"openscum/internal/config"
 	"openscum/internal/customfields"
+	"openscum/internal/dashboard"
 	"openscum/internal/db"
 	"openscum/internal/events"
 	"openscum/internal/files"
@@ -70,6 +71,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	scheduleH := schedule.NewHandler(schedule.NewService(store), logger)
 	portfolioH := portfolio.NewHandler(portfolio.NewService(store.Queries), logger)
 	trackingH := tracking.NewHandler(tracking.NewService(store.Queries), logger)
+	dashboardH := dashboard.NewHandler(dashboard.NewService(store.Queries), logger)
 	boardH := projectboard.NewHandler(projectboard.NewService(store.Queries), projectboard.NewViews(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
 	filesSvc := files.NewService(store, storage)
@@ -106,6 +108,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 			portfolioH.Routes(p)
 			trackingH.Routes(p)
 			boardH.Routes(p)
+			dashboardH.Routes(p)
 			fieldsH.Routes(p)
 			projectsH.Routes(p)
 			workItemsH.Routes(p)
