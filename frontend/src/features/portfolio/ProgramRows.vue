@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowUp } from '@lucide/vue'
+import { ArrowDown, ArrowUp, X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { PortfolioRow } from '@/api/portfolio'
@@ -9,9 +9,9 @@ import type { Sort, SortKey } from './rows'
 
 // The rows of a card: each project with a bar of its real progress marking
 // its plan, and the figures of the traffic light (spec 010, RF-25 to RF-27,
-// RF-30, RF-35).
-defineProps<{ rows: PortfolioRow[]; sort: Sort }>()
-const emit = defineEmits<{ sort: [Sort] }>()
+// RF-30, RF-35), and taking each out of its program (RF-46).
+defineProps<{ rows: PortfolioRow[]; sort: Sort; removable?: boolean; busy?: boolean }>()
+const emit = defineEmits<{ sort: [Sort]; remove: [PortfolioRow] }>()
 const { t } = useI18n()
 const pct = (n: number) => `${n.toLocaleString('es', { maximumFractionDigits: 1 })} %`
 const columns: SortKey[] = ['plan', 'real', 'gap']
@@ -39,6 +39,7 @@ function by(sort: Sort, key: SortKey) {
             </button>
           </th>
           <th class="p-2 font-medium">{{ t('portfolio.columns.level') }}</th>
+          <th v-if="removable" class="w-8 p-2"><span class="sr-only">{{ t('portfolio.remove.column') }}</span></th>
         </tr>
       </thead>
       <tbody>
@@ -59,6 +60,19 @@ function by(sort: Sort, key: SortKey) {
           <td class="p-2">
             <LevelBadge v-if="r.figures.has_plan" :figures="r.figures" compact />
             <span v-else class="text-xs text-muted-foreground">{{ t('schedule.noPlan') }}</span>
+          </td>
+          <td v-if="removable" class="p-2 text-right">
+            <button
+              type="button"
+              class="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+              :title="t('portfolio.remove.action', { name: r.name })"
+              :aria-label="t('portfolio.remove.action', { name: r.name })"
+              :disabled="busy"
+              data-testid="portfolio-remove"
+              @click="emit('remove', r)"
+            >
+              <X class="size-4" aria-hidden="true" />
+            </button>
           </td>
         </tr>
       </tbody>

@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { Plus } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { getPortfolio, type PortfolioCard } from '@/api/portfolio'
+import { getPortfolio, setParent, type PortfolioCard } from '@/api/portfolio'
 import { LEVELS } from '@/api/schedule'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import AddProject from '@/features/portfolio/AddProject.vue'
+import NewProgram from '@/features/portfolio/NewProgram.vue'
 import ProgramRows from '@/features/portfolio/ProgramRows.vue'
 import { DEFAULT_SORT, filterRows, levelOf, sortRows, type LevelFilter, type Sort } from '@/features/portfolio/rows'
 import LevelBadge from '@/features/schedule/LevelBadge.vue'
 import { useLevels } from '@/features/schedule/useLevels'
+import { useAuthStore } from '@/stores/auth'
 
 // Every program with its projects and the projects without one, filtered by
 // the traffic light and sorted (spec 010, RF-21 to RF-38).
@@ -19,6 +23,29 @@ const { t, locale } = useI18n()
 const errorMessage = useErrorMessage()
 const levels = useLevels()
 const { data, error } = useQuery({ queryKey: ['portfolio'], queryFn: getPortfolio })
+
+// The administrator creates programs and hangs projects under them here
+// (RF-41 to RF-48).
+const auth = useAuthStore()
+const qc = useQueryClient()
+const canManage = computed(() => auth.can('portfolio:manage'))
+const creating = ref(false)
+function refresh() {
+  qc.invalidateQueries({ queryKey: ['portfolio'] })
+  qc.invalidateQueries({ queryKey: ['projects'] })
+  qc.invalidateQueries({ queryKey: ['overview'] })
+}
+function created() {
+  creating.value = false
+  refresh()
+}
+const move = useMutation({
+  mutationFn: (v: { id: string; parentId: string | null }) => setParent(v.id, v.parentId),
+  onSuccess: (p) => {
+    qc.invalidateQueries({ queryKey: ['project', p.id] })
+    refresh()
+  },
+})
 
 // The filter and the order are remembered in the browser (RF-37).
 const KEY = 'portfolio.view'
@@ -64,9 +91,16 @@ const today = computed(() => (data.value ? new Intl.DateTimeFormat(locale.value,
     <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
       <h1 class="font-heading text-xl font-semibold">{{ t('portfolio.title') }}</h1>
       <p v-if="data" class="text-sm text-muted-foreground" data-testid="portfolio-today">{{ t('portfolio.today', { date: today }) }}</p>
+      <Button v-if="canManage && !creating" size="sm" class="ml-auto self-center" data-testid="portfolio-new" @click="creating = true">
+        <Plus class="size-4" aria-hidden="true" />{{ t('portfolio.new.action') }}
+      </Button>
     </div>
     <Alert v-if="error" variant="destructive" role="alert">
       <AlertDescription>{{ errorMessage(error) }}</AlertDescription>
+    </Alert>
+    <NewProgram v-if="creating" @created="created" @cancel="creating = false" />
+    <Alert v-if="move.error.value" variant="destructive" role="alert" data-testid="portfolio-move-error">
+      <AlertDescription>{{ errorMessage(move.error.value) }}</AlertDescription>
     </Alert>
 
     <div class="flex flex-wrap items-center gap-2" role="group" :aria-label="t('portfolio.filter')">
@@ -114,8 +148,23 @@ const today = computed(() => (data.value ? new Intl.DateTimeFormat(locale.value,
             <span v-else class="text-xs text-muted-foreground">{{ t('schedule.noPlan') }}</span>
           </div>
         </div>
-        <ProgramRows v-if="c.rows.length" :rows="c.rows" :sort="sort" @sort="sort = $event" />
+        <ProgramRows
+          v-if="c.rows.length"
+          :rows="c.rows"
+          :sort="sort"
+          :removable="canManage && !!c.program"
+          :busy="move.isPending.value"
+          @sort="sort = $event"
+          @remove="(r) => move.mutate({ id: r.id, parentId: null })"
+        />
         <p v-else class="text-sm text-muted-foreground">{{ t('portfolio.noRows') }}</p>
+        <AddProject
+          v-if="canManage && c.program && c.program.lifecycle === 'activo'"
+          :program-id="c.program.id"
+          :exclude="c.rows.map((r) => r.id)"
+          :disabled="move.isPending.value"
+          @pick="(id) => move.mutate({ id, parentId: c.program!.id })"
+        />
       </section>
     </template>
   </div>

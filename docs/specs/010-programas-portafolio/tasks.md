@@ -19,3 +19,6 @@
   - Hecho cuando: Vitest de los controles del administrador y de la tabla en el Resumen.
 - [ ] **T7 — Prueba manual** (tú)
   - Hecho cuando: la demo de los criterios de finalización funciona en la previsualización.
+- [ ] **T8 — Crear programas y asignar proyectos desde el portafolio**
+  - RF: RF-41 a RF-49
+  - Hecho cuando: Vitest de crear, añadir y quitar con las llamadas a la API; demo en la previsualización.

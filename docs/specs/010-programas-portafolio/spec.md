@@ -81,6 +81,17 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 - RF-39: DONDE el proyecto sea un programa, EL SISTEMA mostrará en su Resumen su avance agregado junto al de sus tareas propias.
 - RF-40: DONDE el proyecto sea un programa, EL SISTEMA mostrará en su Resumen la misma tabla de hijos directos que el portafolio.
 
+### Crear programas y asignar proyectos desde el portafolio
+- RF-41: DONDE el usuario sea administrador del sistema, EL SISTEMA ofrecerá en el portafolio un botón «Nuevo programa».
+- RF-42: CUANDO el administrador cree un programa con identificador, nombre, equipo y responsable, EL SISTEMA creará un proyecto en blanco marcado como programa.
+- RF-43: CUANDO se cree un programa, EL SISTEMA mostrará su tarjeta en el portafolio sin recargar la página.
+- RF-44: DONDE el usuario sea administrador del sistema, EL SISTEMA ofrecerá en cada tarjeta de programa activo una acción «Añadir proyecto» con búsqueda por nombre o identificador entre los proyectos activos.
+- RF-45: CUANDO el administrador elija un proyecto en «Añadir proyecto», EL SISTEMA hará de ese proyecto un hijo directo del programa, aunque antes colgara de otro.
+- RF-46: DONDE el usuario sea administrador del sistema, EL SISTEMA ofrecerá en cada fila de una tarjeta de programa una acción «Quitar del programa».
+- RF-47: CUANDO el administrador quite un proyecto de un programa, EL SISTEMA dejará el proyecto sin padre, con lo que pasa a «Sin programa» si no tiene otro programa por encima.
+- RF-48: SI el cambio de padre no es válido (crearía un ciclo, supera la profundidad máxima o el usuario no puede gestionar alguno de los dos proyectos), ENTONCES EL SISTEMA no lo aplicará y mostrará el error traducido.
+- RF-49: EL SISTEMA auditará la creación y cada cambio de padre como ya lo hace al crear y editar proyectos.
+
 ## Requisitos no funcionales
 - Tiempo real: todas las cifras se calculan en cada consulta, a la fecha de hoy; no se guardan fotos.
 - Rendimiento: el portafolio con 50 proyectos de 2 000 tareas cada uno responde en menos de 1 s en el servidor de previsualización.
@@ -100,7 +111,7 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 ## Fuera de alcance
 - Cortes guardados y consultar el portafolio a otra fecha.
 - Pesos distintos para un mismo proyecto según el programa.
-- Crear o mover proyectos desde el portafolio.
+- Crear desde el portafolio proyectos que no sean programas, o programas a partir de una plantilla.
 - Restringir el portafolio a una parte de la organización.
 - Exportar a PDF o Excel.
 - Seguimiento de varios proyectos con Gantt de hitos (spec 011) y mapa estratégico (spec 012).
@@ -124,6 +135,10 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 - **Permiso:** solo el administrador del sistema marca programas y fija pesos.
 - **Pantalla:** filtrar por semáforo, ordenar, ver los proyectos sin programa e ir al Resumen de cada uno.
 - **Bajo plan:** semáforo «En riesgo» o «Atrasado» (RF-24).
+
+## Ampliación pedida por el usuario (2026-11-03)
+- El usuario no encontraba cómo crear programas: pidió crearlos y asignarles proyectos desde el propio portafolio (RF-41 a RF-49). Sustituye a «Crear o mover proyectos desde el portafolio» que estaba fuera de alcance.
+- Quién: el administrador del sistema, como al marcar programas (RF-1); además debe poder crear proyectos en el equipo elegido y gestionar los proyectos que mueve.
 
 ## Dudas abiertas
 Ninguna.

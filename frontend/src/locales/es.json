@@ -1059,6 +1059,19 @@
       "weight": "Peso en sus programas",
       "byEffort": "Pesa su esfuerzo: {n}",
       "manual": "Peso fijado a mano (su esfuerzo es {n}); vacío para volver al esfuerzo"
+    },
+    "new": {
+      "action": "Nuevo programa",
+      "title": "Nuevo programa"
+    },
+    "add": {
+      "label": "Añadir un proyecto al programa",
+      "placeholder": "Añadir proyecto: busca por nombre o identificador",
+      "none": "Ningún proyecto activo coincide."
+    },
+    "remove": {
+      "column": "Quitar",
+      "action": "Quitar {name} del programa"
     }
   },
   "tracking": {

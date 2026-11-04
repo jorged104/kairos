@@ -1,12 +1,14 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import type { Portfolio, PortfolioRow } from '@/api/portfolio'
+import type { Me } from '@/types/api'
 import type { Project } from '@/types/work'
 import { createAppI18n } from '@/lib/i18n'
 import PortfolioPage from '@/pages/PortfolioPage.vue'
+import { useAuthStore } from '@/stores/auth'
 import PortfolioSettings from './PortfolioSettings.vue'
 
 const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
@@ -25,10 +27,13 @@ const portfolio: Portfolio = {
 
 const names = (w: ReturnType<typeof mount>) => w.findAll('[data-testid=portfolio-row-link]').map((x) => x.text())
 
-async function render() {
+async function render(permissions: string[] = ['work:read']) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { template: '<div />' } }] })
   await router.push('/portfolio')
-  const wrapper = mount(PortfolioPage, { global: { plugins: [router, createPinia(), createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] } })
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useAuthStore().set({ id: 'me', permissions } as unknown as Me)
+  const wrapper = mount(PortfolioPage, { global: { plugins: [router, pinia, createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] } })
   await flushPromises()
   return wrapper
 }
@@ -92,5 +97,79 @@ describe('portafolio (spec 010)', () => {
     const put = fetchMock.mock.calls.find(([, i]) => (i as RequestInit | undefined)?.method === 'PUT')!
     expect(String(put[0])).toBe('/api/projects/p1/portfolio')
     expect(JSON.parse(String((put[1] as RequestInit).body))).toEqual({ version: 1, is_program: true, weight: 5 })
+  })
+
+  it('solo el administrador ve crear, añadir y quitar (RF-41, RF-44, RF-46)', async () => {
+    const wrapper = await render()
+    expect(wrapper.find('[data-testid=portfolio-new]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid=portfolio-add-search]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid=portfolio-remove]').exists()).toBe(false)
+  })
+})
+
+describe('crear programas y asignar proyectos (spec 010, RF-41 a RF-48)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+  const project = (id: string, extra = {}) => ({
+    id, version: 3, name: 'P', team: { id: 't1', name: 'Equipo' }, owner: { id: 'u1', name: 'Ana' }, parent: null,
+    start_date: null, end_date: null, health: 'en_curso', health_explanation: '', custom_values: {}, ...extra,
+  })
+  beforeEach(() => {
+    fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET'
+      if (url.startsWith('/api/portfolio')) return json(portfolio)
+      if (url.startsWith('/api/teams')) return json({ items: [{ id: 't1', name: 'Equipo', parent_id: null, archived_at: null, leads: [] }] })
+      if (method === 'POST' && url === '/api/projects') return json(project('n1', { version: 1 }))
+      if (method === 'PUT') return json(project('n1', { version: 2, is_program: true }))
+      if (method === 'PATCH') return json(project(url.split('/').at(-1)!, { version: 4 }))
+      if (url.startsWith('/api/projects?')) return json({ items: [{ id: 'r', identifier: 'R', name: 'Raíz' }, { id: 'a', identifier: 'A', name: 'Alfa' }, { id: 'x', identifier: 'X', name: 'Equis' }], total: 3, page: 1, page_size: 20 })
+      if (url.startsWith('/api/projects/')) return json(project(url.split('/').at(-1)!))
+      return json({ items: [] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+  })
+  const calls = (method: string) => fetchMock.mock.calls.filter(([, i]) => ((i as RequestInit | undefined)?.method ?? 'GET') === method)
+  const body = (c: unknown[]) => JSON.parse(String((c[1] as RequestInit).body))
+
+  it('crea un programa en blanco marcado como programa (RF-42, RF-43)', async () => {
+    const wrapper = await render(['work:read', 'portfolio:manage', 'projects:create:all'])
+    await wrapper.find('[data-testid=portfolio-new]').trigger('click')
+    await wrapper.find('[data-testid=portfolio-new-identifier]').setValue('prg')
+    await wrapper.find('[data-testid=portfolio-new-name]').setValue('Programa Nuevo')
+    await flushPromises()
+    await wrapper.find('[data-testid=portfolio-new-form]').trigger('submit')
+    await flushPromises()
+    expect(body(calls('POST')[0]!)).toEqual({ identifier: 'PRG', name: 'Programa Nuevo', team_id: 't1' })
+    const put = calls('PUT')[0]!
+    expect(String(put[0])).toBe('/api/projects/n1/portfolio')
+    expect(body(put)).toEqual({ version: 1, is_program: true, weight: null })
+    expect(wrapper.find('[data-testid=portfolio-new-form]').exists()).toBe(false)
+  })
+
+  it('añade un proyecto al programa y lo quita (RF-44 a RF-47)', async () => {
+    const wrapper = await render(['work:read', 'portfolio:manage'])
+    expect(wrapper.findAll('[data-testid=portfolio-add-search]')).toHaveLength(1) // not on «Sin programa»
+    await wrapper.find('[data-testid=portfolio-add-search]').setValue('e')
+    await new Promise((r) => setTimeout(r, 300))
+    await flushPromises()
+    // Neither the program nor its rows are offered.
+    const found = wrapper.findAll('[data-testid=portfolio-add-found]')
+    expect(found.map((f) => f.text())).toEqual(['X Equis'])
+    await found[0]!.trigger('click')
+    await flushPromises()
+    let patch = calls('PATCH')[0]!
+    expect(String(patch[0])).toBe('/api/projects/x')
+    expect(body(patch)).toMatchObject({ version: 3, parent_id: 'r', team_id: 't1', owner_id: 'u1', name: 'P' })
+
+    const cards = wrapper.findAll('[data-testid=portfolio-card]')
+    expect(cards[1]!.find('[data-testid=portfolio-remove]').exists()).toBe(false)
+    await cards[0]!.find('[data-testid=portfolio-remove]').trigger('click')
+    await flushPromises()
+    patch = calls('PATCH')[1]!
+    expect(String(patch[0])).toBe('/api/projects/b')
+    expect(body(patch).parent_id).toBeNull()
   })
 })
