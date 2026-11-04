@@ -1,0 +1,44 @@
+# Tareas 014 — Gamificación
+
+- [ ] **T1 — Esquema y consumidor de eventos**
+  - RF: RF-1 a RF-17, RF-53, RF-54
+  - Hecho cuando hay apitest de:
+    - cierre;
+    - reapertura y nuevo cierre;
+    - evento repetido;
+    - plantilla;
+    - sin asignados;
+    - valor 0;
+    - tabla cambiada;
+    - inmutabilidad;
+    - arranque en 0.
+- [ ] **T2 — API de saldo, historial, tabla de puntos, niveles y ajustes**
+  - RF: RF-18 a RF-40
+  - Hecho cuando hay:
+    - apitest de cada endpoint y sus errores;
+    - la auditoría;
+    - las filas en la matriz.
+- [ ] **T3 — API de ranking**
+  - RF: RF-43 a RF-52
+  - Hecho cuando hay apitest de:
+    - los periodos;
+    - el orden y los empates;
+    - los inactivos;
+    - los subequipos;
+    - el acceso.
+- [ ] **T4 — Frontend: tarjeta, Mi cuenta, historial y aviso**
+  - RF: RF-37 a RF-42
+  - Hecho cuando hay Vitest de:
+    - la tarjeta;
+    - el nivel máximo;
+    - el historial;
+    - el aviso con subida de nivel.
+- [ ] **T5 — Frontend: ranking y administración**
+  - RF: RF-18 a RF-36, RF-43 a RF-52
+  - Hecho cuando hay Vitest de:
+    - el ranking;
+    - la tabla de puntos;
+    - los niveles;
+    - el ajuste con sus errores.
+- [ ] **T6 — Prueba manual** (tú)
+  - Hecho cuando la demo de los criterios de finalización funciona en la previsualización.
