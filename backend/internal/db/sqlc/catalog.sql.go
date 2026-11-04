@@ -53,6 +53,15 @@ func (q *Queries) AllowedTargetStatuses(ctx context.Context, arg AllowedTargetSt
 	return items, nil
 }
 
+const clearClosingProjectStatus = `-- name: ClearClosingProjectStatus :exec
+UPDATE project_statuses SET is_closing = false, updated_at = now() WHERE is_closing AND id <> $1
+`
+
+func (q *Queries) ClearClosingProjectStatus(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearClosingProjectStatus, id)
+	return err
+}
+
 const clearDefaultPriority = `-- name: ClearDefaultPriority :exec
 UPDATE priorities SET is_default = false, updated_at = now() WHERE is_default AND id <> $1
 `
@@ -68,6 +77,15 @@ UPDATE statuses SET is_default = false, updated_at = now() WHERE is_default AND 
 
 func (q *Queries) ClearDefaultStatus(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, clearDefaultStatus, id)
+	return err
+}
+
+const clearInitialProjectStatus = `-- name: ClearInitialProjectStatus :exec
+UPDATE project_statuses SET is_initial = false, updated_at = now() WHERE is_initial AND id <> $1
+`
+
+func (q *Queries) ClearInitialProjectStatus(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearInitialProjectStatus, id)
 	return err
 }
 
@@ -212,6 +230,48 @@ func (q *Queries) CreatePriority(ctx context.Context, arg CreatePriorityParams) 
 	return i, err
 }
 
+const createProjectStatus = `-- name: CreateProjectStatus :one
+INSERT INTO project_statuses (name, name_normalized, color, position, is_closed, is_initial, is_closing)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at
+`
+
+type CreateProjectStatusParams struct {
+	Name           string
+	NameNormalized string
+	Color          string
+	Position       int32
+	IsClosed       bool
+	IsInitial      bool
+	IsClosing      bool
+}
+
+func (q *Queries) CreateProjectStatus(ctx context.Context, arg CreateProjectStatusParams) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, createProjectStatus,
+		arg.Name,
+		arg.NameNormalized,
+		arg.Color,
+		arg.Position,
+		arg.IsClosed,
+		arg.IsInitial,
+		arg.IsClosing,
+	)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createStatus = `-- name: CreateStatus :one
 INSERT INTO statuses (name, name_normalized, color, position, is_closed, is_default)
 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, name_normalized, color, is_closed, is_default, position, retired_at, created_at, updated_at
@@ -345,6 +405,29 @@ func (q *Queries) DeleteTransitions(ctx context.Context, typeID uuid.UUID) error
 	return err
 }
 
+const getClosingProjectStatus = `-- name: GetClosingProjectStatus :one
+SELECT id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at FROM project_statuses WHERE is_closing
+`
+
+func (q *Queries) GetClosingProjectStatus(ctx context.Context) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, getClosingProjectStatus)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getDefaultPriority = `-- name: GetDefaultPriority :one
 SELECT id, name, name_normalized, color, is_default, position, retired_at, created_at, updated_at FROM priorities WHERE is_default
 `
@@ -380,6 +463,29 @@ func (q *Queries) GetDefaultStatus(ctx context.Context) (Status, error) {
 		&i.Color,
 		&i.IsClosed,
 		&i.IsDefault,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getInitialProjectStatus = `-- name: GetInitialProjectStatus :one
+SELECT id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at FROM project_statuses WHERE is_initial
+`
+
+func (q *Queries) GetInitialProjectStatus(ctx context.Context) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, getInitialProjectStatus)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
 		&i.Position,
 		&i.RetiredAt,
 		&i.CreatedAt,
@@ -441,6 +547,52 @@ func (q *Queries) GetPriority(ctx context.Context, id uuid.UUID) (Priority, erro
 		&i.NameNormalized,
 		&i.Color,
 		&i.IsDefault,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getProjectStatus = `-- name: GetProjectStatus :one
+SELECT id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at FROM project_statuses WHERE id = $1
+`
+
+func (q *Queries) GetProjectStatus(ctx context.Context, id uuid.UUID) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, getProjectStatus, id)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getProjectStatusForUpdate = `-- name: GetProjectStatusForUpdate :one
+SELECT id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at FROM project_statuses WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetProjectStatusForUpdate(ctx context.Context, id uuid.UUID) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, getProjectStatusForUpdate, id)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
 		&i.Position,
 		&i.RetiredAt,
 		&i.CreatedAt,
@@ -653,6 +805,44 @@ func (q *Queries) ListPriorities(ctx context.Context) ([]Priority, error) {
 	return items, nil
 }
 
+const listProjectStatuses = `-- name: ListProjectStatuses :many
+
+SELECT id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at FROM project_statuses ORDER BY position, name
+`
+
+// Estados de proyecto (spec 012) ---------------------------------------------
+func (q *Queries) ListProjectStatuses(ctx context.Context) ([]ProjectStatus, error) {
+	rows, err := q.db.Query(ctx, listProjectStatuses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectStatus
+	for rows.Next() {
+		var i ProjectStatus
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.NameNormalized,
+			&i.Color,
+			&i.IsClosed,
+			&i.IsInitial,
+			&i.IsClosing,
+			&i.Position,
+			&i.RetiredAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listStatuses = `-- name: ListStatuses :many
 
 SELECT id, name, name_normalized, color, is_closed, is_default, position, retired_at, created_at, updated_at FROM statuses ORDER BY position, name
@@ -793,6 +983,17 @@ func (q *Queries) ListWorkItemTypes(ctx context.Context) ([]WorkItemType, error)
 	return items, nil
 }
 
+const projectStatusInUse = `-- name: ProjectStatusInUse :one
+SELECT EXISTS (SELECT 1 FROM projects WHERE status_id = $1)
+`
+
+func (q *Queries) ProjectStatusInUse(ctx context.Context, statusID *uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, projectStatusInUse, statusID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const setLabelRetired = `-- name: SetLabelRetired :one
 UPDATE labels
 SET retired_at = CASE WHEN $2::boolean THEN now() ELSE NULL END, updated_at = now()
@@ -894,6 +1095,36 @@ func (q *Queries) SetPriorityRetired(ctx context.Context, arg SetPriorityRetired
 		&i.NameNormalized,
 		&i.Color,
 		&i.IsDefault,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setProjectStatusRetired = `-- name: SetProjectStatusRetired :one
+UPDATE project_statuses
+SET retired_at = CASE WHEN $2::boolean THEN now() ELSE NULL END, updated_at = now()
+WHERE id = $1 RETURNING id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at
+`
+
+type SetProjectStatusRetiredParams struct {
+	ID      uuid.UUID
+	Retired bool
+}
+
+func (q *Queries) SetProjectStatusRetired(ctx context.Context, arg SetProjectStatusRetiredParams) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, setProjectStatusRetired, arg.ID, arg.Retired)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
 		&i.Position,
 		&i.RetiredAt,
 		&i.CreatedAt,
@@ -1160,6 +1391,52 @@ func (q *Queries) UpdatePriority(ctx context.Context, arg UpdatePriorityParams) 
 		&i.NameNormalized,
 		&i.Color,
 		&i.IsDefault,
+		&i.Position,
+		&i.RetiredAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateProjectStatus = `-- name: UpdateProjectStatus :one
+UPDATE project_statuses
+SET name = $2, name_normalized = $3, color = $4, position = $5, is_closed = $6, is_initial = $7, is_closing = $8,
+    updated_at = now()
+WHERE id = $1 RETURNING id, name, name_normalized, color, is_closed, is_initial, is_closing, position, retired_at, created_at, updated_at
+`
+
+type UpdateProjectStatusParams struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Color          string
+	Position       int32
+	IsClosed       bool
+	IsInitial      bool
+	IsClosing      bool
+}
+
+func (q *Queries) UpdateProjectStatus(ctx context.Context, arg UpdateProjectStatusParams) (ProjectStatus, error) {
+	row := q.db.QueryRow(ctx, updateProjectStatus,
+		arg.ID,
+		arg.Name,
+		arg.NameNormalized,
+		arg.Color,
+		arg.Position,
+		arg.IsClosed,
+		arg.IsInitial,
+		arg.IsClosing,
+	)
+	var i ProjectStatus
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.NameNormalized,
+		&i.Color,
+		&i.IsClosed,
+		&i.IsInitial,
+		&i.IsClosing,
 		&i.Position,
 		&i.RetiredAt,
 		&i.CreatedAt,

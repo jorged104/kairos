@@ -29,6 +29,7 @@ export type Permission =
   | 'passwords:set'
   | 'audit:read'
   | 'portfolio:manage'
+  | 'project_views:share'
   | 'self:password'
   // Spec 004.
   | 'work:read'
