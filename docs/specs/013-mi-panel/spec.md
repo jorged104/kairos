@@ -1,6 +1,6 @@
 # Spec 013 — Mi panel
 
-**Estado:** Borrador, pendiente de aprobación.
+**Estado:** Aprobada (2026-11-04) («dale»).
 
 ## Contexto y objetivo
 Hoy, al entrar en Kairos, cada persona ve el estado técnico del sistema. No ve su trabajo: qué
