@@ -118,6 +118,14 @@ type Label struct {
 	UpdatedAt      time.Time
 }
 
+type Level struct {
+	ID        uuid.UUID
+	Name      string
+	MinXp     int32
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type LocalCredential struct {
 	UserID       uuid.UUID
 	PasswordHash string
@@ -224,6 +232,28 @@ type PhaseDefinition struct {
 	RetiredAt     *time.Time
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+}
+
+type PointLedger struct {
+	ID              uuid.UUID
+	Seq             int64
+	UserID          uuid.UUID
+	Xp              int32
+	Coins           int32
+	Reason          string
+	WorkItemID      *uuid.UUID
+	EventID         *uuid.UUID
+	ReversesEventID *uuid.UUID
+	Note            *string
+	ActorID         *uuid.UUID
+	CreatedAt       time.Time
+}
+
+type PointValue struct {
+	SizeID    *uuid.UUID
+	Xp        int32
+	Coins     int32
+	UpdatedAt time.Time
 }
 
 type Priority struct {

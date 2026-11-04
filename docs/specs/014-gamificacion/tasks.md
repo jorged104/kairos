@@ -1,6 +1,6 @@
 # Tareas 014 — Gamificación
 
-- [ ] **T1 — Esquema y consumidor de eventos**
+- [x] **T1 — Esquema y consumidor de eventos**
   - RF: RF-1 a RF-17, RF-53, RF-54
   - Hecho cuando hay apitest de:
     - cierre;
@@ -12,13 +12,13 @@
     - tabla cambiada;
     - inmutabilidad;
     - arranque en 0.
-- [ ] **T2 — API de saldo, historial, tabla de puntos, niveles y ajustes**
+- [x] **T2 — API de saldo, historial, tabla de puntos, niveles y ajustes**
   - RF: RF-18 a RF-40
   - Hecho cuando hay:
     - apitest de cada endpoint y sus errores;
     - la auditoría;
     - las filas en la matriz.
-- [ ] **T3 — API de ranking**
+- [x] **T3 — API de ranking**
   - RF: RF-43 a RF-52
   - Hecho cuando hay apitest de:
     - los periodos;

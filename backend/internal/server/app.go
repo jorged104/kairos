@@ -19,6 +19,7 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/events"
 	"openscum/internal/files"
+	"openscum/internal/gamification"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
 	"openscum/internal/mentions"
@@ -85,6 +86,8 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 	mentionsH := mentions.NewHandler(store, logger)
 	commentsH := comments.NewHandler(comments.NewService(store, filesSvc), logger)
 	dispatcher := events.NewDispatcher(store, logger, time.Second)
+	dispatcher.Register(gamification.ConsumerName, gamification.Consumer(store))
+	gamificationH := gamification.NewHandler(gamification.NewService(store), logger)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
 	usersH := users.NewHandler(users.NewService(cfg, store, authSvc, hasher, loader), logger)
@@ -109,6 +112,7 @@ func NewApp(cfg config.Config, store *db.Store, storage *files.Storage, logger *
 			trackingH.Routes(p)
 			boardH.Routes(p)
 			dashboardH.Routes(p)
+			gamificationH.Routes(p)
 			fieldsH.Routes(p)
 			projectsH.Routes(p)
 			workItemsH.Routes(p)
