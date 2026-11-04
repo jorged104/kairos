@@ -32,6 +32,11 @@ func (m *workMatrix) teamFor(actor string) uuid.UUID {
 	return m.bi
 }
 
+func (m *workMatrix) seqNext() int {
+	m.seq++
+	return m.seq
+}
+
 func (m *workMatrix) identifier() string {
 	m.seq++
 	return "P" + string(rune('A'+m.seq/26%26)) + string(rune('A'+m.seq%26)) + "X"
@@ -145,6 +150,21 @@ var workOps = []workOp{
 	// Spec 012: everyone reads the board and keeps personal views; whoever
 	// manages a project moves it; leads and the administrator share views.
 	{"ver mi panel", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/dashboard") }, workAll(200)}, // spec 013
+	// Spec 014: everyone sees their points and the tables; only the administrator changes them.
+	{"ver mis puntos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/points") }, workAll(200)},
+	{"ver tabla de puntos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/gamification/values") }, workAll(200)},
+	{"cambiar tabla de puntos", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/gamification/values", map[string]any{"no_size": map[string]any{"xp": 5, "coins": 1}})
+	}, map[string]int{"admin": 200}},
+	{"crear nivel", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/gamification/levels", map[string]any{"name": "N", "min_xp": 10000 + m.seqNext()})
+	}, map[string]int{"admin": 201}},
+	{"ajustar puntos", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/gamification/users/"+m.actors["owner"].String()+"/adjustments", map[string]any{"xp": 1, "coins": 0, "note": "matriz"})
+	}, map[string]int{"admin": 201}},
+	{"ver puntos de otro", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/gamification/users/" + m.actors["stranger"].String() + "/points")
+	}, map[string]int{"admin": 200}},
 	{"ver tablero de proyectos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/project-board") }, workAll(200)},
 	{"crear estado de proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/project-statuses", map[string]any{"name": "E-" + uuid.NewString(), "color": "#000000"})

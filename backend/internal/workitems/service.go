@@ -742,8 +742,8 @@ func statusChange(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row 
 }
 
 // emitStatusEvent records work_item.closed or work_item.reopened (RF-116,
-// RF-117, RF-122) with the assignees and the weight at that moment (RF-155,
-// spec 006 RF-20). assignee_id is the first, for the previous consumers.
+// RF-117, RF-122) with the assignees, the weight and the size at that moment
+// (RF-155, spec 006 RF-20, spec 014 RF-6). assignee_id is the first, for the previous consumers.
 func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem, assignees []uuid.UUID, key string, change closeChange) error {
 	var typ string
 	switch change {
@@ -758,7 +758,7 @@ func emitStatusEvent(ctx context.Context, q *sqlc.Queries, p *authz.Principal, r
 	return events.Emit(ctx, q, events.New{
 		Type: typ, ActorID: &actor, ProjectID: row.ProjectID, SubjectType: "work_item", SubjectID: row.ID,
 		Payload: map[string]any{"key": key, "status_id": row.StatusID, "assignee_id": row.AssigneeID, "assignee_ids": assignees,
-			"type_id": row.TypeID, "weight": row.Weight},
+			"type_id": row.TypeID, "weight": row.Weight, "size_id": row.SizeID},
 	})
 }
 

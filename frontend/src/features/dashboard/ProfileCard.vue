@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { Dashboard } from '@/api/dashboard'
+import { getPoints } from '@/api/gamification'
+import LevelProgress from '@/features/gamification/LevelProgress.vue'
 import { useAuthStore } from '@/stores/auth'
 
-// The caller's card: who they are and three figures of their load (spec 013, RF-5 to RF-7).
+// The caller's card: who they are, three figures of their load (spec 013, RF-5
+// to RF-7) and their level (spec 014, RF-37).
 defineProps<{ profile: Dashboard['profile'] }>()
 const { t } = useI18n()
 const auth = useAuthStore()
+const { data: points } = useQuery({ queryKey: ['points', 'me'], queryFn: () => getPoints() })
 
 const initials = computed(() =>
   (auth.me?.name ?? '')
@@ -46,6 +51,7 @@ const teams = computed(() => (auth.me?.teams ?? []).map((x) => x.name).join(', '
         <dd class="text-xl font-bold tabular-nums" data-testid="profile-closed">{{ profile.closed_month }}</dd>
       </div>
     </dl>
+    <LevelProgress v-if="points" :points="points" />
     <RouterLink to="/account" class="text-sm font-medium hover:underline" data-testid="profile-account">{{ t('dashboard.profile.account') }}</RouterLink>
   </section>
 </template>

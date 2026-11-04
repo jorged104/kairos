@@ -59,6 +59,13 @@ export const routes = [
       { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
       { path: 'portfolio', name: 'portfolio', component: () => import('@/pages/PortfolioPage.vue') },
       { path: 'tracking', name: 'tracking', component: () => import('@/pages/TrackingPage.vue') },
+      { path: 'ranking', name: 'ranking', component: () => import('@/pages/RankingPage.vue') },
+      {
+        path: 'admin/gamification',
+        name: 'gamification-admin',
+        component: () => import('@/pages/GamificationAdminPage.vue'),
+        meta: { permissions: ['gamification:manage'] as Permission[] },
+      },
       {
         path: 'projects/new',
         name: 'project-new',

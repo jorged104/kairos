@@ -5,6 +5,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import {
   Activity,
   ArrowLeftRight,
+  Award,
   BriefcaseBusiness,
   ChartGantt,
   ChevronDown,
@@ -20,11 +21,13 @@ import {
   Settings,
   SlidersHorizontal,
   Target,
+  Trophy,
   UserCog,
   Users,
   X,
 } from '@lucide/vue'
 import { logout } from '@/api/auth'
+import PointsNotice from '@/features/gamification/PointsNotice.vue'
 import { useFullWidth } from '@/features/pages/useFullWidth'
 import { features } from '@/lib/features'
 import { useAuthStore } from '@/stores/auth'
@@ -49,6 +52,7 @@ const work = computed(() =>
       { to: '/projects', label: t('nav.projects'), icon: FolderKanban, perm: 'work:read', also: ['/milestones', '/work-items'] },
       { to: '/portfolio', label: t('nav.portfolio'), icon: BriefcaseBusiness, perm: 'work:read' },
       { to: '/tracking', label: t('nav.tracking'), icon: ChartGantt, perm: 'work:read' },
+      { to: '/ranking', label: t('nav.ranking'), icon: Trophy },
       ...(features.objectives ? [{ to: '/objectives', label: t('nav.objectives'), icon: Target, perm: 'work:read' }] : []),
     ] as Link[]
   ).filter(allowed),
@@ -63,6 +67,7 @@ const settings = computed(() =>
       { to: '/attributes', label: t('nav.attributes'), icon: SlidersHorizontal, perm: 'attributes:manage' },
       { to: '/idp-mappings', label: t('nav.idpMappings'), icon: ArrowLeftRight, perm: 'idp_mappings:manage' },
       { to: '/admin/catalog', label: t('nav.catalog'), icon: Library, perm: 'catalog:manage' },
+      { to: '/admin/gamification', label: t('nav.gamification'), icon: Award, perm: 'gamification:manage' },
       { to: '/audit', label: t('nav.audit'), icon: ScrollText, perm: 'audit:read' },
       { to: '/status', label: t('nav.status'), icon: Activity },
     ] as Link[]
@@ -267,5 +272,6 @@ const item = (active: boolean) => [
         <RouterView />
       </div>
     </main>
+    <PointsNotice v-if="auth.me" />
   </div>
 </template>
