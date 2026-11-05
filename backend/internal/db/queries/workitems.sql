@@ -140,7 +140,7 @@ ORDER BY id;
 
 -- name: WorkItemHistoryPage :many
 -- A batch of the history of a work item, newest first (RF-52).
-SELECT a.id, a.occurred_at, a.actor_id, coalesce(u.name, '') AS actor_name, a.action, a.before, a.after
+SELECT a.id, a.occurred_at, a.actor_id, coalesce(u.name, '') AS actor_name, a.action, a.before, a.after, a.via
 FROM audit_log a LEFT JOIN users u ON u.id = a.actor_id
 WHERE a.target_type = 'work_item' AND a.target_id = sqlc.arg(target_id)::text
   AND a.action IN ('work_item.created', 'work_item.updated', 'work_item.page_updated',

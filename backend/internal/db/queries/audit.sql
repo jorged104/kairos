@@ -1,6 +1,6 @@
 -- name: InsertAudit :exec
-INSERT INTO audit_log (actor_id, actor_kind, action, target_type, target_id, before, after)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO audit_log (actor_id, actor_kind, action, target_type, target_id, before, after, via)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: ListAudit :many
 SELECT a.id, a.occurred_at, a.actor_id, a.actor_kind, a.action, a.target_type, a.target_id,

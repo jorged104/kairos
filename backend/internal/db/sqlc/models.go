@@ -33,6 +33,7 @@ type AuditLog struct {
 	TargetID   string
 	Before     json.RawMessage
 	After      json.RawMessage
+	Via        json.RawMessage
 }
 
 type CustomField struct {
@@ -130,6 +131,19 @@ type LocalCredential struct {
 	UserID       uuid.UUID
 	PasswordHash string
 	UpdatedAt    time.Time
+}
+
+type McpConnection struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Name       string
+	SecretHash []byte
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	LastUsedAt *time.Time
+	LastClient *string
+	RevokedAt  *time.Time
+	RevokedBy  *uuid.UUID
 }
 
 type Methodology struct {
@@ -453,6 +467,7 @@ type SystemSetting struct {
 	ThemePrimary        string
 	ThemeRadius         string
 	UpdatedAt           time.Time
+	McpEnabled          bool
 }
 
 type Team struct {
@@ -577,6 +592,7 @@ type WorkItemComment struct {
 	DeletedAt  *time.Time
 	ResolvedAt *time.Time
 	ResolvedBy *uuid.UUID
+	Via        json.RawMessage
 }
 
 type WorkItemCustomValue struct {

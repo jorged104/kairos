@@ -2,10 +2,10 @@
 
 -- name: CreateComment :one
 -- An anchored thread brings its own id, the one its mark in the page uses (RF-45).
-INSERT INTO work_item_comments (id, work_item_id, thread_id, author_id, body, body_text, quote, anchored)
+INSERT INTO work_item_comments (id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, via)
 VALUES (coalesce(sqlc.narg(id)::uuid, gen_random_uuid()), sqlc.arg(work_item_id)::uuid, sqlc.narg(thread_id)::uuid,
         sqlc.arg(author_id)::uuid, sqlc.arg(body)::jsonb, sqlc.arg(body_text)::text, sqlc.narg(quote)::text,
-        sqlc.arg(anchored)::boolean)
+        sqlc.arg(anchored)::boolean, sqlc.narg(via)::jsonb)
 RETURNING *;
 
 -- name: CommentExists :one
@@ -17,7 +17,7 @@ SELECT * FROM work_item_comments WHERE id = $1 FOR UPDATE;
 -- name: ListComments :many
 -- Every comment of a work item, roots and replies, with the names to show.
 SELECT c.id, c.work_item_id, c.thread_id, c.author_id, a.name AS author_name, c.body, c.quote, c.anchored,
-       c.created_at, c.edited_at, c.deleted_at, c.resolved_at, c.resolved_by, r.name AS resolved_by_name
+       c.created_at, c.edited_at, c.deleted_at, c.resolved_at, c.resolved_by, r.name AS resolved_by_name, c.via
 FROM work_item_comments c
 JOIN users a ON a.id = c.author_id
 LEFT JOIN users r ON r.id = c.resolved_by
