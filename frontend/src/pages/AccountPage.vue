@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { changeOwnPassword, fetchAuthConfig } from '@/api/auth'
+import { setThemeMode } from '@/api/system'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,6 +21,22 @@ const auth = useAuthStore()
 const errorMessage = useErrorMessage()
 const { data: config } = useQuery({ queryKey: ['auth', 'config'], queryFn: fetchAuthConfig })
 const { data: points } = useQuery({ queryKey: ['points', 'me'], queryFn: () => getPoints() })
+
+// Light, dark or as the system, kept on the server (spec 015, RF-48 to RF-50).
+const modes = ['light', 'dark', 'system'] as const
+const modeError = ref<unknown>(null)
+async function chooseMode(mode: (typeof modes)[number]) {
+  if (!auth.me) return
+  const before = auth.me.theme_mode
+  auth.me.theme_mode = mode
+  modeError.value = null
+  try {
+    await setThemeMode(mode)
+  } catch (e) {
+    auth.me.theme_mode = before
+    modeError.value = e
+  }
+}
 
 const current = ref('')
 const next = ref('')
@@ -61,6 +78,32 @@ async function submit() {
           <span class="text-muted-foreground">{{ t('account.teams') }}:</span>
           <AssignmentBadge v-for="tm in auth.me.teams" :key="tm.id" :label="tm.name" :source="tm.source" />
           <span v-if="auth.me.teams.length === 0">{{ t('common.none') }}</span>
+        </div>
+      </CardContent>
+    </Card>
+
+    <Card data-testid="my-appearance">
+      <CardHeader>
+        <CardTitle>{{ t('account.appearance.title') }}</CardTitle>
+        <CardDescription>{{ t('account.appearance.description') }}</CardDescription>
+      </CardHeader>
+      <CardContent class="flex flex-col gap-2">
+        <Alert v-if="modeError" variant="destructive" role="alert">
+          <AlertDescription>{{ errorMessage(modeError) }}</AlertDescription>
+        </Alert>
+        <div class="flex w-fit rounded-lg border p-0.5" role="group" :aria-label="t('account.appearance.title')">
+          <button
+            v-for="m in modes"
+            :key="m"
+            type="button"
+            class="rounded-md px-3 py-1 text-sm"
+            :class="(auth.me.theme_mode ?? 'system') === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
+            :aria-pressed="(auth.me.theme_mode ?? 'system') === m"
+            :data-testid="`theme-mode-${m}`"
+            @click="chooseMode(m)"
+          >
+            {{ t(`account.appearance.modes.${m}`) }}
+          </button>
         </div>
       </CardContent>
     </Card>

@@ -12,10 +12,10 @@ import (
 
 	"openscum/internal/config"
 	"openscum/internal/db"
-	"openscum/internal/files"
 	"openscum/internal/health"
 	"openscum/internal/projects"
 	"openscum/internal/server"
+	"openscum/internal/settings"
 )
 
 func main() {
@@ -38,12 +38,14 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	storage, err := files.NewStorage(ctx, cfg.Files)
-	if err != nil {
-		return fmt.Errorf("almacenamiento de archivos: %w", err)
-	}
 	store := db.NewStore(pool)
-	app := server.NewApp(cfg, store, storage, logger)
+	// The environment only seeds the settings on the first start (spec 015, RF-8).
+	live, err := settings.Open(ctx, store, cfg, logger)
+	if err != nil {
+		return fmt.Errorf("configuración del sistema: %w", err)
+	}
+	app := server.NewApp(cfg, store, live, logger)
+	go live.Run(ctx)
 	go app.Hub.Run(ctx)
 	go app.Events.Run(ctx)
 	go projects.RecordProgress(ctx, store, logger, time.Hour) // spec 008, RF-12
@@ -53,7 +55,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		Handler:           app.Handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	logger.Info("API escuchando", slog.String("port", cfg.Port), slog.String("auth_mode", cfg.Auth.Mode))
+	logger.Info("API escuchando", slog.String("port", cfg.Port), slog.String("auth_mode", live.Auth().Mode))
 	return srv.ListenAndServe()
 }
 

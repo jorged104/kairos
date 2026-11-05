@@ -61,6 +61,12 @@ export const routes = [
       { path: 'tracking', name: 'tracking', component: () => import('@/pages/TrackingPage.vue') },
       { path: 'ranking', name: 'ranking', component: () => import('@/pages/RankingPage.vue') },
       {
+        path: 'admin/system',
+        name: 'system',
+        component: () => import('@/pages/SystemPage.vue'),
+        meta: { permissions: ['system:manage'] as Permission[] },
+      },
+      {
         path: 'admin/gamification',
         name: 'gamification-admin',
         component: () => import('@/pages/GamificationAdminPage.vue'),

@@ -52,11 +52,11 @@ type Handler struct {
 	store *db.Store
 	// issuer is used when a mapping is created without one: only one issuer
 	// is configured in this iteration.
-	issuer string
+	issuer func() string
 	logger *slog.Logger
 }
 
-func NewHandler(store *db.Store, issuer string, logger *slog.Logger) *Handler {
+func NewHandler(store *db.Store, issuer func() string, logger *slog.Logger) *Handler {
 	return &Handler{store: store, issuer: issuer, logger: logger}
 }
 
@@ -82,7 +82,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	for _, m := range rows {
 		out = append(out, toMapping(m))
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out, "default_issuer": h.issuer})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out, "default_issuer": h.issuer()})
 }
 
 func (h *Handler) decode(r *http.Request) (request, error) {
@@ -91,7 +91,7 @@ func (h *Handler) decode(r *http.Request) (request, error) {
 		return req, err
 	}
 	if req.Issuer == "" {
-		req.Issuer = h.issuer
+		req.Issuer = h.issuer()
 	}
 	if req.Issuer == "" {
 		return req, apperr.ErrValidation.WithDetail("field", "issuer")

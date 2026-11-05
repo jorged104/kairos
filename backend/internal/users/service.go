@@ -23,14 +23,14 @@ import (
 type Invalidator interface{ Invalidate(id uuid.UUID) }
 
 type Service struct {
-	cfg    config.Config
+	cfg    func() config.Config // the settings of the system in force (spec 015)
 	store  *db.Store
 	auth   *auth.Service
 	hasher *auth.Hasher
 	cache  Invalidator
 }
 
-func NewService(cfg config.Config, store *db.Store, authSvc *auth.Service, hasher *auth.Hasher, cache Invalidator) *Service {
+func NewService(cfg func() config.Config, store *db.Store, authSvc *auth.Service, hasher *auth.Hasher, cache Invalidator) *Service {
 	return &Service{cfg: cfg, store: store, auth: authSvc, hasher: hasher, cache: cache}
 }
 
@@ -139,7 +139,7 @@ func (s *Service) view(ctx context.Context, p *authz.Principal, t target) (User,
 		Offboard:    p.Has(authz.UsersOffboard),
 		AssignRoles: p.CanAssignRole(authz.RoleViewer, t.authzT) || p.CanAssignRole(authz.RoleAdmin, t.authzT),
 		ManageTeams: p.CanActOn(authz.TeamMembersAll, authz.TeamMembersTeam, t.authzT),
-		SetPassword: p.Has(authz.PasswordsSet) && s.cfg.Auth.LocalEnabled(),
+		SetPassword: p.Has(authz.PasswordsSet) && s.cfg().Auth.LocalEnabled(),
 	}
 	return u, nil
 }
@@ -161,7 +161,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, req createRequ
 	}
 	role := req.Role
 	if role == "" {
-		role = s.cfg.Auth.DefaultRole
+		role = s.cfg().Auth.DefaultRole
 	}
 
 	var id uuid.UUID
@@ -211,7 +211,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, req createRequ
 
 func (s *Service) checkCreate(p *authz.Principal, req createRequest) error {
 	if req.Password != "" {
-		if !s.cfg.Auth.LocalEnabled() {
+		if !s.cfg().Auth.LocalEnabled() {
 			return errLocalDisabled
 		}
 		if !p.Has(authz.PasswordsSet) {
@@ -401,7 +401,7 @@ func (s *Service) SetPassword(ctx context.Context, p *authz.Principal, id uuid.U
 	if !p.Has(authz.PasswordsSet) {
 		return apperr.ErrForbidden
 	}
-	if !s.cfg.Auth.LocalEnabled() {
+	if !s.cfg().Auth.LocalEnabled() {
 		return errLocalDisabled
 	}
 	if err := auth.CheckPasswordLength(password); err != nil {
@@ -462,7 +462,7 @@ func (s *Service) RemoveRole(ctx context.Context, p *authz.Principal, id uuid.UU
 		if err != nil {
 			return fmt.Errorf("leer rol: %w", err)
 		}
-		if current.Source == "idp" && s.cfg.OIDC.RoleSource != config.RoleSourceLocal {
+		if current.Source == "idp" && s.cfg().OIDC.RoleSource != config.RoleSourceLocal {
 			return errIdPManaged
 		}
 		if role == string(authz.RoleAdmin) && t.user.Status == StatusActive {

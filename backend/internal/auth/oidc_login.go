@@ -316,12 +316,12 @@ func (s *Service) ensureRole(ctx context.Context, q *sqlc.Queries, cfg config.OI
 	if len(roles) > 0 {
 		return nil
 	}
-	if s.cfg.DefaultRole == "" {
+	if s.cfg().DefaultRole == "" {
 		return errNoRole
 	}
 	source := "idp"
 	if cfg.RoleSource == config.RoleSourceLocal {
 		source = "manual" // no IdP roles are created in local mode (RF-33)
 	}
-	return AddRole(ctx, q, audit.IdP, userID, s.cfg.DefaultRole, source)
+	return AddRole(ctx, q, audit.IdP, userID, s.cfg().DefaultRole, source)
 }

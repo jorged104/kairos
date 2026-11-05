@@ -29,6 +29,9 @@ const submitting = ref(false)
 const error = ref<unknown>(typeof route.query.error === 'string' ? route.query.error : null)
 
 const redirect = computed(() => safeRedirect(route.query.redirect))
+// With only SSO, the initial administrator's way in (spec 015, RF-19, RF-20).
+const emergency = ref(false)
+const showPassword = computed(() => config.value?.local_enabled || emergency.value)
 
 async function submit() {
   submitting.value = true
@@ -60,7 +63,8 @@ function sso() {
           <AlertDescription data-testid="login-error">{{ errorMessage(error) }}</AlertDescription>
         </Alert>
 
-        <form v-if="config?.local_enabled" class="flex flex-col gap-3" data-testid="local-login" @submit.prevent="submit">
+        <p v-if="emergency" class="text-xs text-muted-foreground" data-testid="emergency-hint">{{ t('auth.login.emergencyHint') }}</p>
+        <form v-if="showPassword" class="flex flex-col gap-3" data-testid="local-login" @submit.prevent="submit">
           <div class="flex flex-col gap-1.5">
             <Label for="email">{{ t('auth.fields.email') }}</Label>
             <Input id="email" v-model="email" type="email" autocomplete="username" required />
@@ -72,11 +76,21 @@ function sso() {
           <Button type="submit" :disabled="submitting">{{ t('auth.login.submit') }}</Button>
         </form>
 
-        <Separator v-if="config?.local_enabled && config?.oidc_enabled" />
+        <Separator v-if="showPassword && config?.oidc_enabled" />
 
         <Button v-if="config?.oidc_enabled" variant="outline" data-testid="sso-login" @click="sso">
           {{ t('auth.login.sso') }}
         </Button>
+
+        <button
+          v-if="config?.emergency_enabled && !emergency"
+          type="button"
+          class="text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
+          data-testid="emergency-link"
+          @click="emergency = true"
+        >
+          {{ t('auth.login.emergency') }}
+        </button>
 
         <p v-if="config?.registration_enabled" class="text-center text-sm text-muted-foreground" data-testid="register-link">
           {{ t('auth.login.noAccount') }}

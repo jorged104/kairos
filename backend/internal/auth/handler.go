@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -12,20 +13,22 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/config"
 	"openscum/internal/db"
+	"openscum/internal/db/sqlc"
 	"openscum/pkg/httpx"
 )
 
 type Handler struct {
-	cfg      config.AuthConfig
+	cfg      func() config.AuthConfig
 	svc      *Service
 	store    *db.Store
 	sessions *Sessions
 	logger   *slog.Logger
 	// endSessionURL returns the IdP logout URL, or "" if there is none (RF-52, RF-53).
 	endSessionURL func(ctx context.Context) string
+	theme         func() any
 }
 
-func NewHandler(cfg config.AuthConfig, svc *Service, store *db.Store, sessions *Sessions, logger *slog.Logger) *Handler {
+func NewHandler(cfg func() config.AuthConfig, svc *Service, store *db.Store, sessions *Sessions, logger *slog.Logger) *Handler {
 	return &Handler{cfg: cfg, svc: svc, store: store, sessions: sessions, logger: logger}
 }
 
@@ -44,14 +47,39 @@ func (h *Handler) PublicRoutes(r chi.Router) {
 func (h *Handler) Routes(r chi.Router) {
 	r.Get("/me", h.Me)
 	r.Put("/me/password", h.ChangePassword)
+	r.Put("/me/preferences", h.SetPreferences)
 }
 
+// SetTheme gives the login screen the appearance of the system (spec 015).
+func (h *Handler) SetTheme(f func() any) { h.theme = f }
+
 func (h *Handler) Config(w http.ResponseWriter, _ *http.Request) {
-	httpx.WriteJSON(w, http.StatusOK, ConfigResponse{
-		LocalEnabled:        h.cfg.LocalEnabled(),
-		OIDCEnabled:         h.cfg.OIDCEnabled(),
-		RegistrationEnabled: h.cfg.LocalEnabled() && h.cfg.RegistrationEnabled,
-	})
+	cfg := h.cfg()
+	out := ConfigResponse{
+		LocalEnabled:        cfg.LocalEnabled(),
+		OIDCEnabled:         cfg.OIDCEnabled(),
+		RegistrationEnabled: cfg.LocalEnabled() && cfg.RegistrationEnabled,
+		EmergencyEnabled:    !cfg.LocalEnabled() && cfg.BootstrapAdminEmail != "",
+	}
+	if h.theme != nil {
+		out.Theme = h.theme()
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// SetPreferences keeps the caller's light or dark mode on every device (spec 015, RF-48 to RF-50).
+func (h *Handler) SetPreferences(w http.ResponseWriter, r *http.Request) {
+	var req preferencesRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	p := authz.FromContext(r.Context())
+	if err := h.store.SetThemeMode(r.Context(), sqlc.SetThemeModeParams{UserID: p.UserID, ThemeMode: req.ThemeMode}); err != nil {
+		apperr.Write(w, h.logger, fmt.Errorf("guardar preferencias: %w", err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +88,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		apperr.Write(w, h.logger, err)
 		return
 	}
-	id, err := h.svc.Login(r.Context(), req.Email, req.Password, clientIP(r, h.cfg.TrustProxy))
+	id, err := h.svc.Login(r.Context(), req.Email, req.Password, clientIP(r, h.cfg().TrustProxy))
 	if err != nil {
 		apperr.Write(w, h.logger, err)
 		return

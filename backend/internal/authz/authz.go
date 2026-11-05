@@ -90,6 +90,7 @@ const (
 	PortfolioManage           Permission = "portfolio:manage"    // spec 010: programs and their weights
 	ProjectViewsShare         Permission = "project_views:share" // spec 012: views of the project list for everybody
 	GamificationManage        Permission = "gamification:manage" // spec 014: point values, levels, adjustments
+	SystemManage              Permission = "system:manage"       // spec 015: access, SSO, storage, appearance
 )
 
 // rolePermissions is the permission matrix of specs 003 and 004.
@@ -100,7 +101,7 @@ var rolePermissions = map[Role][]Permission{
 		IdpMappingsManage, PasswordsSet, AuditRead, SelfPassword,
 		WorkRead, WorkComment, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
 		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage, ProjectViewsShare,
-		GamificationManage,
+		GamificationManage, SystemManage,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,

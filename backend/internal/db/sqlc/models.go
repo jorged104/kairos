@@ -199,6 +199,7 @@ type OidcLoginState struct {
 	CodeVerifier string
 	ReturnTo     string
 	CreatedAt    time.Time
+	Purpose      string
 }
 
 type PageFile struct {
@@ -430,6 +431,30 @@ type Status struct {
 	UpdatedAt      time.Time
 }
 
+type SystemSetting struct {
+	ID                  bool
+	Version             int64
+	AuthMode            string
+	RegistrationEnabled bool
+	DefaultRole         string
+	OidcIssuer          string
+	OidcDiscoveryUrl    string
+	OidcClientID        string
+	OidcClientSecret    []byte
+	OidcTest            json.RawMessage
+	FilesKind           string
+	S3Endpoint          string
+	S3Bucket            string
+	S3Region            string
+	S3AccessKey         string
+	S3SecretKey         []byte
+	S3UseSsl            bool
+	ThemePalette        string
+	ThemePrimary        string
+	ThemeRadius         string
+	UpdatedAt           time.Time
+}
+
 type Team struct {
 	ID             uuid.UUID
 	Name           string
@@ -478,6 +503,12 @@ type UserIdentity struct {
 	Issuer    string
 	Subject   string
 	CreatedAt time.Time
+}
+
+type UserPreference struct {
+	UserID    uuid.UUID
+	ThemeMode string
+	UpdatedAt time.Time
 }
 
 type UserRole struct {

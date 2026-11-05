@@ -29,7 +29,7 @@ func IsUniqueViolation(err error) bool {
 }
 
 type Service struct {
-	cfg     config.AuthConfig
+	cfg     func() config.AuthConfig // the settings of the system in force (spec 015)
 	store   *db.Store
 	loader  *PrincipalLoader
 	hasher  *Hasher
@@ -37,16 +37,19 @@ type Service struct {
 	logger  *slog.Logger
 }
 
-func NewService(cfg config.AuthConfig, store *db.Store, loader *PrincipalLoader, hasher *Hasher, limiter *RateLimiter, logger *slog.Logger) *Service {
+func NewService(cfg func() config.AuthConfig, store *db.Store, loader *PrincipalLoader, hasher *Hasher, limiter *RateLimiter, logger *slog.Logger) *Service {
 	return &Service{cfg: cfg, store: store, loader: loader, hasher: hasher, limiter: limiter, logger: logger}
 }
 
-// Login checks a local email and password (RF-7 to RF-10, RF-46).
+// Login checks a local email and password (RF-7 to RF-10, RF-46). With only
+// SSO, the initial administrator keeps a way in (spec 015, RF-19 to RF-22).
 func (s *Service) Login(ctx context.Context, email, password, ip string) (uuid.UUID, error) {
-	if !s.cfg.LocalEnabled() {
+	cfg := s.cfg()
+	email = NormalizeEmail(email)
+	emergency := !cfg.LocalEnabled()
+	if emergency && (cfg.BootstrapAdminEmail == "" || email != cfg.BootstrapAdminEmail) {
 		return uuid.Nil, errLocalAuthDisabled
 	}
-	email = NormalizeEmail(email)
 	keys := []string{emailKey(email), ipKey(ip)}
 	if !s.limiter.Allowed(keys...) {
 		return uuid.Nil, errTooManyAttempts
@@ -67,6 +70,13 @@ func (s *Service) Login(ctx context.Context, email, password, ip string) (uuid.U
 		return uuid.Nil, apperr.ErrAccountInactive
 	}
 	if err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
+		if emergency {
+			if err := audit.Record(ctx, q, audit.Entry{
+				Actor: audit.Actor{ID: &u.ID, Kind: audit.ActorUser}, Action: "auth.emergency_login", TargetType: "user", TargetID: u.ID.String(),
+			}); err != nil {
+				return err
+			}
+		}
 		return s.ApplyBootstrap(ctx, q, u.ID, u.EmailNormalized)
 	}); err != nil {
 		return uuid.Nil, err
@@ -95,10 +105,10 @@ func (s *Service) credentials(ctx context.Context, email string) (sqlc.User, str
 
 // Register creates an active user with the default role and no team (RF-11 to RF-14).
 func (s *Service) Register(ctx context.Context, req registerRequest) (uuid.UUID, error) {
-	if !s.cfg.LocalEnabled() {
+	if !s.cfg().LocalEnabled() {
 		return uuid.Nil, errLocalAuthDisabled
 	}
-	if !s.cfg.RegistrationEnabled {
+	if !s.cfg().RegistrationEnabled {
 		return uuid.Nil, errRegistrationDisabled
 	}
 	if err := CheckPasswordLength(req.Password); err != nil {
@@ -131,8 +141,8 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (uuid.UUID,
 		}); err != nil {
 			return err
 		}
-		if s.cfg.DefaultRole != "" {
-			if err := AddRole(ctx, q, audit.System, u.ID, s.cfg.DefaultRole, "manual"); err != nil {
+		if s.cfg().DefaultRole != "" {
+			if err := AddRole(ctx, q, audit.System, u.ID, s.cfg().DefaultRole, "manual"); err != nil {
 				return err
 			}
 		}
@@ -143,7 +153,7 @@ func (s *Service) Register(ctx context.Context, req registerRequest) (uuid.UUID,
 
 // ChangeOwnPassword replaces the user's local password after checking the current one (RF-80, RF-82).
 func (s *Service) ChangeOwnPassword(ctx context.Context, p *authz.Principal, current, next string) error {
-	if !s.cfg.LocalEnabled() {
+	if !s.cfg().LocalEnabled() {
 		return errLocalAuthDisabled
 	}
 	if !p.Has(authz.SelfPassword) {
@@ -169,7 +179,7 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, p *authz.Principal, cur
 // ApplyBootstrap makes the bootstrap email an admin while no active admin
 // exists (RF-54 to RF-56).
 func (s *Service) ApplyBootstrap(ctx context.Context, q *sqlc.Queries, userID uuid.UUID, email string) error {
-	if s.cfg.BootstrapAdminEmail == "" || email != s.cfg.BootstrapAdminEmail {
+	if s.cfg().BootstrapAdminEmail == "" || email != s.cfg().BootstrapAdminEmail {
 		return nil
 	}
 	if err := q.LockAdmins(ctx); err != nil {

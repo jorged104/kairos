@@ -1,3 +1,4 @@
+import type { Theme, ThemeMode } from '@/lib/theme'
 // Types shared with the API (spec 003). JSON is snake_case, as the API sends it.
 
 export type Role = 'admin' | 'lead' | 'member' | 'viewer'
@@ -31,6 +32,7 @@ export type Permission =
   | 'portfolio:manage'
   | 'project_views:share'
   | 'gamification:manage'
+  | 'system:manage'
   | 'self:password'
   // Spec 004.
   | 'work:read'
@@ -67,6 +69,9 @@ export interface AuthConfig {
   local_enabled: boolean
   oidc_enabled: boolean
   registration_enabled: boolean
+  /** Only SSO is on and the initial administrator may still use a password (spec 015, RF-20). */
+  emergency_enabled?: boolean
+  theme?: Theme
 }
 
 export interface Me {
@@ -79,6 +84,8 @@ export interface Me {
   roles: RoleAssignment[]
   teams: TeamAssignment[]
   permissions: Permission[]
+  /** Light, dark or as the system (spec 015, RF-48). */
+  theme_mode?: ThemeMode
 }
 
 export interface Abilities {

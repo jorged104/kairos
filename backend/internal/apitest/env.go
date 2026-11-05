@@ -23,8 +23,8 @@ import (
 	"openscum/internal/db"
 	"openscum/internal/db/dbtest"
 	"openscum/internal/db/sqlc"
-	"openscum/internal/files"
 	"openscum/internal/server"
+	"openscum/internal/settings"
 )
 
 const Origin = "http://kairos.test"
@@ -58,11 +58,12 @@ func New(t *testing.T, opts ...Option) *Env {
 		o(&cfg)
 	}
 	store := db.NewStore(dbtest.New(t))
-	storage, err := files.NewStorage(context.Background(), cfg.Files)
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	live, err := settings.Open(context.Background(), store, cfg, logger)
 	if err != nil {
-		t.Fatalf("storage: %v", err)
+		t.Fatalf("settings: %v", err)
 	}
-	app := server.NewApp(cfg, store, storage, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	app := server.NewApp(cfg, store, live, logger)
 	srv := httptest.NewServer(app.Handler)
 	t.Cleanup(srv.Close)
 	return &Env{t: t, Cfg: cfg, Store: store, App: app, Srv: srv}

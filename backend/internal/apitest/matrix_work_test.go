@@ -162,6 +162,11 @@ var workOps = []workOp{
 	{"ajustar puntos", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/gamification/users/"+m.actors["owner"].String()+"/adjustments", map[string]any{"xp": 1, "coins": 0, "note": "matriz"})
 	}, map[string]int{"admin": 201}},
+	// Spec 015: only the administrator of the system sees and changes its settings.
+	{"ver configuración del sistema", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/system/settings") }, map[string]int{"admin": 200}},
+	{"cambiar apariencia", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/system/settings/appearance", map[string]any{"palette": "neutral", "primary": "default", "radius": "soft"})
+	}, map[string]int{"admin": 200}},
 	{"ver puntos de otro", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/gamification/users/" + m.actors["stranger"].String() + "/points")
 	}, map[string]int{"admin": 200}},

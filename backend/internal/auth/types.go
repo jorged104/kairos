@@ -30,6 +30,8 @@ type MeResponse struct {
 	Roles       []RoleAssignment   `json:"roles"`
 	Teams       []TeamAssignment   `json:"teams"`
 	Permissions []authz.Permission `json:"permissions"`
+	// ThemeMode is light, dark or system (spec 015, RF-48 to RF-50).
+	ThemeMode string `json:"theme_mode"`
 }
 
 // ConfigResponse tells the login screen which methods are enabled (RF-6, RF-12).
@@ -37,6 +39,15 @@ type ConfigResponse struct {
 	LocalEnabled        bool `json:"local_enabled"`
 	OIDCEnabled         bool `json:"oidc_enabled"`
 	RegistrationEnabled bool `json:"registration_enabled"`
+	// EmergencyEnabled offers the initial administrator's password form while
+	// only SSO is on (spec 015, RF-20).
+	EmergencyEnabled bool `json:"emergency_enabled"`
+	// Theme is the appearance of the system, also for the login (spec 015, RF-45).
+	Theme any `json:"theme"`
+}
+
+type preferencesRequest struct {
+	ThemeMode string `json:"theme_mode" validate:"oneof=light dark system"`
 }
 
 type loginRequest struct {
