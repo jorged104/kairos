@@ -1266,7 +1266,9 @@
       "moveTo": "Mover {key} a otro estado",
       "noTargets": "El flujo no permite moverla a otro estado",
       "retired": "retirado",
-      "dragHint": "Arrastra una tarea a otra columna, o usa su menú, para cambiar su estado. Las más atrasadas salen primero."
+      "dragHint": "Arrastra una tarea a otra columna, o usa su menú, para cambiar su estado. Las más atrasadas salen primero.",
+      "scrollLeft": "Ver las columnas anteriores",
+      "scrollRight": "Ver las columnas siguientes"
     },
     "projects": {
       "title": "En qué estoy aportando",

@@ -15,6 +15,8 @@ export interface DashboardTask {
   title: string
   project: DashboardRef
   status_id: string
+  /** Its colour marks the card (RF-14a). */
+  type_id: string
   closed: boolean
   due_date: string | null
   closed_on: string | null

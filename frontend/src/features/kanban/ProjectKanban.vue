@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import AvatarStack from '@/features/work/AvatarStack.vue'
 import LabelChips from '@/features/work/LabelChips.vue'
+import TypeStripe from '@/features/work/TypeStripe.vue'
 import { useCatalog } from '@/features/work/useCatalog'
 import { patchWorkItem } from '@/features/workitems/patch'
 import ItemPanel from '@/features/workitems/ItemPanel.vue'
@@ -24,7 +25,7 @@ const { t, locale } = useI18n()
 const qc = useQueryClient()
 const route = useRoute()
 const errorMessage = useErrorMessage()
-const { catalog, sizes, labels, priorities } = useCatalog()
+const { catalog, sizes, labels, priorities, types } = useCatalog()
 
 const key = computed(() => ['tree', props.project.id, 'filtered', props.filters, ''])
 const { data: nodes } = useQuery({ queryKey: key, queryFn: () => filteredTree(props.project.id, props.filters) })
@@ -230,6 +231,7 @@ const sizeName = (n: WorkNode) => (n.size_id ? (sizes.value.get(n.size_id)?.name
                   @dragstart="onDragStart($event, n)"
                   @dragend="dragging = null"
                 >
+                  <TypeStripe :type="types.get(n.type_id)" />
                   <div class="flex items-center gap-1.5">
                     <span class="font-mono text-[11px] text-muted-foreground">{{ n.key }}</span>
                     <span v-if="n.blocked" class="rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">{{ t('kanban.blocked') }}</span>

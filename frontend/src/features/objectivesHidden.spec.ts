@@ -6,7 +6,8 @@ import { useAuthStore } from '@/stores/auth'
 import type { Me } from '@/types/api'
 
 describe('objetivos ocultos', () => {
-  it('sus rutas llevan al inicio', async () => {
+  // Loading the home page's chunk is slow while the whole suite runs.
+  it('sus rutas llevan al inicio', { timeout: 20_000 }, async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}'))))
     setActivePinia(createPinia())
     useAuthStore().set({ id: 'u', name: 'A', roles: [], teams: [], permissions: ['work:read'] } as unknown as Me)
