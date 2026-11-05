@@ -62,6 +62,9 @@ function sso() {
         <Alert v-if="error" variant="destructive" role="alert">
           <AlertDescription data-testid="login-error">{{ errorMessage(error) }}</AlertDescription>
         </Alert>
+        <Alert v-if="route.query.password === 'set'" role="status" data-testid="password-set">
+          <AlertDescription>{{ t('accounts.password.done') }}</AlertDescription>
+        </Alert>
 
         <p v-if="emergency" class="text-xs text-muted-foreground" data-testid="emergency-hint">{{ t('auth.login.emergencyHint') }}</p>
         <form v-if="showPassword" class="flex flex-col gap-3" data-testid="local-login" @submit.prevent="submit">
@@ -74,6 +77,9 @@ function sso() {
             <Input id="password" v-model="password" type="password" autocomplete="current-password" required />
           </div>
           <Button type="submit" :disabled="submitting">{{ t('auth.login.submit') }}</Button>
+          <RouterLink to="/forgot-password" class="text-center text-xs text-muted-foreground underline-offset-2 hover:underline" data-testid="forgot-link">
+            {{ t('accounts.forgot.link') }}
+          </RouterLink>
         </form>
 
         <Separator v-if="showPassword && config?.oidc_enabled" />

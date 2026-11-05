@@ -51,6 +51,12 @@ describe('LoginPage', () => {
     expect(both.wrapper.find('[data-testid=register-link]').exists()).toBe(true)
   })
 
+  it('ofrece recuperar la contraseña y avisa cuando se acaba de poner (spec 019, RF-16, RF-22)', async () => {
+    const { wrapper } = await render('/login?password=set', { local_enabled: true, oidc_enabled: false, registration_enabled: false })
+    expect(wrapper.find('[data-testid=forgot-link]').attributes('href')).toBe('/forgot-password')
+    expect(wrapper.find('[data-testid=password-set]').text()).toContain('Ya puedes entrar')
+  })
+
   it('traduce el código de error de la API, no su mensaje (RF-125)', async () => {
     const { wrapper } = await render(
       '/login',

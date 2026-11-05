@@ -383,7 +383,12 @@
     "mcp_disabled": "El acceso por IA está desactivado.",
     "mcp_too_many_connections": "Ya tienes el máximo de conexiones vigentes.",
     "meeting_template_name_taken": "Ya hay una plantilla con ese nombre.",
-    "meeting_time_zone": "La fecha y hora deben indicar su zona horaria."
+    "meeting_time_zone": "La fecha y hora deben indicar su zona horaria.",
+    "invalid_link": "El enlace no es válido o ha caducado.",
+    "passwords_differ": "Las dos contraseñas no coinciden.",
+    "mail_test_failed": "No se pudo enviar el correo de prueba.",
+    "mail_not_configured": "El correo no está configurado.",
+    "user_has_password": "La persona ya tiene contraseña; envíale un enlace de nueva contraseña."
   },
   "richtext": {
     "bold": "Negrita",
@@ -1395,7 +1400,8 @@
       "sso": "SSO",
       "storage": "Almacenamiento",
       "appearance": "Apariencia",
-      "mcp": "IA (MCP)"
+      "mcp": "IA (MCP)",
+      "mail": "Correo"
     },
     "access": {
       "mode": "Modo de acceso",
@@ -1491,6 +1497,32 @@
       "enabled": "Permitir conectar clientes de IA",
       "enabledHint": "Cada persona crea sus conexiones en Mi cuenta. Al desactivarlo se rechaza toda petición de IA, pero las conexiones se conservan.",
       "connections": "Conexiones vigentes de todas las personas"
+    },
+    "mail": {
+      "enabled": "Enviar correo",
+      "enabledHint": "Invitaciones y recuperación de contraseña. Desactivado, los enlaces se copian a mano.",
+      "host": "Servidor SMTP",
+      "port": "Puerto",
+      "security": "Seguridad",
+      "securities": {
+        "starttls": "STARTTLS (puerto 587)",
+        "tls": "TLS (puerto 465)",
+        "none": "Ninguna"
+      },
+      "username": "Usuario (opcional)",
+      "password": "Contraseña (opcional)",
+      "fromEmail": "Correo del remitente",
+      "fromName": "Nombre del remitente",
+      "test": "Enviar correo de prueba",
+      "testHint": "La prueba usa la configuración guardada y llega a tu propio correo.",
+      "testOk": "Correo de prueba enviado. Revisa tu bandeja de entrada.",
+      "testFailed": "El correo de prueba falló en el paso: {step}.",
+      "steps": {
+        "connect": "conexión con el servidor",
+        "tls": "seguridad (TLS)",
+        "auth": "autenticación",
+        "send": "envío"
+      }
     }
   },
   "mcp": {
@@ -1599,6 +1631,46 @@
       "pageHint": "Página inicial: orden del día, apartados… (sin imágenes ni archivos)",
       "empty": "No hay plantillas.",
       "edit": "Editar {name}"
+    }
+  },
+  "accounts": {
+    "created": "{name} está dado de alta.",
+    "openUser": "Ver su ficha",
+    "another": "Dar de alta otra persona",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "sent": {
+      "invitation": "Invitación enviada por correo. Vale 7 días.",
+      "link": "Enlace de nueva contraseña enviado por correo. Vale 1 hora."
+    },
+    "notSent": {
+      "invitation": "No se pudo enviar la invitación por correo. Pásale este enlace por otro medio; vale 7 días y una sola vez:",
+      "link": "No se pudo enviar el enlace por correo. Pásaselo por otro medio; vale 1 hora y una sola vez:",
+      "login": "El acceso es solo por SSO. Avísale de que ya puede entrar desde aquí:"
+    },
+    "invitationPending": "Invitación pendiente hasta el {date}.",
+    "invitationExpired": "La invitación caducó sin usarse.",
+    "badgePending": "Invitación pendiente",
+    "badgeExpired": "Invitación caducada",
+    "resend": "Reenviar invitación",
+    "sendLink": "Enviar enlace de nueva contraseña",
+    "backToLogin": "Volver al inicio de sesión",
+    "forgot": {
+      "link": "¿Olvidaste tu contraseña?",
+      "title": "Recuperar la contraseña",
+      "description": "Te enviaremos un enlace para poner una contraseña nueva.",
+      "submit": "Enviar enlace",
+      "done": "Si esa dirección tiene cuenta, te llegará un correo con un enlace que vale 1 hora. Revisa también el correo no deseado."
+    },
+    "password": {
+      "inviteTitle": "Crea tu contraseña",
+      "resetTitle": "Pon una contraseña nueva",
+      "for": "Para {name} ({email})",
+      "repeat": "Repite la contraseña",
+      "save": "Guardar contraseña",
+      "done": "Contraseña guardada. Ya puedes entrar.",
+      "invalid": "Este enlace no es válido: caducó, ya se usó o se pidió otro más reciente.",
+      "askAgain": "Pedir un enlace nuevo"
     }
   }
 }

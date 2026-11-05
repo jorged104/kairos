@@ -108,6 +108,13 @@ func TestInvitations(t *testing.T) {
 		t.Fatalf("created = %+v %+v", u, u.Delivery)
 	}
 	first := u.Delivery.URL
+	var dir struct {
+		Items []createdUserDTO `json:"items"`
+	}
+	admin.Get("/api/users?q=ana").Expect(t, http.StatusOK).JSON(t, &dir)
+	if len(dir.Items) != 1 || dir.Items[0].Invitation == nil || dir.Items[0].Invitation.Expired { // RF-19
+		t.Fatalf("directory = %+v", dir.Items)
+	}
 
 	// With mail it goes out, and the link is not handed over (RF-12).
 	smtp := useMail(t, env, admin)

@@ -22,7 +22,6 @@ export const getUser = (id: string) => api<User>(`/api/users/${id}`)
 export interface UserInput {
   name: string
   email: string
-  password?: string
   role?: Role | ''
   team_id?: string
   attributes?: Record<string, AttributeValue>
@@ -37,9 +36,6 @@ export type StatusAction = 'deactivate' | 'reactivate' | 'offboard' | 'restore'
 
 export const changeStatus = (id: string, action: StatusAction) =>
   api<User>(`/api/users/${id}/${action}`, { method: 'POST' })
-
-export const setPassword = (id: string, password: string) =>
-  api<void>(`/api/users/${id}/password`, { method: 'PUT', body: { password } })
 
 export const addRole = (id: string, role: Role) =>
   api<User>(`/api/users/${id}/roles`, { method: 'POST', body: { role } })

@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import AccessSettings from '@/features/system/AccessSettings.vue'
 import AppearanceSettings from '@/features/system/AppearanceSettings.vue'
+import MailSettings from '@/features/system/MailSettings.vue'
 import McpSettings from '@/features/system/McpSettings.vue'
 import SsoSettings from '@/features/system/SsoSettings.vue'
 import StorageSettings from '@/features/system/StorageSettings.vue'
@@ -20,7 +21,7 @@ const router = useRouter()
 const client = useQueryClient()
 const errorMessage = useErrorMessage()
 
-const tabs = ['access', 'sso', 'storage', 'appearance', 'mcp'] as const
+const tabs = ['access', 'sso', 'storage', 'mail', 'appearance', 'mcp'] as const
 type Tab = (typeof tabs)[number]
 const tab = computed<Tab>(() => (tabs as readonly string[]).includes(String(route.query.tab)) ? (route.query.tab as Tab) : 'access')
 const select = (t: Tab) => router.replace({ query: { ...route.query, tab: t } })
@@ -58,6 +59,7 @@ function saved(s: SystemSettings) {
       <SsoSettings v-else-if="tab === 'sso'" :settings="data" @saved="saved" />
       <StorageSettings v-else-if="tab === 'storage'" :settings="data" @saved="saved" />
       <McpSettings v-else-if="tab === 'mcp'" :settings="data" @saved="saved" />
+      <MailSettings v-else-if="tab === 'mail'" :settings="data" @saved="saved" />
       <AppearanceSettings v-else :settings="data" @saved="saved" />
     </template>
   </div>

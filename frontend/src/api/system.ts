@@ -40,6 +40,17 @@ export interface SystemSettings {
   }
   appearance: Theme
   mcp: { enabled: boolean }
+  mail: {
+    enabled: boolean
+    host: string
+    port: number
+    security: 'none' | 'starttls' | 'tls'
+    username: string
+    password_set: boolean
+    from_email: string
+    from_name: string
+    ready: boolean
+  }
   emergency_available: boolean
   emergency_email: string
 }
@@ -58,6 +69,11 @@ export const saveStorage = (body: Omit<SystemSettings['storage'], 'secret_key_se
 export const saveAppearance = (body: Theme) => put('appearance', body)
 
 export const saveMcp = (enabled: boolean) => put('mcp', { enabled })
+
+/** The outgoing mail (spec 019); an empty password keeps the stored one. */
+export const saveMail = (body: Omit<SystemSettings['mail'], 'password_set' | 'ready'> & { password: string }) => put('mail', body)
+
+export const testMail = () => api<void>('/api/system/settings/mail/test', { method: 'POST' })
 
 /** Where the browser goes to test the SSO; it comes back to the SSO tab (RF-28). */
 export const ssoTestUrl = '/api/auth/oidc/start?test=1'

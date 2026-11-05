@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DeliveryNotice from '@/features/users/DeliveryNotice.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,7 +15,7 @@ import { useErrorMessage } from '@/composables/useErrorMessage'
 import { flatten, ledScope } from '@/features/teams/tree'
 import AttributeField from '@/features/users/AttributeField.vue'
 import { useAuthStore } from '@/stores/auth'
-import { ROLES, type AttributeValue, type Role } from '@/types/api'
+import { ROLES, type AttributeValue, type Role, type User } from '@/types/api'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -40,8 +41,14 @@ const name = ref('')
 const email = ref('')
 const role = ref<Role | ''>('')
 const teamId = ref('')
-const password = ref('')
 const values = ref<Record<string, AttributeValue>>({})
+const created = ref<User | null>(null)
+function another() {
+  created.value = null
+  name.value = email.value = teamId.value = ''
+  role.value = ''
+  values.value = {}
+}
 
 const create = useMutation({
   mutationFn: () =>
@@ -50,12 +57,11 @@ const create = useMutation({
       email: email.value,
       role: role.value || undefined,
       team_id: teamId.value || undefined,
-      password: password.value || undefined,
       attributes: values.value,
     }),
   onSuccess: async (user) => {
     await qc.invalidateQueries({ queryKey: ['users'] })
-    await router.push(`/users/${user.id}`)
+    created.value = user
   },
 })
 </script>
@@ -66,7 +72,15 @@ const create = useMutation({
       <CardTitle>{{ t('users.form.title') }}</CardTitle>
     </CardHeader>
     <CardContent>
-      <form class="grid gap-3 sm:grid-cols-2" @submit.prevent="create.mutate()">
+      <div v-if="created" class="flex flex-col gap-3" data-testid="user-created">
+        <p class="text-sm">{{ t('accounts.created', { name: created.name }) }}</p>
+        <DeliveryNotice v-if="created.delivery" :delivery="created.delivery" what="invitation" />
+        <div class="flex gap-2">
+          <Button as-child size="sm"><RouterLink :to="`/users/${created.id}`">{{ t('accounts.openUser') }}</RouterLink></Button>
+          <Button size="sm" variant="outline" @click="another">{{ t('accounts.another') }}</Button>
+        </div>
+      </div>
+      <form v-else class="grid gap-3 sm:grid-cols-2" @submit.prevent="create.mutate()">
         <Alert v-if="create.error.value" variant="destructive" role="alert" class="sm:col-span-2">
           <AlertDescription>{{ errorMessage(create.error.value) }}</AlertDescription>
         </Alert>
@@ -94,11 +108,7 @@ const create = useMutation({
             </option>
           </NativeSelect>
         </div>
-        <div v-if="auth.can('passwords:set')" class="flex flex-col gap-1.5 sm:col-span-2">
-          <Label for="password">{{ t('users.form.initialPassword') }}</Label>
-          <Input id="password" v-model="password" type="password" autocomplete="new-password" />
-          <p class="text-xs text-muted-foreground">{{ t('auth.passwordHint') }}</p>
-        </div>
+
         <template v-if="activeAttributes.length">
           <h2 class="mt-2 font-medium sm:col-span-2">{{ t('users.form.attributes') }}</h2>
           <div v-for="a in activeAttributes" :key="a.id" class="flex flex-col gap-1.5">

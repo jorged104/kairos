@@ -212,6 +212,9 @@ function clear() {
             </td>
             <td class="px-2">
               <Badge :variant="u.status === 'active' ? 'outline' : 'secondary'">{{ t(`status.${u.status}`) }}</Badge>
+              <Badge v-if="u.invitation" variant="secondary" class="ml-1" data-testid="user-row-invited">
+                {{ u.invitation.expired ? t('accounts.badgeExpired') : t('accounts.badgePending') }}
+              </Badge>
             </td>
           </tr>
           <QuickAddRow v-if="canCreate" :colspan="5" :label="t('users.new')" :placeholder="t('users.columns.name')" :submit="create">
