@@ -29,6 +29,8 @@ import {
 } from '@lucide/vue'
 import { logout } from '@/api/auth'
 import PointsNotice from '@/features/gamification/PointsNotice.vue'
+import NotificationBell from '@/features/notifications/NotificationBell.vue'
+import NotificationToasts from '@/features/notifications/NotificationToasts.vue'
 import { useFullWidth } from '@/features/pages/useFullWidth'
 import { features } from '@/lib/features'
 import { useAuthStore } from '@/stores/auth'
@@ -228,6 +230,7 @@ const item = (active: boolean) => [
       </nav>
 
       <div class="flex shrink-0 flex-col gap-1 border-t p-2">
+        <NotificationBell :collapsed="collapsed" />
         <RouterLink
           to="/account"
           class="flex items-center gap-3 rounded-md p-1.5 hover:bg-muted"
@@ -275,5 +278,6 @@ const item = (active: boolean) => [
       </div>
     </main>
     <PointsNotice v-if="auth.me" />
+    <NotificationToasts v-if="auth.me" />
   </div>
 </template>

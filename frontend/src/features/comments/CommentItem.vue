@@ -36,7 +36,7 @@ async function remove() {
 </script>
 
 <template>
-  <article class="flex gap-2" data-testid="comment">
+  <article :id="`comment-${comment.id}`" class="flex scroll-mt-20 gap-2 rounded-md" data-testid="comment">
     <AvatarStack :people="[comment.author]" :max="1" bare class="mt-0.5 shrink-0" />
     <div class="flex min-w-0 flex-1 flex-col gap-1">
       <header class="flex flex-wrap items-baseline gap-x-2 text-sm">

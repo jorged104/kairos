@@ -24,7 +24,8 @@
     "collapse": "Contraer el menú",
     "ranking": "Ranking",
     "gamification": "Gamificación",
-    "system": "Sistema"
+    "system": "Sistema",
+    "notifications": "Notificaciones"
   },
   "common": {
     "save": "Guardar",
@@ -1515,5 +1516,40 @@
     "revokeConfirm": "Confirmar revocación",
     "via": "vía IA · {name}",
     "viaClient": "{name} ({client})"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "bell": "Notificaciones: {n} sin leer",
+    "readAll": "Marcar todas como leídas",
+    "seeAll": "Ver todas",
+    "all": "Todas",
+    "unreadOnly": "Sin leer",
+    "filter": "Mostrar",
+    "empty": "No tienes notificaciones.",
+    "emptyUnread": "No tienes notificaciones sin leer.",
+    "markRead": "Marcar como leída",
+    "markUnread": "Marcar como no leída",
+    "mention": "Mención",
+    "events": "{n} novedades",
+    "many": "{n} notificaciones nuevas",
+    "close": "Cerrar aviso",
+    "page": "Página {page} de {pages}",
+    "who": {
+      "two": "{a} y {b}",
+      "more": "{names} y {n} más"
+    },
+    "kinds": {
+      "comment": "{who} comentó | {who} comentaron",
+      "reply": "{who} respondió en un hilo | {who} respondieron en un hilo",
+      "mention": "{who} te mencionó | {who} te mencionaron",
+      "status": "{who} cambió el estado: {from} → {to} | {who} cambiaron el estado: {from} → {to}",
+      "thread_resolved": "{who} resolvió un hilo | {who} resolvieron un hilo",
+      "thread_reopened": "{who} reabrió un hilo | {who} reabrieron un hilo"
+    },
+    "follow": {
+      "follow": "Seguir",
+      "following": "Siguiendo",
+      "hint": "Recibe avisos de los comentarios y cambios de esta tarea. Las menciones llegan siempre."
+    }
   }
 }

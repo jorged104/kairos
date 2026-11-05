@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronRight, MessageSquare } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { createComment } from '@/api/comments'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useErrorMessage } from '@/composables/useErrorMessage'
@@ -23,6 +24,26 @@ const resolved = computed(() => (list.value?.threads ?? []).filter((th) => th.re
 const total = computed(() => (list.value?.threads ?? []).reduce((n, th) => n + (th.deleted ? 0 : 1) + th.replies.length, 0))
 const showResolved = ref(false)
 const writing = ref(false)
+
+// ?comment=<id>, from a notification: unfold its thread, scroll to it and
+// mark it a moment (spec 017, RF-41).
+const route = useRoute()
+watch(
+  [() => route.query.comment, list],
+  async ([id]) => {
+    if (typeof id !== 'string' || !list.value) return
+    const thread = list.value.threads.find((th) => th.id === id || th.replies.some((r) => r.id === id))
+    if (!thread) return
+    if (thread.resolved_at) showResolved.value = true
+    await nextTick()
+    const el = document.getElementById(`comment-${id}`)
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.classList.add('page-comment-flash')
+    setTimeout(() => el.classList.remove('page-comment-flash'), 2000)
+  },
+  { immediate: true },
+)
 
 async function publish(body: RichDoc) {
   apply(await createComment(props.workItemId, body))

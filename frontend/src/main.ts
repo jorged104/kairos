@@ -1,8 +1,9 @@
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import App from '@/App.vue'
 import { setUnauthenticatedHandler } from '@/api/client'
+import { startRealtime, stopRealtime } from '@/composables/useRealtime'
 import { createAppI18n } from '@/lib/i18n'
 import { router } from '@/router'
 import { useAuthStore } from '@/stores/auth'
@@ -17,5 +18,12 @@ setUnauthenticatedHandler(() => {
   auth.set(null)
   void router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
 })
+
+// The realtime connection lives while someone is signed in (spec 017).
+watch(
+  () => auth.me?.id,
+  (id) => (id ? startRealtime() : stopRealtime()),
+  { immediate: true },
+)
 
 app.use(router).use(VueQueryPlugin).use(createAppI18n()).mount('#app')
