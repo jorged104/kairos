@@ -378,7 +378,9 @@
     "sso_in_use": "Pasa el modo de acceso a «ambos» antes de cambiar el SSO.",
     "sso_discovery_failed": "El proveedor de SSO no responde o su descubrimiento no es válido.",
     "s3_check_failed": "No se pudo escribir, leer y borrar un objeto de prueba en el S3.",
-    "storage_locked": "Ya hay archivos guardados: no se puede cambiar dónde se guardan."
+    "storage_locked": "Ya hay archivos guardados: no se puede cambiar dónde se guardan.",
+    "mcp_disabled": "El acceso por IA está desactivado.",
+    "mcp_too_many_connections": "Ya tienes el máximo de conexiones vigentes."
   },
   "richtext": {
     "bold": "Negrita",
@@ -1385,7 +1387,8 @@
       "access": "Acceso",
       "sso": "SSO",
       "storage": "Almacenamiento",
-      "appearance": "Apariencia"
+      "appearance": "Apariencia",
+      "mcp": "IA (MCP)"
     },
     "access": {
       "mode": "Modo de acceso",
@@ -1476,6 +1479,41 @@
       "sampleOutline": "Más opciones",
       "reset": "Restablecer la apariencia inicial",
       "saved": "Apariencia guardada para todos."
+    },
+    "mcp": {
+      "enabled": "Permitir conectar clientes de IA",
+      "enabledHint": "Cada persona crea sus conexiones en Mi cuenta. Al desactivarlo se rechaza toda petición de IA, pero las conexiones se conservan.",
+      "connections": "Conexiones vigentes de todas las personas"
     }
+  },
+  "mcp": {
+    "title": "Conexiones de IA",
+    "description": "Conecta tu asistente de IA (Claude, ChatGPT u otro compatible con MCP) para que consulte y actualice tu trabajo con tus mismos permisos.",
+    "disabled": "El acceso por IA está desactivado. Pide a quien administra el sistema que lo active.",
+    "steps": {
+      "create": "Crea una conexión con un nombre que te ayude a reconocerla, por ejemplo «Claude del portátil».",
+      "copy": "Copia su URL: solo se muestra una vez.",
+      "paste": "Pégala en tu cliente de IA como servidor MCP o conector personalizado. No hace falta nada más."
+    },
+    "name": "Nombre",
+    "namePlaceholder": "Claude del portátil",
+    "expires": "Caduca en",
+    "days": "{n} días",
+    "create": "Crear conexión",
+    "created": "Conexión «{name}» creada. Esta es su URL:",
+    "copy": "Copiar",
+    "copied": "Copiada",
+    "warning": "Quien tenga esta URL actúa en tu nombre en Kairos. No la compartas ni la publiques; si se filtra, revoca la conexión.",
+    "done": "Ya la he copiado",
+    "full": "Ya tienes {n} conexiones vigentes, el máximo. Revoca alguna para crear otra.",
+    "empty": "No hay conexiones vigentes.",
+    "createdAt": "Creada el {at}",
+    "lastUsed": "último uso el {at}",
+    "neverUsed": "sin usar todavía",
+    "expiresAt": "caduca el {at}",
+    "revoke": "Revocar",
+    "revokeConfirm": "Confirmar revocación",
+    "via": "vía IA · {name}",
+    "viaClient": "{name} ({client})"
   }
 }

@@ -13,6 +13,7 @@ import { useErrorMessage } from '@/composables/useErrorMessage'
 import { getPoints } from '@/api/gamification'
 import LevelProgress from '@/features/gamification/LevelProgress.vue'
 import PointsHistory from '@/features/gamification/PointsHistory.vue'
+import McpConnections from '@/features/mcp/McpConnections.vue'
 import AssignmentBadge from '@/features/users/AssignmentBadge.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -107,6 +108,8 @@ async function submit() {
         </div>
       </CardContent>
     </Card>
+
+    <McpConnections />
 
     <Card data-testid="my-points">
       <CardHeader>

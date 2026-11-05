@@ -44,6 +44,7 @@ function defaults(url: string, init?: RequestInit) {
   }
   if (url.startsWith('/api/auth/config')) return json({ local_enabled: false, oidc_enabled: true, registration_enabled: false, emergency_enabled: true })
   if (url.startsWith('/api/me/preferences')) return json(undefined, 204)
+  if (url.startsWith('/api/me/mcp-connections')) return json({ enabled: false, max: 10, items: [] })
   if (url.startsWith('/api/me/points/movements')) return json({ items: [], total: 0, page: 1, page_size: 50 })
   if (url.startsWith('/api/me/points')) return json({ xp: 0, coins: 0, level: { id: 'l1', number: 1, name: 'Nivel 1', min_xp: 0 }, next: null, last_seq: 0 })
   return json({})

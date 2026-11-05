@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { deleteComment, updateComment, type CommentResult, type WorkComment } from '@/api/comments'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import ViaBadge from '@/features/mcp/ViaBadge.vue'
 import AvatarStack from '@/features/work/AvatarStack.vue'
 import PageEditor from '@/features/richtext/PageEditor.vue'
 import type { MentionRefs } from '@/types/work'
@@ -40,6 +41,7 @@ async function remove() {
     <div class="flex min-w-0 flex-1 flex-col gap-1">
       <header class="flex flex-wrap items-baseline gap-x-2 text-sm">
         <span class="font-medium">{{ comment.author.name }}</span>
+        <ViaBadge v-if="comment.via" :via="comment.via" />
         <time class="text-xs text-muted-foreground" :datetime="comment.created_at">{{ when }}</time>
         <span v-if="comment.edited_at && !comment.deleted" class="text-xs text-muted-foreground">{{ t('comments.edited') }}</span>
         <span class="ml-auto flex gap-1">
