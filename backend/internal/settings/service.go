@@ -84,6 +84,11 @@ type StorageView struct {
 	Locked       bool   `json:"locked"`
 }
 
+// MCPView is the switch of the AI connections (spec 016, RF-2).
+type MCPView struct {
+	Enabled bool `json:"enabled"`
+}
+
 // View is the whole configuration without the secrets (RF-6).
 type View struct {
 	Version            int64       `json:"version"`
@@ -91,6 +96,7 @@ type View struct {
 	SSO                SSOView     `json:"sso"`
 	Storage            StorageView `json:"storage"`
 	Appearance         Theme       `json:"appearance"`
+	MCP                MCPView     `json:"mcp"`
 	EmergencyAvailable bool        `json:"emergency_available"`
 	EmergencyEmail     string      `json:"emergency_email"`
 }
@@ -125,6 +131,7 @@ func (s *Service) View(ctx context.Context) (View, error) {
 			SecretKeySet: snap.s3Secret != "", UseSSL: r.S3UseSsl, FilesCount: files, Locked: files > 0,
 		},
 		Appearance:         Theme{Palette: r.ThemePalette, Primary: r.ThemePrimary, Radius: r.ThemeRadius},
+		MCP:                MCPView{Enabled: r.McpEnabled},
 		EmergencyAvailable: emergency,
 		EmergencyEmail:     s.h.env.Auth.BootstrapAdminEmail,
 	}, nil
@@ -225,6 +232,7 @@ func auditable(d draft) map[string]any {
 		"files_kind":         r.FilesKind, "s3_endpoint": r.S3Endpoint, "s3_bucket": r.S3Bucket, "s3_region": r.S3Region,
 		"s3_access_key": r.S3AccessKey, "s3_secret_key": secret(d.s3Secret), "s3_use_ssl": r.S3UseSsl,
 		"theme_palette": r.ThemePalette, "theme_primary": r.ThemePrimary, "theme_radius": r.ThemeRadius,
+		"mcp_enabled": r.McpEnabled,
 	}
 }
 
@@ -369,6 +377,22 @@ func (s *Service) UpdateAppearance(ctx context.Context, p *authz.Principal, req 
 	}
 	return s.update(ctx, p, "appearance", func(_ *sqlc.Queries, d *draft) error {
 		d.row.ThemePalette, d.row.ThemePrimary, d.row.ThemeRadius = req.Palette, req.Primary, req.Radius
+		return nil
+	})
+}
+
+type MCPRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+// UpdateMCP turns the AI connections on or off for everybody; the
+// connections are kept either way (spec 016, RF-2 to RF-7).
+func (s *Service) UpdateMCP(ctx context.Context, p *authz.Principal, req MCPRequest) (View, error) {
+	return s.update(ctx, p, "mcp", func(q *sqlc.Queries, d *draft) error {
+		d.row.McpEnabled = req.Enabled
+		if err := q.SetMCPEnabled(ctx, req.Enabled); err != nil {
+			return fmt.Errorf("guardar acceso por MCP: %w", err)
+		}
 		return nil
 	})
 }

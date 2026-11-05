@@ -69,7 +69,9 @@ type Comment struct {
 	CreatedAt time.Time       `json:"created_at"`
 	EditedAt  *time.Time      `json:"edited_at"`
 	Deleted   bool            `json:"deleted"`
-	Can       Can             `json:"can"`
+	// Via is the AI connection that wrote it, null from the interface (spec 016, RF-44).
+	Via json.RawMessage `json:"via"`
+	Can Can             `json:"can"`
 }
 
 type Thread struct {
@@ -195,7 +197,7 @@ func list(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.WorkI
 		deleted := r.DeletedAt != nil
 		c := Comment{
 			ID: r.ID, Author: workcore.Ref{ID: r.AuthorID, Name: r.AuthorName}, Body: r.Body,
-			CreatedAt: r.CreatedAt, EditedAt: r.EditedAt, Deleted: deleted,
+			CreatedAt: r.CreatedAt, EditedAt: r.EditedAt, Deleted: deleted, Via: r.Via,
 			Can: Can{Edit: can && mine && !deleted, Delete: can && (mine || manager) && !deleted},
 		}
 		if len(r.Body) > 0 {
@@ -239,7 +241,11 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, workItemID uui
 		if err != nil {
 			return err
 		}
-		params := sqlc.CreateCommentParams{WorkItemID: w.ID, AuthorID: p.UserID, Body: doc, BodyText: text}
+		via, err := audit.ViaJSON(ctx)
+		if err != nil {
+			return err
+		}
+		params := sqlc.CreateCommentParams{WorkItemID: w.ID, AuthorID: p.UserID, Body: doc, BodyText: text, Via: via}
 		after := map[string]any{"work_item_id": w.ID}
 		switch {
 		case req.ThreadID != nil && req.Anchor != nil:

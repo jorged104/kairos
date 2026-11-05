@@ -40,8 +40,11 @@ type systemDTO struct {
 		FilesCount   int64  `json:"files_count"`
 		Locked       bool   `json:"locked"`
 	} `json:"storage"`
-	Appearance         settings.Theme `json:"appearance"`
-	EmergencyAvailable bool           `json:"emergency_available"`
+	Appearance settings.Theme `json:"appearance"`
+	MCP        struct {
+		Enabled bool `json:"enabled"`
+	} `json:"mcp"`
+	EmergencyAvailable bool `json:"emergency_available"`
 }
 
 func system(t *testing.T, c *Client) systemDTO {

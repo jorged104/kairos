@@ -7,6 +7,7 @@ import { getHistory, type HistoryEntry, type HistoryValue, type Named } from '@/
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import ViaBadge from '@/features/mcp/ViaBadge.vue'
 
 // Who changed what and when, at the end of the sheet and folded when it opens
 // (spec 007, RF-47): newest first, 50 at a time (RF-52), with the names of
@@ -73,6 +74,7 @@ const when = (at: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 
         <li v-for="(e, i) in entries" :key="i" class="flex flex-col gap-0.5" data-testid="history-entry">
           <p>
             <span class="font-medium">{{ e.actor.name || t('history.system') }}</span>
+            <ViaBadge v-if="e.via" :via="e.via" class="ml-2" />
             <time class="ml-2 text-xs text-muted-foreground" :datetime="e.at">{{ when(e.at) }}</time>
           </p>
           <p v-if="e.kind !== 'updated'" class="text-muted-foreground">{{ summary(e) }}</p>

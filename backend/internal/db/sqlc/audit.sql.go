@@ -41,8 +41,8 @@ func (q *Queries) CountAudit(ctx context.Context, arg CountAuditParams) (int64, 
 }
 
 const insertAudit = `-- name: InsertAudit :exec
-INSERT INTO audit_log (actor_id, actor_kind, action, target_type, target_id, before, after)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO audit_log (actor_id, actor_kind, action, target_type, target_id, before, after, via)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type InsertAuditParams struct {
@@ -53,6 +53,7 @@ type InsertAuditParams struct {
 	TargetID   string
 	Before     json.RawMessage
 	After      json.RawMessage
+	Via        json.RawMessage
 }
 
 func (q *Queries) InsertAudit(ctx context.Context, arg InsertAuditParams) error {
@@ -64,6 +65,7 @@ func (q *Queries) InsertAudit(ctx context.Context, arg InsertAuditParams) error 
 		arg.TargetID,
 		arg.Before,
 		arg.After,
+		arg.Via,
 	)
 	return err
 }

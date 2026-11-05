@@ -167,6 +167,13 @@ var workOps = []workOp{
 	{"cambiar apariencia", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/system/settings/appearance", map[string]any{"palette": "neutral", "primary": "default", "radius": "soft"})
 	}, map[string]int{"admin": 200}},
+	// Spec 016: the switch and everybody's connections are the system administrator's;
+	// each person sees their own.
+	{"activar acceso por IA", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/system/settings/mcp", map[string]any{"enabled": true})
+	}, map[string]int{"admin": 200}},
+	{"ver conexiones de IA de todos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/system/mcp-connections") }, map[string]int{"admin": 200}},
+	{"ver mis conexiones de IA", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/mcp-connections") }, workAll(200)},
 	{"ver puntos de otro", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/gamification/users/" + m.actors["stranger"].String() + "/points")
 	}, map[string]int{"admin": 200}},

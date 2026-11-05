@@ -1,3 +1,4 @@
+import type { Via } from './mcp'
 import type { MentionRefs, Ref, RichDoc } from '@/types/work'
 import type { SavedPage } from './pages'
 import { api } from './client'
@@ -12,6 +13,8 @@ export interface WorkComment {
   created_at: string
   edited_at: string | null
   deleted: boolean
+  /** The AI connection that wrote it (spec 016, RF-44). */
+  via?: Via | null
   can: { edit: boolean; delete: boolean }
 }
 

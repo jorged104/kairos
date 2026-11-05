@@ -39,6 +39,7 @@ export interface SystemSettings {
     locked: boolean
   }
   appearance: Theme
+  mcp: { enabled: boolean }
   emergency_available: boolean
   emergency_email: string
 }
@@ -55,6 +56,8 @@ export const saveStorage = (body: Omit<SystemSettings['storage'], 'secret_key_se
   put('storage', body)
 
 export const saveAppearance = (body: Theme) => put('appearance', body)
+
+export const saveMcp = (enabled: boolean) => put('mcp', { enabled })
 
 /** Where the browser goes to test the SSO; it comes back to the SSO tab (RF-28). */
 export const ssoTestUrl = '/api/auth/oidc/start?test=1'

@@ -1,3 +1,4 @@
+import type { Via } from './mcp'
 import type { Level } from './schedule'
 import type { Ref } from '@/types/work'
 import { api } from './client'
@@ -64,6 +65,8 @@ export interface HistoryEntry {
   actor: Ref
   kind: 'created' | 'updated' | 'description' | 'dependency_added' | 'dependency_removed'
   changes: { field: string; from: HistoryValue; to: HistoryValue }[]
+  /** The AI connection of the change (spec 016, RF-44). */
+  via?: Via | null
 }
 
 export interface HistoryPage {

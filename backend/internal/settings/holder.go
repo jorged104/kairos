@@ -228,6 +228,9 @@ func (h *Holder) Files() config.FilesConfig {
 	}
 }
 
+// MCPEnabled reports whether AI clients may connect (spec 016, RF-3).
+func (h *Holder) MCPEnabled() bool { return h.cur.Load().row.McpEnabled }
+
 func (h *Holder) Theme() Theme {
 	r := h.cur.Load().row
 	return Theme{Palette: r.ThemePalette, Primary: r.ThemePrimary, Radius: r.ThemeRadius}

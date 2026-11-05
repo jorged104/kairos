@@ -1,6 +1,7 @@
 package workitems
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,6 +29,8 @@ type HistoryEntry struct {
 	Actor   workcore.Ref `json:"actor"`
 	Kind    string       `json:"kind"`
 	Changes []Change     `json:"changes"`
+	// Via is the AI connection of the change, null from the interface (spec 016, RF-44).
+	Via json.RawMessage `json:"via"`
 	// The oldest audit row of the entry, when several are joined (RF-51).
 	oldest   int64
 	oldestAt time.Time
@@ -101,11 +104,11 @@ func (s *Service) History(ctx context.Context, p *authz.Principal, id uuid.UUID,
 // mergeable joins edits of the description by one person less than 10 minutes apart (RF-51).
 func mergeable(newer, older HistoryEntry) bool {
 	return newer.Kind == "description" && older.Kind == "description" && newer.Actor.ID == older.Actor.ID &&
-		newer.oldestAt.Sub(older.At) < descriptionWindow
+		bytes.Equal(newer.Via, older.Via) && newer.oldestAt.Sub(older.At) < descriptionWindow
 }
 
 func historyEntry(r sqlc.WorkItemHistoryPageRow) (HistoryEntry, bool) {
-	e := HistoryEntry{At: r.OccurredAt, Actor: workcore.Ref{Name: r.ActorName}, Changes: []Change{}, oldest: r.ID, oldestAt: r.OccurredAt}
+	e := HistoryEntry{At: r.OccurredAt, Actor: workcore.Ref{Name: r.ActorName}, Changes: []Change{}, Via: r.Via, oldest: r.ID, oldestAt: r.OccurredAt}
 	if r.ActorID != nil {
 		e.Actor.ID = *r.ActorID
 	}
