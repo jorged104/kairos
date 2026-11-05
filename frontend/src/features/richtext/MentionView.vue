@@ -28,6 +28,8 @@ const href = computed(() => {
       return `/milestones/${attrs.value.id}`
     case 'project':
       return `/projects/${attrs.value.id}`
+    case 'meeting':
+      return `/meetings/${attrs.value.id}`
   }
   return null
 })

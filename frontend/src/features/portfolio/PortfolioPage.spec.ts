@@ -44,6 +44,7 @@ describe('portafolio (spec 010)', () => {
     fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (init?.method === 'PUT') return json({ id: 'p1', is_program: true, portfolio_weight: 5, effort: 3, version: 2 })
       if (url.startsWith('/api/portfolio')) return json(portfolio)
+      if (url.includes('/meetings')) return json({ items: [], total: 0, page: 1, page_size: 3 })
       return json({})
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -117,6 +118,7 @@ describe('crear programas y asignar proyectos (spec 010, RF-41 a RF-48)', () => 
     fetchMock = vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET'
       if (url.startsWith('/api/portfolio')) return json(portfolio)
+      if (url.includes('/meetings')) return json({ items: [], total: 0, page: 1, page_size: 3 })
       if (url.startsWith('/api/teams')) return json({ items: [{ id: 't1', name: 'Equipo', parent_id: null, archived_at: null, leaders: [] }] })
       if (method === 'POST' && url === '/api/projects') return json(project('n1', { version: 1 }))
       if (method === 'PUT') return json(project('n1', { version: 2, is_program: true }))

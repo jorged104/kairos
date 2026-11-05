@@ -381,7 +381,9 @@
     "s3_check_failed": "No se pudo escribir, leer y borrar un objeto de prueba en el S3.",
     "storage_locked": "Ya hay archivos guardados: no se puede cambiar dónde se guardan.",
     "mcp_disabled": "El acceso por IA está desactivado.",
-    "mcp_too_many_connections": "Ya tienes el máximo de conexiones vigentes."
+    "mcp_too_many_connections": "Ya tienes el máximo de conexiones vigentes.",
+    "meeting_template_name_taken": "Ya hay una plantilla con ese nombre.",
+    "meeting_time_zone": "La fecha y hora deben indicar su zona horaria."
   },
   "richtext": {
     "bold": "Negrita",
@@ -497,7 +499,8 @@
       "team": "Equipo",
       "milestones": "Hitos",
       "phases": "Fases",
-      "data": "Datos"
+      "data": "Datos",
+      "meetings": "Reuniones"
     },
     "noPhases": "El proyecto no tiene metodología con fases.",
     "phaseStart": "Inicio",
@@ -977,14 +980,15 @@
     },
     "mention": {
       "people": "Mencionar a una persona",
-      "elements": "Mencionar tarea, hito o proyecto",
+      "elements": "Mencionar tarea, hito, proyecto o reunión",
       "empty": "Sin resultados",
       "noAccess": "sin acceso",
       "deleted": "eliminado",
       "groups": {
         "workItems": "Tareas",
         "milestones": "Hitos",
-        "projects": "Proyectos"
+        "projects": "Proyectos",
+        "meetings": "Reuniones"
       }
     },
     "files": {
@@ -1552,6 +1556,49 @@
       "follow": "Seguir",
       "following": "Siguiendo",
       "hint": "Recibe avisos de los comentarios y cambios de esta tarea. Las menciones llegan siempre."
+    }
+  },
+  "meetings": {
+    "title": "Reunión",
+    "upcoming": "Próximas",
+    "past": "Pasadas",
+    "next": "Próximas reuniones",
+    "seeAll": "Ver todas las reuniones",
+    "new": "Nueva reunión",
+    "create": "Crear reunión",
+    "template": "Plantilla",
+    "blank": "En blanco",
+    "emptyUpcoming": "No hay reuniones próximas.",
+    "emptyPast": "No hay reuniones pasadas.",
+    "taskCount": "{n} tarea | {n} tareas",
+    "tasks": "Tareas de la reunión",
+    "noTasks": "No salió ninguna tarea de esta reunión.",
+    "noTasksHint": "Selecciona texto de las notas y pulsa «Crear tarea» para convertir un acuerdo en una tarea.",
+    "createTask": "Crear tarea",
+    "taskTitle": "Título de la tarea",
+    "taskType": "Tipo",
+    "delete": "Borrar",
+    "confirmDelete": "Confirmar borrado",
+    "from": "De la reunión «{title}»",
+    "fields": {
+      "title": "Título",
+      "startsAt": "Fecha y hora",
+      "location": "Lugar o enlace",
+      "locationHint": "Sala o enlace de la videollamada"
+    },
+    "templates": {
+      "title": "Plantillas de reunión",
+      "project": "Plantillas del proyecto",
+      "globalHint": "Disponibles para las reuniones de todos los proyectos. Retirar una no cambia las reuniones ya creadas.",
+      "projectHint": "Solo para las reuniones de este proyecto, además de las globales.",
+      "globalGroup": "Globales",
+      "projectGroup": "De este proyecto",
+      "new": "Nueva plantilla",
+      "name": "Nombre",
+      "proposedTitle": "Título propuesto",
+      "pageHint": "Página inicial: orden del día, apartados… (sin imágenes ni archivos)",
+      "empty": "No hay plantillas.",
+      "edit": "Editar {name}"
     }
   }
 }

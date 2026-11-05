@@ -62,6 +62,7 @@ async function searchElements(q: string): Promise<SuggestionItem[]> {
     ...r.work_items.map((x) => ({ ...x, group: group('workItems') })),
     ...r.milestones.map((x) => ({ ...x, group: group('milestones') })),
     ...r.projects.map((x) => ({ ...x, group: group('projects') })),
+    ...(r.meetings ?? []).map((x) => ({ ...x, group: group('meetings') })),
   ]
 }
 

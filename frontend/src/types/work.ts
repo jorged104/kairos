@@ -339,6 +339,8 @@ export interface WorkItem {
   custom_values: CustomValues
   allowed_status_ids: string[]
   dependencies: Dependency[]
+  /** The meeting it came from (spec 018, RF-28). */
+  meeting?: Ref | null
   can: { write: boolean; delete: boolean }
 }
 

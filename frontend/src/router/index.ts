@@ -87,6 +87,13 @@ export const routes = [
       { path: 'projects/:id', name: 'project', component: () => import('@/pages/ProjectPage.vue'), props: true },
       { path: 'milestones/:id', name: 'milestone', component: () => import('@/pages/MilestonePage.vue'), props: true },
       {
+        path: 'meetings/:id',
+        name: 'meeting',
+        component: () => import('@/pages/MeetingPage.vue'),
+        props: true,
+        meta: { permissions: ['work:read'] as Permission[] },
+      },
+      {
         path: 'work-items/:wikey',
         name: 'work-item',
         component: () => import('@/pages/WorkItemPage.vue'),

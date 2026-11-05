@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import AddProject from '@/features/portfolio/AddProject.vue'
+import ProgramMeetings from '@/features/meetings/ProgramMeetings.vue'
 import NewProgram from '@/features/portfolio/NewProgram.vue'
 import ProgramRows from '@/features/portfolio/ProgramRows.vue'
 import { DEFAULT_SORT, filterRows, levelOf, sortRows, type LevelFilter, type Sort } from '@/features/portfolio/rows'
@@ -158,6 +159,7 @@ const today = computed(() => (data.value ? new Intl.DateTimeFormat(locale.value,
           @remove="(r) => move.mutate({ id: r.id, parentId: null })"
         />
         <p v-else class="text-sm text-muted-foreground">{{ t('portfolio.noRows') }}</p>
+        <ProgramMeetings v-if="c.program" :project-id="c.program.id" />
         <AddProject
           v-if="canManage && c.program && c.program.lifecycle === 'activo'"
           :program-id="c.program.id"

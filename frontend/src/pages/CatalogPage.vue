@@ -8,6 +8,7 @@ import MethodologiesAdmin from '@/features/catalog/MethodologiesAdmin.vue'
 import NamedCatalog from '@/features/catalog/NamedCatalog.vue'
 import ScheduleSettingsAdmin from '@/features/catalog/ScheduleSettingsAdmin.vue'
 import WorkflowEditor from '@/features/catalog/WorkflowEditor.vue'
+import MeetingTemplatesAdmin from '@/features/meetings/MeetingTemplatesAdmin.vue'
 import { useCatalog, useCustomFields } from '@/features/work/useCatalog'
 
 // Administration of the spec 004 catalog (RF-1 to RF-17).
@@ -57,5 +58,6 @@ function onSaved() {
     <WorkflowEditor :catalog="catalog" @error="onError" @saved="onSaved" />
     <CustomFieldsAdmin :fields="fields" :types="catalog.work_item_types.filter((x) => !x.retired)" @error="onError" />
     <ScheduleSettingsAdmin @error="onError" @saved="onSaved" />
+    <MeetingTemplatesAdmin />
   </div>
 </template>

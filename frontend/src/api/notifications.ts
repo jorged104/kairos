@@ -10,7 +10,7 @@ export type NotificationKind = 'comment' | 'reply' | 'mention' | 'status' | 'thr
 export interface AppNotification {
   id: string
   subject: {
-    type: 'work_item' | 'milestone' | 'project'
+    type: 'work_item' | 'milestone' | 'project' | 'meeting'
     id: string
     key?: string
     title: string
@@ -65,6 +65,8 @@ export function notificationTarget(n: AppNotification): string {
       return `/work-items/${n.subject.key}` + (n.last.comment_id ? `?comment=${n.last.comment_id}` : '')
     case 'milestone':
       return `/milestones/${n.subject.id}`
+    case 'meeting':
+      return `/meetings/${n.subject.id}`
     default:
       return `/projects/${n.subject.id}`
   }
