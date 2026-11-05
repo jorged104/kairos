@@ -103,8 +103,8 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
           <section
             v-for="c in columns"
             :key="c.status.id"
-            class="flex flex-col gap-2 rounded-xl bg-muted/60 p-2 transition-opacity"
-            :class="dragging && !allowed(c.status.id) && 'opacity-40'"
+            class="flex flex-col gap-2 rounded-xl bg-muted/60 p-2 transition-[opacity,box-shadow] duration-200"
+            :class="dragging && (allowed(c.status.id) ? 'ring-2 ring-primary/30' : 'opacity-40')"
             :aria-label="c.status.name"
             :aria-disabled="dragging && !allowed(c.status.id) ? 'true' : undefined"
             data-testid="my-column"
@@ -120,61 +120,63 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
             </header>
             <p v-if="c.status.is_closed" class="px-1 text-[11px] text-muted-foreground">{{ t('dashboard.tasks.closedHint') }}</p>
 
-            <article
-              v-for="task in c.tasks.slice(0, MAX)"
-              :key="task.id"
-              class="relative flex flex-col gap-1.5 rounded-lg border bg-background p-3 shadow-xs"
-              :class="moving === task.id && 'opacity-60'"
-              :draggable="task.can_move"
-              data-testid="my-task"
-              @dragstart="onDragStart($event, task)"
-              @dragend="dragging = null"
-            >
-              <div class="flex items-center gap-1.5">
-                <span class="font-mono text-[11px] text-muted-foreground">{{ task.key }}</span>
-                <span class="truncate text-[11px] text-muted-foreground">· {{ task.project.name }}</span>
-                <button
-                  v-if="task.can_move"
-                  type="button"
-                  class="ml-auto grid size-7 shrink-0 place-items-center rounded hover:bg-muted"
-                  :aria-label="t('dashboard.tasks.moveTo', { key: task.key })"
-                  :aria-expanded="menu?.id === task.id"
-                  data-testid="my-task-move"
-                  @click="openMenu(task)"
-                >
-                  <MoreHorizontal class="size-4" aria-hidden="true" />
-                </button>
-              </div>
-              <RouterLink :to="`/work-items/${task.key}`" class="text-sm leading-snug font-medium hover:underline" data-testid="my-task-link">{{ task.title }}</RouterLink>
-              <p class="text-xs">
-                <span v-if="task.closed && task.closed_on" class="text-muted-foreground">{{ t('dashboard.tasks.closedOn', { date: date(task.closed_on) }) }}</span>
-                <span v-else-if="task.late_days" class="font-semibold text-destructive" data-testid="my-task-late">
-                  {{ t('dashboard.tasks.late', { count: task.late_days }, task.late_days) }}
-                </span>
-                <span v-else-if="task.due_date" class="text-muted-foreground">{{ t('dashboard.tasks.due', { date: date(task.due_date) }) }}</span>
-                <span v-else class="text-muted-foreground">{{ t('dashboard.tasks.noDue') }}</span>
-              </p>
-              <div
-                v-if="menu?.id === task.id"
-                :ref="(el) => (menuEl = el as HTMLElement | null)"
-                class="absolute top-10 right-2 z-20 flex w-48 flex-col rounded-lg border bg-popover p-1 shadow-lg"
-                role="menu"
-                data-testid="my-task-menu"
+            <TransitionGroup tag="div" name="card" class="relative flex flex-col gap-2">
+              <article
+                v-for="task in c.tasks.slice(0, MAX)"
+                :key="task.id"
+                class="relative flex flex-col gap-1.5 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                :class="(moving === task.id && 'opacity-60') || (dragging?.task.id === task.id && 'scale-95 opacity-50')"
+                :draggable="task.can_move"
+                data-testid="my-task"
+                @dragstart="onDragStart($event, task)"
+                @dragend="dragging = null"
               >
-                <p class="px-2 py-1 text-xs text-muted-foreground">{{ t('workItems.moveTo') }}</p>
-                <button
-                  v-for="s in statuses.filter((x) => !x.retired && menu!.allowed.includes(x.id) && x.id !== task.status_id)"
-                  :key="s.id"
-                  type="button"
-                  role="menuitem"
-                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                  @click="(menu = null), move(task, s.id)"
+                <div class="flex items-center gap-1.5">
+                  <span class="font-mono text-[11px] text-muted-foreground">{{ task.key }}</span>
+                  <span class="truncate text-[11px] text-muted-foreground">· {{ task.project.name }}</span>
+                  <button
+                    v-if="task.can_move"
+                    type="button"
+                    class="ml-auto grid size-7 shrink-0 place-items-center rounded hover:bg-muted"
+                    :aria-label="t('dashboard.tasks.moveTo', { key: task.key })"
+                    :aria-expanded="menu?.id === task.id"
+                    data-testid="my-task-move"
+                    @click="openMenu(task)"
+                  >
+                    <MoreHorizontal class="size-4" aria-hidden="true" />
+                  </button>
+                </div>
+                <RouterLink :to="`/work-items/${task.key}`" class="text-sm leading-snug font-medium hover:underline" data-testid="my-task-link">{{ task.title }}</RouterLink>
+                <p class="text-xs">
+                  <span v-if="task.closed && task.closed_on" class="text-muted-foreground">{{ t('dashboard.tasks.closedOn', { date: date(task.closed_on) }) }}</span>
+                  <span v-else-if="task.late_days" class="font-semibold text-destructive" data-testid="my-task-late">
+                    {{ t('dashboard.tasks.late', { count: task.late_days }, task.late_days) }}
+                  </span>
+                  <span v-else-if="task.due_date" class="text-muted-foreground">{{ t('dashboard.tasks.due', { date: date(task.due_date) }) }}</span>
+                  <span v-else class="text-muted-foreground">{{ t('dashboard.tasks.noDue') }}</span>
+                </p>
+                <div
+                  v-if="menu?.id === task.id"
+                  :ref="(el) => (menuEl = el as HTMLElement | null)"
+                  class="absolute top-10 right-2 z-20 flex w-48 flex-col rounded-lg border bg-popover p-1 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150 motion-reduce:animate-none"
+                  role="menu"
+                  data-testid="my-task-menu"
                 >
-                  <span class="size-2 rounded-full" :style="{ background: s.color }" aria-hidden="true" />{{ s.name }}
-                </button>
-                <p v-if="!menu.allowed.length" class="px-2 py-1 text-xs text-muted-foreground">{{ t('dashboard.tasks.noTargets') }}</p>
-              </div>
-            </article>
+                  <p class="px-2 py-1 text-xs text-muted-foreground">{{ t('workItems.moveTo') }}</p>
+                  <button
+                    v-for="s in statuses.filter((x) => !x.retired && menu!.allowed.includes(x.id) && x.id !== task.status_id)"
+                    :key="s.id"
+                    type="button"
+                    role="menuitem"
+                    class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                    @click="(menu = null), move(task, s.id)"
+                  >
+                    <span class="size-2 rounded-full" :style="{ background: s.color }" aria-hidden="true" />{{ s.name }}
+                  </button>
+                  <p v-if="!menu.allowed.length" class="px-2 py-1 text-xs text-muted-foreground">{{ t('dashboard.tasks.noTargets') }}</p>
+                </div>
+              </article>
+            </TransitionGroup>
             <p v-if="c.tasks.length > MAX" class="px-2 text-xs text-muted-foreground" data-testid="my-column-more">{{ t('dashboard.tasks.more', { n: c.tasks.length - MAX }) }}</p>
           </section>
         </div>
