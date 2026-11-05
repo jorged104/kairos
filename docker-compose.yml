@@ -94,6 +94,17 @@ services:
       - ./scripts/seaweedfs:/etc/seaweedfs:ro
       - s3data:/data
 
+  # Correo de prueba (spec 019): recibe todo lo que envía Kairos sin entregarlo.
+  # Solo con el profile mail: make up-mail. Bandeja en http://localhost:8025;
+  # en Sistema → Correo: servidor «mail» (API en contenedor) o «localhost»
+  # (make dev-api), puerto 1025, sin seguridad ni usuario.
+  mail:
+    image: axllent/mailpit:v1.21
+    profiles: [mail]
+    ports:
+      - "${MAIL_SMTP_PORT:-1025}:1025"
+      - "${MAIL_UI_PORT:-8025}:8025"
+
 volumes:
   pgdata:
   s3data:

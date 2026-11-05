@@ -147,6 +147,7 @@ Requisitos en el host: Docker con Compose v2, Go ≥ 1.24, Node ≥ 22 y `make`.
 make up          # BD (espera hasta 60 s a que esté sana) + API + frontend en contenedores
 make up-sso      # como up, más Keycloak de prueba en localhost:8180 (profile sso)
 make up-s3       # como up, con los archivos de las páginas en S3 (SeaweedFS en localhost:8333, profile s3)
+make up-mail     # como up, más Mailpit: SMTP en localhost:1025 y bandeja en localhost:8025 (profile mail)
 make db          # solo PostgreSQL
 make api         # solo la API (no arranca la BD; sin BD, la API sale con error)
 make web         # solo el frontend (Vite, http://localhost:5173)

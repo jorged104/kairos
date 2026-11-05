@@ -1,3 +1,4 @@
+import type { Delivery } from '@/api/accounts'
 import type { Theme, ThemeMode } from '@/lib/theme'
 // Types shared with the API (spec 003). JSON is snake_case, as the API sends it.
 
@@ -94,7 +95,9 @@ export interface Abilities {
   offboard: boolean
   assign_roles: boolean
   manage_teams: boolean
-  set_password: boolean
+  /** Resend the invitation; send a link to a new password (spec 019). */
+  invite: boolean
+  password_link: boolean
 }
 
 export interface User {
@@ -108,6 +111,10 @@ export interface User {
   attributes?: Record<string, AttributeValue>
   retired_attributes?: Record<string, AttributeValue>
   has_password?: boolean
+  /** A pending invitation (spec 019, RF-19). */
+  invitation?: { expires_at: string; expired: boolean }
+  /** On creation: whether the invitation went out, or its link (RF-13). */
+  delivery?: Delivery
   can?: Abilities
 }
 

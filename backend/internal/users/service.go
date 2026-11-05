@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"openscum/internal/accounts"
 	"openscum/internal/apperr"
 	"openscum/internal/attributes"
 	"openscum/internal/audit"
@@ -23,15 +26,15 @@ import (
 type Invalidator interface{ Invalidate(id uuid.UUID) }
 
 type Service struct {
-	cfg    func() config.Config // the settings of the system in force (spec 015)
-	store  *db.Store
-	auth   *auth.Service
-	hasher *auth.Hasher
-	cache  Invalidator
+	cfg      func() config.Config // the settings of the system in force (spec 015)
+	store    *db.Store
+	auth     *auth.Service
+	accounts *accounts.Service // invitations and links (spec 019)
+	cache    Invalidator
 }
 
-func NewService(cfg func() config.Config, store *db.Store, authSvc *auth.Service, hasher *auth.Hasher, cache Invalidator) *Service {
-	return &Service{cfg: cfg, store: store, auth: authSvc, hasher: hasher, cache: cache}
+func NewService(cfg func() config.Config, store *db.Store, authSvc *auth.Service, accountsSvc *accounts.Service, cache Invalidator) *Service {
+	return &Service{cfg: cfg, store: store, auth: authSvc, accounts: accountsSvc, cache: cache}
 }
 
 // target is a user loaded for an authorization check.
@@ -132,6 +135,15 @@ func (s *Service) view(ctx context.Context, p *authz.Principal, t target) (User,
 	}
 	hasPassword := err == nil
 	u.HasPassword = &hasPassword
+	if !hasPassword {
+		inv, err := s.store.PendingInvitation(ctx, t.user.ID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return u, fmt.Errorf("leer invitación: %w", err)
+		}
+		if err == nil {
+			u.Invitation = &Invitation{ExpiresAt: inv, Expired: !time.Now().Before(inv)}
+		}
+	}
 	u.Capacity = t.user.WeeklyCapacity
 	u.Can = &Abilities{
 		Edit:        p.CanActOn(authz.UsersUpdateAll, authz.UsersUpdateTeam, t.authzT),
@@ -139,7 +151,9 @@ func (s *Service) view(ctx context.Context, p *authz.Principal, t target) (User,
 		Offboard:    p.Has(authz.UsersOffboard),
 		AssignRoles: p.CanAssignRole(authz.RoleViewer, t.authzT) || p.CanAssignRole(authz.RoleAdmin, t.authzT),
 		ManageTeams: p.CanActOn(authz.TeamMembersAll, authz.TeamMembersTeam, t.authzT),
-		SetPassword: p.Has(authz.PasswordsSet) && s.cfg().Auth.LocalEnabled(),
+		Invite:      p.CanActOn(authz.UsersCreateAll, authz.UsersCreateTeam, t.authzT) && !hasPassword && t.user.Status == StatusActive,
+		PasswordLink: p.Has(authz.PasswordsSet) && t.user.Status == StatusActive &&
+			(s.cfg().Auth.LocalEnabled() || auth.NormalizeEmail(t.user.Email) == auth.NormalizeEmail(s.cfg().Auth.BootstrapAdminEmail)),
 	}
 	return u, nil
 }
@@ -149,22 +163,13 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, req createRequ
 	if err := s.checkCreate(p, req); err != nil {
 		return User{}, err
 	}
-	var hash string
-	if req.Password != "" {
-		if err := auth.CheckPasswordLength(req.Password); err != nil {
-			return User{}, err
-		}
-		var err error
-		if hash, err = s.hasher.Hash(req.Password); err != nil {
-			return User{}, err
-		}
-	}
 	role := req.Role
 	if role == "" {
 		role = s.cfg().Auth.DefaultRole
 	}
 
 	var id uuid.UUID
+	var invitation accounts.Outgoing
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
 		u, err := q.CreateUser(ctx, sqlc.CreateUserParams{
 			Name: req.Name, Email: req.Email, EmailNormalized: auth.NormalizeEmail(req.Email), Status: StatusActive,
@@ -183,10 +188,9 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, req createRequ
 		}); err != nil {
 			return err
 		}
-		if hash != "" {
-			if err := q.UpsertCredential(ctx, sqlc.UpsertCredentialParams{UserID: id, PasswordHash: hash}); err != nil {
-				return fmt.Errorf("guardar credencial: %w", err)
-			}
+		// The person creates their password from the invitation (spec 019, RF-11).
+		if invitation, err = s.accounts.Invite(ctx, q, p.UserID, u); err != nil {
+			return err
 		}
 		if role != "" {
 			if err := auth.AddRole(ctx, q, actor, id, role, "manual"); err != nil {
@@ -206,18 +210,13 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, req createRequ
 	if err != nil {
 		return User{}, err
 	}
-	return s.Get(ctx, p, id)
+	delivery := s.accounts.Deliver(ctx, invitation) // RF-12, RF-13
+	out, err := s.Get(ctx, p, id)
+	out.Delivery = &delivery
+	return out, err
 }
 
 func (s *Service) checkCreate(p *authz.Principal, req createRequest) error {
-	if req.Password != "" {
-		if !s.cfg().Auth.LocalEnabled() {
-			return errLocalDisabled
-		}
-		if !p.Has(authz.PasswordsSet) {
-			return apperr.ErrForbidden
-		}
-	}
 	if p.Has(authz.UsersCreateAll) {
 		return nil
 	}
@@ -339,6 +338,11 @@ func (s *Service) SetStatus(ctx context.Context, p *authz.Principal, id uuid.UUI
 		if _, err := q.SetUserStatus(ctx, sqlc.SetUserStatusParams{ID: id, Status: next}); err != nil {
 			return fmt.Errorf("cambiar estado: %w", err)
 		}
+		if next != StatusActive {
+			if err := accounts.Revoke(ctx, q, id); err != nil { // spec 019, RF-42
+				return err
+			}
+		}
 		return audit.Record(ctx, q, audit.Entry{
 			Actor: audit.ByUser(p), Action: "user.status_changed", TargetType: "user", TargetID: id.String(),
 			Before: map[string]string{"status": t.user.Status}, After: map[string]string{"status": next},
@@ -396,30 +400,63 @@ func ensureAnotherAdmin(ctx context.Context, q *sqlc.Queries) error {
 	return nil
 }
 
-// SetPassword lets an administrator replace another user's local password (RF-81).
-func (s *Service) SetPassword(ctx context.Context, p *authz.Principal, id uuid.UUID, password string) error {
-	if !p.Has(authz.PasswordsSet) {
-		return apperr.ErrForbidden
-	}
-	if !s.cfg().Auth.LocalEnabled() {
-		return errLocalDisabled
-	}
-	if err := auth.CheckPasswordLength(password); err != nil {
-		return err
-	}
-	hash, err := s.hasher.Hash(password)
-	if err != nil {
-		return err
-	}
-	return s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		if _, err := loadTarget(ctx, q, id); err != nil {
+var errHasPassword = apperr.New(http.StatusConflict, "user_has_password", "La persona ya tiene contraseña; envíale un enlace de nueva contraseña")
+
+// ResendInvitation voids the last invitation and sends a new one of 7 days
+// (spec 019, RF-20, RF-21).
+func (s *Service) ResendInvitation(ctx context.Context, p *authz.Principal, id uuid.UUID) (accounts.Delivery, error) {
+	var out accounts.Outgoing
+	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
+		t, err := loadTarget(ctx, q, id)
+		if err != nil {
 			return err
 		}
-		if err := q.UpsertCredential(ctx, sqlc.UpsertCredentialParams{UserID: id, PasswordHash: hash}); err != nil {
-			return fmt.Errorf("guardar credencial: %w", err)
+		if !p.CanActOn(authz.UsersCreateAll, authz.UsersCreateTeam, t.authzT) {
+			return apperr.ErrForbidden
 		}
-		return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "user.password_set", TargetType: "user", TargetID: id.String()})
+		if t.user.Status != StatusActive {
+			return apperr.ErrAccountInactive
+		}
+		if _, err := q.GetCredential(ctx, id); err == nil {
+			return errHasPassword
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("leer credencial: %w", err)
+		}
+		out, err = s.accounts.Invite(ctx, q, p.UserID, t.user)
+		return err
 	})
+	if err != nil {
+		return accounts.Delivery{}, err
+	}
+	return s.accounts.Deliver(ctx, out), nil
+}
+
+// PasswordLink sends a person a link to a new password, which replaces
+// setting it by hand (spec 019, RF-32 to RF-35).
+func (s *Service) PasswordLink(ctx context.Context, p *authz.Principal, id uuid.UUID) (accounts.Delivery, error) {
+	if !p.Has(authz.PasswordsSet) {
+		return accounts.Delivery{}, apperr.ErrForbidden
+	}
+	var out accounts.Outgoing
+	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
+		t, err := loadTarget(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if t.user.Status != StatusActive {
+			return apperr.ErrAccountInactive
+		}
+		cfg := s.cfg().Auth
+		if !cfg.LocalEnabled() && auth.NormalizeEmail(t.user.Email) != auth.NormalizeEmail(cfg.BootstrapAdminEmail) {
+			return errLocalDisabled
+		}
+		out, err = s.accounts.ResetLink(ctx, q, p.UserID, t.user)
+		return err
+	})
+	if err != nil {
+		return accounts.Delivery{}, err
+	}
+	return s.accounts.Deliver(ctx, out), nil
 }
 
 // AddRole assigns a role by hand (RF-64, RF-65, RF-83).

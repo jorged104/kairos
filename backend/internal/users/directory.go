@@ -326,6 +326,17 @@ func (s *Service) enrich(ctx context.Context, p *authz.Principal, items []User, 
 			items[i].Can = &Abilities{Edit: p.CanActOn(authz.UsersUpdateAll, authz.UsersUpdateTeam, targets[i])}
 		}
 	}
+	// A pending invitation shows in the directory (spec 019, RF-19).
+	pending, err := s.store.PendingInvitations(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("leer invitaciones: %w", err)
+	}
+	now := time.Now()
+	for _, inv := range pending {
+		if i := index[inv.UserID]; items[i].FullProfile {
+			items[i].Invitation = &Invitation{ExpiresAt: inv.ExpiresAt, Expired: !now.Before(inv.ExpiresAt)}
+		}
+	}
 	defs, err := attributes.Load(ctx, s.store.Queries)
 	if err != nil {
 		return err

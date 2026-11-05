@@ -21,6 +21,9 @@ export function safeRedirect(value: unknown): string {
 export const routes = [
   { path: '/login', name: 'login', component: () => import('@/pages/LoginPage.vue'), meta: { public: true } },
   { path: '/register', name: 'register', component: () => import('@/pages/RegisterPage.vue'), meta: { public: true } },
+  // Spec 019: asking for a link and using it, without a session.
+  { path: '/forgot-password', name: 'forgot-password', component: () => import('@/pages/ForgotPasswordPage.vue'), meta: { public: true } },
+  { path: '/password', name: 'password', component: () => import('@/pages/PasswordPage.vue'), meta: { public: true } },
   {
     path: '/',
     component: AppLayout,

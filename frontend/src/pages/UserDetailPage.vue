@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { resendInvitation, sendPasswordLink, type Delivery } from '@/api/accounts'
+import DeliveryNotice from '@/features/users/DeliveryNotice.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { X } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
@@ -13,7 +15,6 @@ import {
   listTeams,
   removeRole,
   removeTeam,
-  setPassword,
   updateUser,
   type StatusAction,
 } from '@/api/admin'
@@ -31,7 +32,7 @@ import AttributeField from '@/features/users/AttributeField.vue'
 import { ROLES, type AttributeValue, type Role, type User } from '@/types/api'
 
 const props = defineProps<{ id: string }>()
-const { t } = useI18n()
+const { t, d } = useI18n()
 const qc = useQueryClient()
 const errorMessage = useErrorMessage()
 
@@ -84,8 +85,24 @@ const roleAdd = run((role: Role) => addRole(props.id, role))
 const roleRemove = run((role: Role) => removeRole(props.id, role))
 const teamAdd = run((teamId: string) => addTeam(props.id, teamId))
 const teamRemove = run((teamId: string) => removeTeam(props.id, teamId))
-const newPassword = ref('')
-const password = run(() => setPassword(props.id, newPassword.value), t('users.detail.passwordSet'))
+// Invitations and links (spec 019): the result says whether the mail went out.
+const delivery = ref<{ value: Delivery; what: 'invitation' | 'link' } | null>(null)
+function linkAction(fn: (id: string) => Promise<Delivery>, what: 'invitation' | 'link') {
+  return useMutation({
+    mutationFn: () => fn(props.id),
+    onMutate: () => {
+      error.value = null
+      delivery.value = null
+    },
+    onSuccess: async (d) => {
+      delivery.value = { value: d, what }
+      await qc.invalidateQueries({ queryKey: ['user', props.id] })
+    },
+    onError: (e) => (error.value = e),
+  })
+}
+const invite = linkAction(resendInvitation, 'invitation')
+const passwordLink = linkAction(sendPasswordLink, 'link')
 
 const newRole = ref('')
 const newTeam = ref('')
@@ -253,13 +270,26 @@ function display(v: AttributeValue | undefined): string {
                 {{ user.has_password ? t('users.detail.hasPassword') : t('users.detail.noPassword') }}
               </CardDescription>
             </CardHeader>
-            <CardContent v-if="can?.set_password">
-              <form class="flex gap-2" @submit.prevent="password.mutate(undefined)">
-                <Input v-model="newPassword" type="password" autocomplete="new-password" :aria-label="t('auth.fields.newPassword')" required />
-                <Button type="submit" variant="outline" :disabled="password.isPending.value">
-                  {{ t('users.detail.setPassword') }}
+            <CardContent class="flex flex-col gap-3">
+              <p v-if="user.invitation" class="text-sm" :class="user.invitation.expired && 'text-destructive'" data-testid="user-invitation">
+                {{ user.invitation.expired ? t('accounts.invitationExpired') : t('accounts.invitationPending', { date: d(user.invitation.expires_at, 'long') }) }}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <Button v-if="can?.invite" size="sm" variant="outline" :disabled="invite.isPending.value" data-testid="user-resend" @click="invite.mutate()">
+                  {{ t('accounts.resend') }}
                 </Button>
-              </form>
+                <Button
+                  v-if="can?.password_link"
+                  size="sm"
+                  variant="outline"
+                  :disabled="passwordLink.isPending.value"
+                  data-testid="user-password-link"
+                  @click="passwordLink.mutate()"
+                >
+                  {{ t('accounts.sendLink') }}
+                </Button>
+              </div>
+              <DeliveryNotice v-if="delivery" :delivery="delivery.value" :what="delivery.what" />
             </CardContent>
           </Card>
         </div>

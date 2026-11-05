@@ -523,6 +523,14 @@ type SystemSetting struct {
 	ThemeRadius         string
 	UpdatedAt           time.Time
 	McpEnabled          bool
+	MailEnabled         bool
+	SmtpHost            string
+	SmtpPort            int32
+	SmtpSecurity        string
+	SmtpUsername        string
+	SmtpPassword        []byte
+	MailFromEmail       string
+	MailFromName        string
 }
 
 type Team struct {
@@ -586,6 +594,18 @@ type UserRole struct {
 	Role      string
 	Source    string
 	CreatedAt time.Time
+}
+
+type UserToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Purpose   string
+	TokenHash []byte
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	RevokedAt *time.Time
 }
 
 type WorkItem struct {

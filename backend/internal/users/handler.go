@@ -1,12 +1,14 @@
 package users
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"openscum/internal/accounts"
 	"openscum/internal/apperr"
 	"openscum/internal/authz"
 	"openscum/pkg/httpx"
@@ -32,7 +34,8 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Post("/users/{id}/reactivate", h.status(Reactivate))
 	r.Post("/users/{id}/offboard", h.status(Offboard))
 	r.Post("/users/{id}/restore", h.status(Restore))
-	r.Put("/users/{id}/password", h.SetPassword)
+	r.Post("/users/{id}/invitation", h.link(h.svc.ResendInvitation))
+	r.Post("/users/{id}/password-link", h.link(h.svc.PasswordLink))
 	r.Post("/users/{id}/roles", h.AddRole)
 	r.Delete("/users/{id}/roles/{role}", h.RemoveRole)
 	r.Post("/users/{id}/teams", h.AddTeam)
@@ -116,21 +119,20 @@ func (h *Handler) status(tr Transition) http.HandlerFunc {
 	}
 }
 
-func (h *Handler) SetPassword(w http.ResponseWriter, r *http.Request) {
-	id, ok := h.id(w, r, "id")
-	if !ok {
-		return
+// link answers an invitation or a password link with its delivery (spec 019).
+func (h *Handler) link(fn func(context.Context, *authz.Principal, uuid.UUID) (accounts.Delivery, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := h.id(w, r, "id")
+		if !ok {
+			return
+		}
+		out, err := fn(r.Context(), authz.FromContext(r.Context()), id)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, out)
 	}
-	var req passwordRequest
-	if err := apperr.Decode(r, &req); err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	if err := h.svc.SetPassword(r.Context(), authz.FromContext(r.Context()), id, req.Password); err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) AddRole(w http.ResponseWriter, r *http.Request) {
