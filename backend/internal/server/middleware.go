@@ -3,10 +3,12 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 
+	"openscum/internal/auth"
 	"openscum/pkg/httpx"
 )
 
@@ -22,9 +24,14 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			if status == 0 {
 				status = http.StatusOK
 			}
+			path := r.URL.Path
+			// The rest of an AI connection's path is its secret (spec 016).
+			if strings.HasPrefix(path, auth.MCPPath) {
+				path = auth.MCPPath + "***"
+			}
 			logger.Info("request",
 				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
+				slog.String("path", path),
 				slog.Int("status", status),
 				slog.Int64("duration_ms", time.Since(start).Milliseconds()),
 			)

@@ -31,6 +31,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Put("/system/settings/sso", put(h, h.svc.UpdateSSO))
 		r.Put("/system/settings/storage", put(h, h.svc.UpdateStorage))
 		r.Put("/system/settings/appearance", put(h, h.svc.UpdateAppearance))
+		r.Put("/system/settings/mcp", put(h, h.svc.UpdateMCP))
 	})
 }
 

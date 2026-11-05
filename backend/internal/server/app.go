@@ -23,6 +23,7 @@ import (
 	"openscum/internal/gamification"
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
+	"openscum/internal/mcp"
 	"openscum/internal/mentions"
 	"openscum/internal/milestones"
 	"openscum/internal/objectives"
@@ -52,6 +53,8 @@ type App struct {
 	Events *events.Dispatcher
 	// Settings changes the settings of the system; tests replace its checks.
 	Settings *settings.Service
+	// MCP serves the AI connections (spec 016); tests lower its rate limit.
+	MCP *mcp.Server
 }
 
 // live holds the settings of the system edited from the interface (spec 015);
@@ -111,6 +114,11 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
 	usersH := users.NewHandler(users.NewService(live.Config, store, authSvc, hasher, loader), logger)
 
+	mcpConns := mcp.NewConnections(store, live.MCPEnabled, func() string { return cfg.Auth.PublicURL })
+	mcpH := mcp.NewHandler(mcpConns, logger)
+	mcpSrv := mcp.NewServer(mcpConns, loader, live.MCPEnabled, logger)
+	mcpSrv.SetAPI(router)
+
 	hub := realtime.NewHub(sessions, loader, cfg.Auth.PublicURL, logger)
 	router.Get("/ws", hub.ServeWS)
 
@@ -118,6 +126,8 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 		api.Use(auth.CSRF(cfg.Auth.PublicURL, logger))
 		authH.PublicRoutes(api)
 		oidcH.Routes(api)
+		// The secret URL is the credential of an AI connection (spec 016).
+		api.Handle("/mcp/{secret}", mcpSrv)
 
 		api.Group(func(p chi.Router) {
 			p.Use(auth.RequireSession(sessions, loader, logger))
@@ -142,11 +152,12 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 			pagesH.Routes(p)
 			mentionsH.Routes(p)
 			commentsH.Routes(p)
+			mcpH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc, MCP: mcpSrv}
 }
