@@ -414,7 +414,7 @@ func tools() []tool {
 				if err != nil {
 					return nil, err
 				}
-				for _, kind := range []string{"work_items", "milestones", "projects"} {
+				for _, kind := range []string{"work_items", "milestones", "projects", "meetings"} {
 					items, _ := out[kind].([]any)
 					for _, it := range items {
 						m, _ := it.(map[string]any)
@@ -425,6 +425,8 @@ func tools() []tool {
 							m["url"] = c.base + "/milestones/" + str(m["id"])
 						case "projects":
 							m["url"] = c.base + "/projects/" + str(m["id"])
+						case "meetings":
+							m["url"] = c.base + "/meetings/" + str(m["id"])
 						}
 					}
 				}
@@ -894,7 +896,7 @@ func tools() []tool {
 			name: "update_page", title: "Editar descripción",
 			description: "Escribe en la descripción (la página) de una tarea, un hito o un proyecto. Por defecto añade el texto al final; con mode=replace la reemplaza entera, y se pierden las imágenes, archivos y menciones que tuviera.",
 			params: map[string]any{
-				"kind":     enum("De qué es la página.", "work_item", "milestone", "project"),
+				"kind":     enum("De qué es la página: las notas de una reunión son su página.", "work_item", "milestone", "project", "meeting"),
 				"id":       prop("string", "Id del elemento; para una tarea vale su clave y para un proyecto su identificador."),
 				"markdown": pMarkdown,
 				"mode":     enum("append añade al final (por defecto); replace reemplaza.", "append", "replace"),
@@ -920,8 +922,14 @@ func tools() []tool {
 						owner, err = c.get("/projects/"+pid, nil)
 					}
 					path = "/projects/"
+				case "meeting":
+					var mid string
+					if mid, err = id(a.str("id"), "id"); err == nil {
+						owner, err = c.get("/meetings/"+mid, nil)
+					}
+					path = "/meetings/"
 				default:
-					return nil, argError("kind debe ser work_item, milestone o project.")
+					return nil, argError("kind debe ser work_item, milestone, project o meeting.")
 				}
 				if err != nil {
 					return nil, err

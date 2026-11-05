@@ -67,7 +67,7 @@ type Server struct {
 }
 
 func NewServer(conns *Connections, loader PrincipalLoader, enabled func() bool, logger *slog.Logger) *Server {
-	return &Server{conns: conns, loader: loader, enabled: enabled, logger: logger, tools: tools(), limiter: newLimiter(RateLimit, time.Minute)}
+	return &Server{conns: conns, loader: loader, enabled: enabled, logger: logger, tools: append(tools(), meetingTools()...), limiter: newLimiter(RateLimit, time.Minute)}
 }
 
 // SetAPI sets the router the tools call.
