@@ -224,6 +224,11 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err != nil {
 			return fmt.Errorf("crear hito: %w", err)
 		}
+		if !project.IsTemplate {
+			if err := events.EmitMentions(ctx, q, p.UserID, projectID, "milestone", m.ID, nil, desc); err != nil {
+				return err
+			}
+		}
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "milestone.created", TargetType: "milestone",
 			TargetID: m.ID.String(), After: auditView(m)}); err != nil {
 			return err
@@ -300,6 +305,11 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		})
 		if err != nil {
 			return fmt.Errorf("actualizar hito: %w", err)
+		}
+		if !project.IsTemplate {
+			if err := events.EmitMentions(ctx, q, p.UserID, project.ID, "milestone", id, m.Description, desc); err != nil {
+				return err
+			}
 		}
 		after := auditView(updated)
 		after["description_changed"] = richtext.Changed(m.Description, desc)

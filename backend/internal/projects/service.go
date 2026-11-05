@@ -17,6 +17,7 @@ import (
 	"openscum/internal/customfields"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/events"
 	"openscum/internal/files"
 	"openscum/internal/mentions"
 	"openscum/internal/richtext"
@@ -163,6 +164,11 @@ func create(ctx context.Context, q *sqlc.Queries, p *authz.Principal, req create
 	}
 	if err != nil {
 		return sqlc.Project{}, fmt.Errorf("crear proyecto: %w", err)
+	}
+	if !row.IsTemplate {
+		if err := events.EmitMentions(ctx, q, p.UserID, row.ID, "project", row.ID, nil, desc); err != nil {
+			return sqlc.Project{}, err
+		}
 	}
 
 	types := req.TypeIDs
@@ -315,6 +321,11 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 				return fmt.Errorf("actualizar profundidad: %w", err)
 			}
 			updated.Depth = depth
+		}
+		if !row.IsTemplate {
+			if err := events.EmitMentions(ctx, q, p.UserID, id, "project", id, row.Description, desc); err != nil {
+				return err
+			}
 		}
 		after := auditView(updated)
 		after["description_changed"] = richtext.Changed(row.Description, desc)

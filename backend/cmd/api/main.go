@@ -13,6 +13,7 @@ import (
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/health"
+	"openscum/internal/notifications"
 	"openscum/internal/projects"
 	"openscum/internal/server"
 	"openscum/internal/settings"
@@ -48,6 +49,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	go live.Run(ctx)
 	go app.Hub.Run(ctx)
 	go app.Events.Run(ctx)
+	go notifications.Run(ctx, store, logger)
 	go projects.RecordProgress(ctx, store, logger, time.Hour) // spec 008, RF-12
 
 	srv := &http.Server{

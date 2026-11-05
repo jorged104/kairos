@@ -173,6 +173,11 @@ var workOps = []workOp{
 		return c.Do(http.MethodPut, "/api/system/settings/mcp", map[string]any{"enabled": true})
 	}, map[string]int{"admin": 200}},
 	{"ver conexiones de IA de todos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/system/mcp-connections") }, map[string]int{"admin": 200}},
+	// Spec 017: anybody who reads the work follows work items and reads their own notifications.
+	{"seguir tarea", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/work-items/"+m.workItem(m.project(a)).ID.String()+"/follow", map[string]any{"following": true})
+	}, workAll(200)},
+	{"ver mis notificaciones", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/notifications") }, workAll(200)},
 	{"ver mis conexiones de IA", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/mcp-connections") }, workAll(200)},
 	{"ver puntos de otro", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/gamification/users/" + m.actors["stranger"].String() + "/points")

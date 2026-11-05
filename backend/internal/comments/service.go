@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -23,6 +24,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/events"
 	"openscum/internal/files"
 	"openscum/internal/mentions"
 	"openscum/internal/projects"
@@ -283,6 +285,9 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, workItemID uui
 		if err := record(ctx, q, p, "created", c.ID, after); err != nil {
 			return err
 		}
+		if err := emitCreated(ctx, q, p, project, w, c, text); err != nil {
+			return err
+		}
 		out.Comments, err = list(ctx, q, p, w, project)
 		return err
 	})
@@ -479,6 +484,17 @@ func (s *Service) SetResolved(ctx context.Context, p *authz.Principal, id uuid.U
 			if err := record(ctx, q, p, action, id, map[string]any{"work_item_id": w.ID}); err != nil {
 				return err
 			}
+			if !project.IsTemplate {
+				typ := events.CommentThreadReopened
+				if resolved {
+					typ = events.CommentThreadResolved
+				}
+				actor := p.UserID
+				if err := events.Emit(ctx, q, events.New{Type: typ, ActorID: &actor, ProjectID: project.ID,
+					SubjectType: "work_item", SubjectID: w.ID, Payload: map[string]any{"thread_id": id}}); err != nil {
+					return err
+				}
+			}
 		}
 		out.Comments, err = list(ctx, q, p, w, project)
 		return err
@@ -502,4 +518,31 @@ func (s *Service) Upload(ctx context.Context, p *authz.Principal, workItemID uui
 		return err
 	})
 	return out, err
+}
+
+// emitCreated records the comment for the notifications (spec 017): its
+// thread, who it mentions and the first 140 characters of its text (RF-24).
+func emitCreated(ctx context.Context, q *sqlc.Queries, p *authz.Principal, project sqlc.Project, w sqlc.WorkItem, c sqlc.WorkItemComment, text string) error {
+	if project.IsTemplate {
+		return nil
+	}
+	thread := c.ID
+	if c.ThreadID != nil {
+		thread = *c.ThreadID
+	}
+	var mentioned []uuid.UUID
+	for _, m := range richtext.Mentions(c.Body) {
+		if m.Kind == "user" && !slices.Contains(mentioned, m.ID) {
+			mentioned = append(mentioned, m.ID)
+		}
+	}
+	excerpt := []rune(strings.Join(strings.Fields(text), " "))
+	if len(excerpt) > 140 {
+		excerpt = append(excerpt[:139], '…')
+	}
+	actor := p.UserID
+	return events.Emit(ctx, q, events.New{
+		Type: events.CommentCreated, ActorID: &actor, ProjectID: project.ID, SubjectType: "work_item", SubjectID: w.ID,
+		Payload: map[string]any{"comment_id": c.ID, "thread_id": thread, "reply": c.ThreadID != nil, "mentions": mentioned, "excerpt": string(excerpt)},
+	})
 }

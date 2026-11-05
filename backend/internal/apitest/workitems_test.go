@@ -3,6 +3,7 @@ package apitest
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -380,6 +381,13 @@ func TestWorkflowAndEvents(t *testing.T) {
 	}
 	s.admin.Get("/api/events?subject_id="+wi.ID.String()).Expect(t, http.StatusOK).JSON(t, &evs)
 	var types []string
+	// Only closing and reopening; every change of status has its own event too (spec 017).
+	evs.Items = slices.DeleteFunc(evs.Items, func(e struct {
+		Type    string         `json:"type"`
+		Payload map[string]any `json:"payload"`
+	}) bool {
+		return e.Type == "work_item.status_changed"
+	})
 	for i := len(evs.Items) - 1; i >= 0; i-- {
 		types = append(types, evs.Items[i].Type)
 	}

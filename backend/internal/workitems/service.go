@@ -451,6 +451,11 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err := q.RefreshWorkItemUp(ctx, row.ID); err != nil {
 			return fmt.Errorf("recalcular derivados: %w", err)
 		}
+		if !project.IsTemplate {
+			if err := events.EmitMentions(ctx, q, p.UserID, projectID, "work_item", row.ID, nil, desc); err != nil {
+				return err
+			}
+		}
 		created := auditView(row, Key(project.Identifier, n))
 		created["assignee_ids"], created["label_ids"] = assignees, labels
 		if err := audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.created", TargetType: "work_item",
@@ -611,6 +616,12 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 			if err := setAssignees(ctx, q, id, assignees); err != nil {
 				return err
 			}
+			// Whoever is assigned again follows again (spec 017, RF-5).
+			if added := diff(assignees, current); len(added) > 0 {
+				if err := q.FollowWorkItem(ctx, sqlc.FollowWorkItemParams{WorkItemID: id, UserIds: added}); err != nil {
+					return fmt.Errorf("seguir work item: %w", err)
+				}
+			}
 		}
 		labelsAdded, labelsRemoved := diff(labels, currentLabels), diff(currentLabels, labels)
 		labelsChanged := len(labelsAdded)+len(labelsRemoved) > 0
@@ -645,6 +656,19 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		}
 		if change != unchanged && !project.IsTemplate {
 			if err := emitStatusEvent(ctx, q, p, updated, assignees, key, change); err != nil {
+				return err
+			}
+		}
+		if !project.IsTemplate {
+			actor := p.UserID
+			// Spec 017, RF-13: any change of status, open or closed.
+			if updated.StatusID != row.StatusID {
+				if err := events.Emit(ctx, q, events.New{Type: events.WorkItemStatusChanged, ActorID: &actor, ProjectID: project.ID,
+					SubjectType: "work_item", SubjectID: id, Payload: map[string]any{"from_status_id": row.StatusID, "to_status_id": updated.StatusID}}); err != nil {
+					return err
+				}
+			}
+			if err := events.EmitMentions(ctx, q, actor, project.ID, "work_item", id, row.Description, desc); err != nil {
 				return err
 			}
 		}

@@ -26,6 +26,7 @@ import (
 	"openscum/internal/mcp"
 	"openscum/internal/mentions"
 	"openscum/internal/milestones"
+	"openscum/internal/notifications"
 	"openscum/internal/objectives"
 	"openscum/internal/pages"
 	"openscum/internal/portfolio"
@@ -107,8 +108,12 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	pagesH := pages.NewHandler(pages.NewService(store, filesSvc), logger)
 	mentionsH := mentions.NewHandler(store, logger)
 	commentsH := comments.NewHandler(comments.NewService(store, filesSvc), logger)
+	hub := realtime.NewHub(sessions, loader, cfg.Auth.PublicURL, logger)
+	notificationsSvc := notifications.NewService(store, hub, logger)
+	notificationsH := notifications.NewHandler(notificationsSvc, logger)
 	dispatcher := events.NewDispatcher(store, logger, time.Second)
 	dispatcher.Register(gamification.ConsumerName, gamification.Consumer(store))
+	dispatcher.Register(notifications.ConsumerName, notifications.Consumer(store, notificationsSvc, loader, logger))
 	gamificationH := gamification.NewHandler(gamification.NewService(store), logger)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
@@ -119,7 +124,6 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	mcpSrv := mcp.NewServer(mcpConns, loader, live.MCPEnabled, logger)
 	mcpSrv.SetAPI(router)
 
-	hub := realtime.NewHub(sessions, loader, cfg.Auth.PublicURL, logger)
 	router.Get("/ws", hub.ServeWS)
 
 	router.Route("/api", func(api chi.Router) {
@@ -153,6 +157,7 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 			mentionsH.Routes(p)
 			commentsH.Routes(p)
 			mcpH.Routes(p)
+			notificationsH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
