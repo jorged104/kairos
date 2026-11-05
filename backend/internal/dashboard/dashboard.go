@@ -36,11 +36,13 @@ type Ref struct {
 }
 
 type Task struct {
-	ID       uuid.UUID      `json:"id"`
-	Key      string         `json:"key"`
-	Title    string         `json:"title"`
-	Project  Ref            `json:"project"`
-	StatusID uuid.UUID      `json:"status_id"`
+	ID       uuid.UUID `json:"id"`
+	Key      string    `json:"key"`
+	Title    string    `json:"title"`
+	Project  Ref       `json:"project"`
+	StatusID uuid.UUID `json:"status_id"`
+	// The type, whose colour marks the card (change of 2026-11-05, RF-14a).
+	TypeID   uuid.UUID      `json:"type_id"`
 	Closed   bool           `json:"closed"`
 	DueDate  *workcore.Date `json:"due_date"`
 	ClosedOn *workcore.Date `json:"closed_on"`
@@ -115,7 +117,7 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 	for _, r := range rows {
 		t := Task{
 			ID: r.ID, Key: fmt.Sprintf("%s-%d", r.Identifier, r.SequenceNumber), Title: r.Title,
-			Project: Ref{ID: r.ProjectID, Name: r.ProjectName}, StatusID: r.StatusID, Closed: r.IsClosed,
+			Project: Ref{ID: r.ProjectID, Name: r.ProjectName}, StatusID: r.StatusID, TypeID: r.TypeID, Closed: r.IsClosed,
 			DueDate: workcore.FromTime(r.DueDate), Weight: r.Weight,
 			CanMove: p.CanWriteWorkItems(authz.ProjectRef{ID: r.ProjectID, TeamID: r.TeamID, OwnerID: r.OwnerID}),
 		}

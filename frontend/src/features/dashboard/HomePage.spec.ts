@@ -13,7 +13,7 @@ import type { Me } from '@/types/api'
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }))
 const st = (id: string, name: string, extra = {}) => ({ id, name, color: '#123456', position: 1, is_closed: false, is_default: false, retired: false, ...extra })
 const task = (id: string, extra: Partial<DashboardTask> = {}): DashboardTask => ({
-  id, key: `ALF-${id}`, title: `Tarea ${id}`, project: { id: 'p1', name: 'Alfa' }, status_id: 'new', closed: false,
+  id, key: `ALF-${id}`, title: `Tarea ${id}`, project: { id: 'p1', name: 'Alfa' }, status_id: 'new', type_id: 'act', closed: false,
   due_date: null, closed_on: null, late_days: 0, weight: 1, can_move: true, ...extra,
 })
 const week = (start: string, extra: Partial<DashboardWeek> = {}): DashboardWeek => ({ start, closed: 0, weight: 0, with_due: 0, on_time: 0, ...extra })
@@ -52,10 +52,11 @@ beforeEach(() => {
       return json({ xp: 120, coins: 3, level: { id: 'l2', number: 2, name: 'Nivel 2', min_xp: 100 }, next: { id: 'l3', number: 3, name: 'Nivel 3', min_xp: 300 }, last_seq: 1 })
     if (url.startsWith('/api/catalog'))
       return json({
-        methodologies: [], work_item_types: [], priorities: [], sizes: [], labels: [], project_statuses: [],
+        methodologies: [], work_item_types: [{ id: 'act', name: 'Actividad', color: '#16a34a', position: 1, default_weight: 1 }], priorities: [], sizes: [], labels: [], project_statuses: [],
         statuses: [st('new', 'Nuevo', { is_default: true }), st('doing', 'En progreso'), st('done', 'Cerrado', { is_closed: true }), st('old', 'Viejo', { retired: true }), st('gone', 'Nadie', { retired: true })],
       })
     if (init?.method === 'PATCH') return failPatch ? json({ error: { code: 'invalid_transition', message: 'x' } }, 409) : json({ id: '1' })
+    if (url.includes('/by-key/')) return json({ error: { code: 'not_found', message: 'x' } }, 404)
     if (url.startsWith('/api/work-items/')) return json({ id: '1', version: 2, status_id: 'new', allowed_status_ids: allowed, assignees: [], label_ids: [], parent: null, custom_values: {} })
     return json({})
   }))
@@ -99,7 +100,8 @@ describe('mi panel (spec 013)', () => {
     expect(cols[3]!.text()).toContain('retirado')
     expect(cols[0]!.findAll('[data-testid=my-task-link]').map((l) => l.text())).toEqual(['Tarea 2', 'Tarea 4', 'Tarea 1', 'Tarea 3'])
     expect(cols[0]!.find('[data-testid=my-task-late]').text()).toBe('10 días de atraso')
-    expect(cols[0]!.find('[data-testid=my-task-link]').attributes('href')).toBe('/work-items/ALF-2')
+    // Opens in the side panel, as in the projects (RF-15, change of 2026-11-05).
+    expect(cols[0]!.find('[data-testid=my-task-link]').attributes('href')).toBe('/?item=ALF-2')
     expect(cols[2]!.text()).toContain('Cerrada el')
     // Who cannot write it cannot move it.
     const four = cols[0]!.findAll('[data-testid=my-task]')[1]!
@@ -176,5 +178,16 @@ describe('mi panel (spec 013)', () => {
     await router.push('/')
     expect(router.currentRoute.value.name).toBe('status')
     expect(router.currentRoute.value.path).toBe('/status')
+  })
+
+  it('marca cada tarjeta con el color de su tipo y la abre en el panel lateral (RF-14a, RF-15)', async () => {
+    const w = await render()
+    const stripe = w.find('[data-testid=my-task] [data-testid=type-stripe]')
+    expect(stripe.attributes('aria-label')).toBe('Actividad')
+    expect(stripe.attributes('title')).toBe('Actividad')
+    expect(stripe.find('span').attributes('style')).toContain('background: rgb(22, 163, 74)')
+    await w.find('[data-testid=my-task-link]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid=item-panel]').exists()).toBe(true)
   })
 })

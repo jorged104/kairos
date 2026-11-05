@@ -2,6 +2,12 @@
 
 **Estado:** Aprobada (2026-11-04) («dale»).
 
+**Cambio:** 2026-11-05, a petición del usuario.
+- La tarjeta del Kanban lleva el color del tipo de la tarea (RF-14a).
+- La tarea se abre en el panel lateral, como en los proyectos (RF-15).
+- Las columnas son más fáciles de desplazar (RF-14b, RF-14c).
+- Cada tarea de la respuesta trae su tipo (`type_id`).
+
 ## Contexto y objetivo
 Hoy, al entrar en Kairos, cada persona ve el estado técnico del sistema. No ve su trabajo: qué
 tareas tiene asignadas, cuáles van atrasadas, en qué proyectos participa ni cómo evoluciona.
@@ -58,7 +64,10 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
 - RF-12: EL SISTEMA ordenará las tareas de cada columna abierta por días de atraso descendente, después por fecha fin ascendente (las que no tienen fecha, al final) y después por clave.
 - RF-13: EL SISTEMA ordenará las tareas de cada columna cerrada por fecha de cierre, de la más reciente a la más antigua.
 - RF-14: EL SISTEMA mostrará en cada tarjeta la clave, el título, el proyecto, la fecha fin y, si está atrasada, los días de atraso destacados.
-- RF-15: CUANDO el usuario pulse una tarjeta, EL SISTEMA abrirá la ficha de esa tarea.
+- RF-14a: EL SISTEMA mostrará arriba de cada tarjeta una línea con el color del tipo de la tarea, según el catálogo, y el nombre del tipo al pasar por encima.
+- RF-14b: MIENTRAS el puntero esté sobre el Kanban y las columnas no quepan, EL SISTEMA desplazará las columnas en horizontal con la rueda del ratón.
+- RF-14c: MIENTRAS las columnas no quepan, EL SISTEMA mostrará botones para desplazarlas una columna a la izquierda o a la derecha.
+- RF-15: CUANDO el usuario pulse una tarjeta, EL SISTEMA abrirá la ficha de esa tarea en el panel lateral, sobre Mi panel, con la misma animación que en los proyectos (cambio de 2026-11-05: antes se abría la página completa).
 - RF-16: CUANDO el usuario suelte una tarjeta en otra columna, EL SISTEMA cambiará el estado de la tarea al de esa columna.
 - RF-17: EL SISTEMA aplicará al mover una tarea desde el panel los mismos permisos, flujo de estados y efectos que al moverla en su proyecto.
 - RF-18: MIENTRAS el usuario arrastre una tarjeta, EL SISTEMA marcará como no disponibles las columnas a las que el flujo de esa tarea no permite moverla.
