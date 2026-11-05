@@ -119,7 +119,8 @@ const initials = (name: string) =>
         <section
           v-for="col in cols"
           :key="col.key"
-          class="flex flex-col gap-2 rounded-xl bg-muted/60 p-2"
+          class="flex flex-col gap-2 rounded-xl bg-muted/60 p-2 transition-shadow duration-200"
+          :class="byStatus && dragging && dragging.status_id !== col.key && 'ring-2 ring-primary/30'"
           :aria-label="col.name"
           data-testid="project-board-column"
           :data-key="col.key"
@@ -133,71 +134,73 @@ const initials = (name: string) =>
             <span class="ml-auto rounded-full bg-background px-2 text-xs font-semibold tabular-nums" data-testid="project-board-count">{{ col.rows.length }}</span>
           </header>
 
-          <article
-            v-for="p in col.rows.slice(0, MAX)"
-            :key="p.id"
-            class="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-xs"
-            :class="moving === p.id && 'opacity-60'"
-            :draggable="movable(p)"
-            data-testid="project-card"
-            @dragstart="onDragStart($event, p)"
-            @dragend="dragging = null"
-          >
-            <div class="flex items-center gap-1.5">
-              <span class="font-mono text-[11px] text-muted-foreground">{{ p.identifier }}</span>
-              <span v-if="p.is_program" class="rounded bg-muted px-1.5 text-[11px] text-muted-foreground">{{ t('portfolio.program') }}</span>
-              <span v-else-if="p.program" class="truncate rounded bg-muted px-1.5 text-[11px] text-muted-foreground">{{ p.program.name }}</span>
-              <button
-                v-if="movable(p)"
-                type="button"
-                class="ml-auto grid size-7 shrink-0 place-items-center rounded hover:bg-muted"
-                :aria-label="t('projectViews.moveTo', { name: p.name })"
-                :aria-expanded="menu === p.id"
-                data-testid="project-card-move"
-                @click="menu = menu === p.id ? null : p.id"
-              >
-                <MoreHorizontal class="size-4" aria-hidden="true" />
-              </button>
-            </div>
-            <RouterLink :to="`/projects/${p.id}`" class="text-sm leading-snug font-semibold hover:underline" data-testid="project-card-link">{{ p.name }}</RouterLink>
-            <!-- The real progress with the plan of today marked on it (RF-36). -->
-            <div class="relative h-1.5 rounded-full bg-muted" aria-hidden="true">
-              <div class="h-full rounded-full bg-primary" :style="{ width: `${p.figures.real}%` }" />
-              <div v-if="p.figures.has_plan" class="absolute -top-0.5 h-2.5 w-0.5 bg-foreground" :style="{ left: `${p.figures.plan}%` }" />
-            </div>
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span>{{ t('projectViews.real', { real: pct(p.figures.real) }) }}</span>
-              <span v-if="p.figures.has_plan">· {{ t('projectViews.plan', { plan: pct(p.figures.plan) }) }}</span>
-              <span class="ml-auto">
-                <LevelBadge v-if="p.figures.has_plan" :figures="p.figures" compact />
-                <span v-else data-testid="project-card-noplan">{{ t('schedule.noPlan') }}</span>
-              </span>
-            </div>
-            <div class="flex items-center gap-2 text-xs text-muted-foreground">
-              <span class="grid size-6 place-items-center rounded-full bg-muted text-[10px] font-semibold text-foreground" aria-hidden="true">{{ initials(p.owner.name) }}</span>
-              <span class="truncate">{{ p.owner.name }}</span>
-              <span class="ml-auto shrink-0">{{ date(p.end_date) }}</span>
-            </div>
-            <div
-              v-if="menu === p.id"
-              :ref="(el) => (menuEl = el as HTMLElement | null)"
-              class="absolute top-10 right-2 z-20 flex w-52 flex-col rounded-lg border bg-popover p-1 shadow-lg"
-              role="menu"
-              data-testid="project-card-menu"
+          <TransitionGroup tag="div" name="card" class="relative flex flex-col gap-2">
+            <article
+              v-for="p in col.rows.slice(0, MAX)"
+              :key="p.id"
+              class="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              :class="(moving === p.id && 'opacity-60') || (dragging?.id === p.id && 'scale-95 opacity-50')"
+              :draggable="movable(p)"
+              data-testid="project-card"
+              @dragstart="onDragStart($event, p)"
+              @dragend="dragging = null"
             >
-              <p class="px-2 py-1 text-xs text-muted-foreground">{{ t('workItems.moveTo') }}</p>
-              <button
-                v-for="s in targets.filter((x) => x.id !== p.status_id)"
-                :key="s.id"
-                type="button"
-                role="menuitem"
-                class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                @click="(menu = null), move(p, s.id)"
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono text-[11px] text-muted-foreground">{{ p.identifier }}</span>
+                <span v-if="p.is_program" class="rounded bg-muted px-1.5 text-[11px] text-muted-foreground">{{ t('portfolio.program') }}</span>
+                <span v-else-if="p.program" class="truncate rounded bg-muted px-1.5 text-[11px] text-muted-foreground">{{ p.program.name }}</span>
+                <button
+                  v-if="movable(p)"
+                  type="button"
+                  class="ml-auto grid size-7 shrink-0 place-items-center rounded hover:bg-muted"
+                  :aria-label="t('projectViews.moveTo', { name: p.name })"
+                  :aria-expanded="menu === p.id"
+                  data-testid="project-card-move"
+                  @click="menu = menu === p.id ? null : p.id"
+                >
+                  <MoreHorizontal class="size-4" aria-hidden="true" />
+                </button>
+              </div>
+              <RouterLink :to="`/projects/${p.id}`" class="text-sm leading-snug font-semibold hover:underline" data-testid="project-card-link">{{ p.name }}</RouterLink>
+              <!-- The real progress with the plan of today marked on it (RF-36). -->
+              <div class="relative h-1.5 rounded-full bg-muted" aria-hidden="true">
+                <div class="h-full rounded-full bg-primary" :style="{ width: `${p.figures.real}%` }" />
+                <div v-if="p.figures.has_plan" class="absolute -top-0.5 h-2.5 w-0.5 bg-foreground" :style="{ left: `${p.figures.plan}%` }" />
+              </div>
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                <span>{{ t('projectViews.real', { real: pct(p.figures.real) }) }}</span>
+                <span v-if="p.figures.has_plan">· {{ t('projectViews.plan', { plan: pct(p.figures.plan) }) }}</span>
+                <span class="ml-auto">
+                  <LevelBadge v-if="p.figures.has_plan" :figures="p.figures" compact />
+                  <span v-else data-testid="project-card-noplan">{{ t('schedule.noPlan') }}</span>
+                </span>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                <span class="grid size-6 place-items-center rounded-full bg-muted text-[10px] font-semibold text-foreground" aria-hidden="true">{{ initials(p.owner.name) }}</span>
+                <span class="truncate">{{ p.owner.name }}</span>
+                <span class="ml-auto shrink-0">{{ date(p.end_date) }}</span>
+              </div>
+              <div
+                v-if="menu === p.id"
+                :ref="(el) => (menuEl = el as HTMLElement | null)"
+                class="absolute top-10 right-2 z-20 flex w-52 flex-col rounded-lg border bg-popover p-1 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150 motion-reduce:animate-none"
+                role="menu"
+                data-testid="project-card-menu"
               >
-                <span class="size-2 rounded-full" :style="{ background: s.color }" aria-hidden="true" />{{ s.name }}
-              </button>
-            </div>
-          </article>
+                <p class="px-2 py-1 text-xs text-muted-foreground">{{ t('workItems.moveTo') }}</p>
+                <button
+                  v-for="s in targets.filter((x) => x.id !== p.status_id)"
+                  :key="s.id"
+                  type="button"
+                  role="menuitem"
+                  class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                  @click="(menu = null), move(p, s.id)"
+                >
+                  <span class="size-2 rounded-full" :style="{ background: s.color }" aria-hidden="true" />{{ s.name }}
+                </button>
+              </div>
+            </article>
+          </TransitionGroup>
           <p v-if="!col.rows.length" class="px-2 py-3 text-center text-xs text-muted-foreground">{{ t('projectViews.emptyColumn') }}</p>
           <p v-if="col.rows.length > MAX" class="px-2 text-xs text-muted-foreground" data-testid="project-board-more">
             {{ t('projectViews.more', { n: col.rows.length - MAX }) }}

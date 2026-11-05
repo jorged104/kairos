@@ -179,8 +179,8 @@ const sizeName = (n: WorkNode) => (n.size_id ? (sizes.value.get(n.size_id)?.name
             <section
               v-for="st in statuses"
               :key="st.id"
-              class="flex flex-col gap-2 rounded-xl bg-muted/60 p-2 transition-opacity"
-              :class="dragging && !allowed(st.id) && 'opacity-40'"
+              class="flex flex-col gap-2 rounded-xl bg-muted/60 p-2 transition-[opacity,box-shadow] duration-200"
+              :class="dragging && (allowed(st.id) ? 'ring-2 ring-primary/30' : 'opacity-40')"
               :aria-label="st.name"
               :aria-disabled="dragging && !allowed(st.id) ? 'true' : undefined"
               data-testid="kanban-column"
@@ -219,59 +219,62 @@ const sizeName = (n: WorkNode) => (n.size_id ? (sizes.value.get(n.size_id)?.name
                 </template>
               </header>
 
-              <article
-                v-for="n in ln.nodes.filter((x) => x.status_id === st.id)"
-                :key="n.id"
-                class="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-xs"
-                :draggable="writable"
-                data-testid="kanban-card"
-                @dragstart="onDragStart($event, n)"
-                @dragend="dragging = null"
-              >
-                <div class="flex items-center gap-1.5">
-                  <span class="font-mono text-[11px] text-muted-foreground">{{ n.key }}</span>
-                  <span v-if="n.blocked" class="rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">{{ t('kanban.blocked') }}</span>
-                  <span v-if="sizeName(n)" class="ml-auto rounded border px-1.5 text-[11px] text-muted-foreground">{{ sizeName(n) }}</span>
-                  <button
-                    v-if="writable"
-                    type="button"
-                    class="grid size-7 place-items-center rounded hover:bg-muted"
-                    :class="!sizeName(n) && 'ml-auto'"
-                    :aria-label="t('kanban.moveTo', { key: n.key })"
-                    :aria-expanded="menu?.id === n.id"
-                    data-testid="kanban-move"
-                    @click="openMenu(n)"
-                  >
-                    <MoreHorizontal class="size-4" aria-hidden="true" />
-                  </button>
-                </div>
-                <RouterLink :to="open(n)" class="text-sm leading-snug font-medium hover:underline">{{ n.title }}</RouterLink>
-                <LabelChips v-if="n.label_ids.length" :labels="labelsOf(n)" :max="3" />
-                <div class="flex items-center gap-2">
-                  <AvatarStack v-if="n.assignees.length" :people="n.assignees" :max="3" />
-                  <span v-if="n.due_date" class="ml-auto text-xs" :class="late(n) ? 'font-semibold text-destructive' : 'text-muted-foreground'">{{ due(n) }}</span>
-                </div>
-                <div
-                  v-if="menu?.id === n.id"
-                  :ref="(el) => (menuEl = el as HTMLElement | null)"
-                  class="absolute top-10 right-2 z-20 flex w-48 flex-col rounded-lg border bg-popover p-1 shadow-lg"
-                  role="menu"
-                  data-testid="kanban-move-menu"
+              <TransitionGroup tag="div" name="card" class="relative flex flex-col gap-2">
+                <article
+                  v-for="n in ln.nodes.filter((x) => x.status_id === st.id)"
+                  :key="n.id"
+                  class="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  :class="dragging?.node.id === n.id && 'scale-95 opacity-50'"
+                  :draggable="writable"
+                  data-testid="kanban-card"
+                  @dragstart="onDragStart($event, n)"
+                  @dragend="dragging = null"
                 >
-                  <p class="px-2 py-1 text-xs text-muted-foreground">{{ t('workItems.moveTo') }}</p>
-                  <button
-                    v-for="s in statuses.filter((x) => menu!.allowed.includes(x.id))"
-                    :key="s.id"
-                    type="button"
-                    role="menuitem"
-                    class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                    @click="(menu = null), move(n, s.id)"
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-mono text-[11px] text-muted-foreground">{{ n.key }}</span>
+                    <span v-if="n.blocked" class="rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">{{ t('kanban.blocked') }}</span>
+                    <span v-if="sizeName(n)" class="ml-auto rounded border px-1.5 text-[11px] text-muted-foreground">{{ sizeName(n) }}</span>
+                    <button
+                      v-if="writable"
+                      type="button"
+                      class="grid size-7 place-items-center rounded hover:bg-muted"
+                      :class="!sizeName(n) && 'ml-auto'"
+                      :aria-label="t('kanban.moveTo', { key: n.key })"
+                      :aria-expanded="menu?.id === n.id"
+                      data-testid="kanban-move"
+                      @click="openMenu(n)"
+                    >
+                      <MoreHorizontal class="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <RouterLink :to="open(n)" class="text-sm leading-snug font-medium hover:underline">{{ n.title }}</RouterLink>
+                  <LabelChips v-if="n.label_ids.length" :labels="labelsOf(n)" :max="3" />
+                  <div class="flex items-center gap-2">
+                    <AvatarStack v-if="n.assignees.length" :people="n.assignees" :max="3" />
+                    <span v-if="n.due_date" class="ml-auto text-xs" :class="late(n) ? 'font-semibold text-destructive' : 'text-muted-foreground'">{{ due(n) }}</span>
+                  </div>
+                  <div
+                    v-if="menu?.id === n.id"
+                    :ref="(el) => (menuEl = el as HTMLElement | null)"
+                    class="absolute top-10 right-2 z-20 flex w-48 flex-col rounded-lg border bg-popover p-1 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150 motion-reduce:animate-none"
+                    role="menu"
+                    data-testid="kanban-move-menu"
                   >
-                    <span class="size-2 rounded-full" :style="{ background: s.color }" />{{ s.name }}
-                  </button>
-                  <p v-if="!menu.allowed.length" class="px-2 py-1 text-sm text-muted-foreground">{{ t('common.empty') }}</p>
-                </div>
-              </article>
+                    <p class="px-2 py-1 text-xs text-muted-foreground">{{ t('workItems.moveTo') }}</p>
+                    <button
+                      v-for="s in statuses.filter((x) => menu!.allowed.includes(x.id))"
+                      :key="s.id"
+                      type="button"
+                      role="menuitem"
+                      class="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      @click="(menu = null), move(n, s.id)"
+                    >
+                      <span class="size-2 rounded-full" :style="{ background: s.color }" />{{ s.name }}
+                    </button>
+                    <p v-if="!menu.allowed.length" class="px-2 py-1 text-sm text-muted-foreground">{{ t('common.empty') }}</p>
+                  </div>
+                </article>
+              </TransitionGroup>
 
               <template v-if="writable && lane === 'none' && !st.is_closed">
                 <form v-if="adding === st.id" class="flex flex-col gap-1" @submit.prevent="create(st.id)">

@@ -41,27 +41,31 @@ function resizeWithKeys(e: KeyboardEvent) {
 </script>
 
 <template>
-  <aside
-    v-if="openItem"
-    class="fixed inset-y-0 right-0 z-30 w-full overflow-y-auto border-l bg-background p-4 shadow-2xl sm:w-(--panel-w) sm:p-6"
-    :style="{ '--panel-w': panelWidth === null ? '50vw' : `${panelWidth}px` }"
-    :aria-label="openItem"
-    data-testid="item-panel"
-  >
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      tabindex="0"
-      :aria-label="t('page.resizePanel')"
-      class="group fixed inset-y-0 z-40 hidden w-3 -translate-x-1/2 cursor-col-resize touch-none outline-none sm:block"
-      :style="{ right: 'var(--panel-w)' }"
-      data-testid="panel-resize"
-      @pointerdown="startResize"
-      @keydown="resizeWithKeys"
-      @dblclick="panelWidth = null"
+  <Transition name="panel">
+    <aside
+      v-if="openItem"
+      class="fixed inset-y-0 right-0 z-30 w-full overflow-y-auto border-l bg-background p-4 shadow-2xl sm:w-(--panel-w) sm:p-6"
+      :style="{ '--panel-w': panelWidth === null ? '50vw' : `${panelWidth}px` }"
+      :aria-label="openItem"
+      data-testid="item-panel"
     >
-      <span class="mx-auto block h-full w-0.5 bg-transparent transition-colors group-hover:bg-primary/40 group-focus-visible:bg-primary" />
-    </div>
-    <WorkItemSheet :key="openItem" :wikey="openItem" panel @close="closePanel" />
-  </aside>
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        tabindex="0"
+        :aria-label="t('page.resizePanel')"
+        class="group fixed inset-y-0 z-40 hidden w-3 -translate-x-1/2 cursor-col-resize touch-none outline-none sm:block"
+        :style="{ right: 'var(--panel-w)' }"
+        data-testid="panel-resize"
+        @pointerdown="startResize"
+        @keydown="resizeWithKeys"
+        @dblclick="panelWidth = null"
+      >
+        <span class="mx-auto block h-full w-0.5 bg-transparent transition-colors group-hover:bg-primary/40 group-focus-visible:bg-primary" />
+      </div>
+      <Transition name="sheet" mode="out-in">
+        <WorkItemSheet :key="openItem" :wikey="openItem" panel @close="closePanel" />
+      </Transition>
+    </aside>
+  </Transition>
 </template>

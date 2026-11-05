@@ -6,5 +6,7 @@ defineProps<{ wikey: string }>()
 </script>
 
 <template>
-  <WorkItemSheet :wikey="wikey" />
+  <Transition name="sheet" mode="out-in" appear>
+    <WorkItemSheet :key="wikey" :wikey="wikey" />
+  </Transition>
 </template>
