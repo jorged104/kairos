@@ -8,6 +8,12 @@ import type { MentionRefs, RichDoc } from '@/types/work'
 import PageEditor from './PageEditor.vue'
 import { startUploads, uploads } from './uploads'
 
+// jsdom has no layout: Range lacks the rects ProseMirror reads when focus()
+// scrolls the selection into view on the next frame.
+const emptyRects = () => Object.assign([], { item: () => null }) as unknown as DOMRectList
+Range.prototype.getClientRects ??= emptyRects
+Range.prototype.getBoundingClientRect ??= () => new DOMRect()
+
 let wrapper: VueWrapper | null = null
 afterEach(() => {
   wrapper?.unmount()
