@@ -92,6 +92,20 @@ describe('pestaña Reuniones (spec 018)', () => {
     w.unmount()
   })
 
+  it('al pulsar una reunión de la lista, la abre editable en el panel (RF-41)', async () => {
+    const { w, router } = await render(MeetingsTab, { project }, '/projects/p1?tab=meetings')
+    await w.find('[data-testid=meeting-row] a').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.meeting).toBe('m1')
+    const sheet = w.find('[data-testid=item-panel] [data-testid=meeting-sheet]')
+    expect(sheet.exists()).toBe(true)
+    await sheet.find('[data-testid=meeting-title]').setValue('Seguimiento quincenal')
+    await sheet.find('[data-testid=meeting-form]').trigger('submit')
+    await flushPromises()
+    expect(bodyOf('/api/meetings/m1', 'PATCH')).toMatchObject({ version: 2, title: 'Seguimiento quincenal' })
+    w.unmount()
+  })
+
   it('crea una reunión desde una plantilla, que propone título y lugar (RF-34, RF-35)', async () => {
     const { w } = await render(MeetingsTab, { project })
     await w.find('[data-testid=meeting-new]').trigger('click')
