@@ -2,8 +2,8 @@
 
 -- name: CreateComment :one
 -- An anchored thread brings its own id, the one its mark in the page uses (RF-45).
-INSERT INTO work_item_comments (id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, via)
-VALUES (coalesce(sqlc.narg(id)::uuid, gen_random_uuid()), sqlc.arg(work_item_id)::uuid, sqlc.narg(thread_id)::uuid,
+INSERT INTO work_item_comments (id, work_item_id, meeting_id, thread_id, author_id, body, body_text, quote, anchored, via)
+VALUES (coalesce(sqlc.narg(id)::uuid, gen_random_uuid()), sqlc.narg(work_item_id)::uuid, sqlc.narg(meeting_id)::uuid, sqlc.narg(thread_id)::uuid,
         sqlc.arg(author_id)::uuid, sqlc.arg(body)::jsonb, sqlc.arg(body_text)::text, sqlc.narg(quote)::text,
         sqlc.arg(anchored)::boolean, sqlc.narg(via)::jsonb)
 RETURNING *;

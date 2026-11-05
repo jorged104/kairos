@@ -1,5 +1,6 @@
-// Package pages saves the pages of projects, milestones and work items
-// (spec 005) and receives their files. It knows who may change each owner.
+// Package pages saves the pages of projects, milestones, work items (spec
+// 005) and meetings (spec 018), and receives their files. It knows who may
+// change each owner.
 package pages
 
 import (
@@ -11,6 +12,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/files"
+	"openscum/internal/meetings"
 	"openscum/internal/milestones"
 	"openscum/internal/projects"
 	"openscum/internal/workitems"
@@ -21,6 +23,7 @@ const (
 	KindProject   = "project"
 	KindMilestone = "milestone"
 	KindWorkItem  = "work_item"
+	KindMeeting   = meetings.Kind
 )
 
 // owner is a page's owner with what saving its page needs.
@@ -64,6 +67,15 @@ func writable(ctx context.Context, q *sqlc.Queries, p *authz.Principal, kind str
 			return o, apperr.ErrForbidden
 		}
 		o = owner{project: project, pageVersion: project.PageVersion, description: project.Description}
+	case KindMeeting:
+		m, project, err := meetings.Load(ctx, q, p, id, lock)
+		if err != nil {
+			return o, err
+		}
+		if !p.CanWriteWorkItems(projects.Ref(project)) {
+			return o, apperr.ErrForbidden
+		}
+		o = owner{project: project, pageVersion: m.PageVersion, description: m.Description}
 	default:
 		return o, apperr.ErrNotFound
 	}

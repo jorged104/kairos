@@ -3,7 +3,7 @@ import { ApiError, api, errorFrom } from './client'
 
 // Pages of work items, milestones and projects (spec 005).
 
-export type PageOwnerKind = 'work-items' | 'milestones' | 'projects'
+export type PageOwnerKind = 'work-items' | 'milestones' | 'projects' | 'meetings'
 
 export interface PageOwner {
   kind: PageOwnerKind
@@ -28,7 +28,7 @@ export interface PageFile {
 }
 
 export interface MentionResult {
-  kind: 'work_item' | 'milestone' | 'project'
+  kind: 'work_item' | 'milestone' | 'project' | 'meeting'
   id: string
   label: string
 }
@@ -37,6 +37,7 @@ export interface MentionResults {
   work_items: MentionResult[]
   milestones: MentionResult[]
   projects: MentionResult[]
+  meetings?: MentionResult[]
 }
 
 const ownerPath = (o: PageOwner) => `/api/${o.kind}/${o.id}`

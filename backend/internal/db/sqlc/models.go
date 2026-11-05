@@ -146,6 +146,38 @@ type McpConnection struct {
 	RevokedBy  *uuid.UUID
 }
 
+type Meeting struct {
+	ID              uuid.UUID
+	OwnerType       string
+	OwnerID         uuid.UUID
+	ProjectID       uuid.UUID
+	Title           string
+	StartsAt        time.Time
+	Location        string
+	Description     json.RawMessage
+	DescriptionText string
+	PageVersion     int32
+	Version         int32
+	TemplateID      *uuid.UUID
+	CreatedBy       uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type MeetingTemplate struct {
+	ID             uuid.UUID
+	ProjectID      *uuid.UUID
+	Name           string
+	NameNormalized string
+	Title          string
+	Location       string
+	Page           json.RawMessage
+	Position       int32
+	RetiredAt      *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type Methodology struct {
 	ID             uuid.UUID
 	Name           string
@@ -592,6 +624,7 @@ type WorkItem struct {
 	WeightedDoneRatio *int16
 	PageVersion       int32
 	SizeID            *uuid.UUID
+	MeetingID         *uuid.UUID
 }
 
 type WorkItemAssignee struct {
@@ -603,7 +636,7 @@ type WorkItemAssignee struct {
 
 type WorkItemComment struct {
 	ID         uuid.UUID
-	WorkItemID uuid.UUID
+	WorkItemID *uuid.UUID
 	ThreadID   *uuid.UUID
 	AuthorID   uuid.UUID
 	Body       json.RawMessage
@@ -616,6 +649,7 @@ type WorkItemComment struct {
 	ResolvedAt *time.Time
 	ResolvedBy *uuid.UUID
 	Via        json.RawMessage
+	MeetingID  *uuid.UUID
 }
 
 type WorkItemCustomValue struct {

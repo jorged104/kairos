@@ -244,6 +244,12 @@ defineExpose({ close })
           </template>
           <span>/</span>
           <span class="font-mono">{{ wi.key }}</span>
+          <template v-if="wi.meeting">
+            <span class="mx-1">·</span>
+            <RouterLink :to="`/meetings/${wi.meeting.id}`" class="hover:underline" data-testid="work-item-meeting">
+              {{ t('meetings.from', { title: wi.meeting.name }) }}
+            </RouterLink>
+          </template>
         </nav>
         <div class="ml-auto flex items-center gap-1">
           <FollowButton :work-item-id="wi.id" />

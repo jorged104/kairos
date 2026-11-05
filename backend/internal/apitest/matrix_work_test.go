@@ -177,6 +177,22 @@ var workOps = []workOp{
 	{"seguir tarea", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/work-items/"+m.workItem(m.project(a)).ID.String()+"/follow", map[string]any{"following": true})
 	}, workAll(200)},
+	// Spec 018: meetings as work items, their comments as comments, templates by scope.
+	{"crear reunión", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/projects/"+m.project(a).String()+"/meetings", map[string]any{"title": "R", "starts_at": "2030-01-01T10:00:00Z"})
+	}, writers(201)},
+	{"comentar reunión", func(m *workMatrix, c *Client, a string) *Response {
+		var mt meetingDTO
+		m.admin.Post("/api/projects/"+m.project(a).String()+"/meetings", map[string]any{"title": "R", "starts_at": "2030-01-01T10:00:00Z"}).
+			Expect(m.t, http.StatusCreated).JSON(m.t, &mt)
+		return c.Post("/api/meetings/"+mt.ID.String()+"/comments", map[string]any{"body": json.RawMessage(paragraph("hola"))})
+	}, commenters(201)},
+	{"crear plantilla global de reunión", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/meeting-templates", map[string]any{"name": "T-" + uuid.NewString()})
+	}, map[string]int{"admin": 201}},
+	{"crear plantilla de reunión del proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/meeting-templates", map[string]any{"name": "T", "project_id": m.project(a)})
+	}, managers(201)},
 	{"ver mis notificaciones", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/notifications") }, workAll(200)},
 	{"ver mis conexiones de IA", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/mcp-connections") }, workAll(200)},
 	{"ver puntos de otro", func(m *workMatrix, c *Client, a string) *Response {

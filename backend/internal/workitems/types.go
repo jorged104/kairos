@@ -72,7 +72,9 @@ type WorkItem struct {
 	CustomValues     map[uuid.UUID]json.RawMessage `json:"custom_values"`
 	AllowedStatusIDs []uuid.UUID                   `json:"allowed_status_ids"`
 	Dependencies     []Dependency                  `json:"dependencies"`
-	Can              Can                           `json:"can"`
+	// The meeting it came from, if any (spec 018, RF-28).
+	Meeting *workcore.Ref `json:"meeting"`
+	Can     Can           `json:"can"`
 }
 
 type ProjectRef struct {
@@ -152,6 +154,8 @@ type createRequest struct {
 	SizeID optionalID `json:"size_id"`
 	// Replaces the labels; absent keeps them (spec 007, RF-40).
 	LabelIDs *[]uuid.UUID `json:"label_ids"`
+	// The meeting it comes from, of the same project (spec 018, RF-24, RF-26).
+	MeetingID *uuid.UUID `json:"meeting_id"`
 }
 
 func (r *createRequest) Normalize() { r.Title = strings.TrimSpace(r.Title) }

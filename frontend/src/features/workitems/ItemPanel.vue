@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import MeetingSheet from '@/features/meetings/MeetingSheet.vue'
 import WorkItemSheet from './WorkItemSheet.vue'
 
 // The work item open in the side panel, kept in the URL (?item=KAI-12) so it
@@ -12,8 +13,10 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const openItem = computed(() => (typeof route.query.item === 'string' ? route.query.item : null))
+// A meeting opens in the same panel (spec 018, RF-41).
+const openMeeting = computed(() => (!openItem.value && typeof route.query.meeting === 'string' ? route.query.meeting : null))
 function closePanel() {
-  const { item: _item, ...query } = route.query
+  const { item: _item, meeting: _meeting, ...query } = route.query
   void router.replace({ query })
 }
 // Only while it is open: null is half again (double click on the edge).
@@ -43,10 +46,10 @@ function resizeWithKeys(e: KeyboardEvent) {
 <template>
   <Transition name="panel">
     <aside
-      v-if="openItem"
+      v-if="openItem || openMeeting"
       class="fixed inset-y-0 right-0 z-30 w-full overflow-y-auto border-l bg-background p-4 shadow-2xl sm:w-(--panel-w) sm:p-6"
       :style="{ '--panel-w': panelWidth === null ? '50vw' : `${panelWidth}px` }"
-      :aria-label="openItem"
+      :aria-label="openItem ?? t('meetings.title')"
       data-testid="item-panel"
     >
       <div
@@ -64,7 +67,8 @@ function resizeWithKeys(e: KeyboardEvent) {
         <span class="mx-auto block h-full w-0.5 bg-transparent transition-colors group-hover:bg-primary/40 group-focus-visible:bg-primary" />
       </div>
       <Transition name="sheet" mode="out-in">
-        <WorkItemSheet :key="openItem" :wikey="openItem" panel @close="closePanel" />
+        <WorkItemSheet v-if="openItem" :key="openItem" :wikey="openItem" panel @close="closePanel" />
+        <MeetingSheet v-else-if="openMeeting" :key="openMeeting" :id="openMeeting" panel @close="closePanel" />
       </Transition>
     </aside>
   </Transition>

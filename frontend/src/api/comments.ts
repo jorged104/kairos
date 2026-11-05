@@ -3,7 +3,8 @@ import type { MentionRefs, Ref, RichDoc } from '@/types/work'
 import type { SavedPage } from './pages'
 import { api } from './client'
 
-// Comments of work items (spec 006).
+// Comments of work items (spec 006) and of meetings (spec 018). Their
+// target is a work item's id, or meeting:<id> for a meeting.
 
 export interface WorkComment {
   id: string
@@ -49,10 +50,14 @@ export interface AnchorInput {
   page_version: number
 }
 
-export const listComments = (workItemId: string) => api<CommentList>(`/api/work-items/${workItemId}/comments`)
+/** The API path of what the comments are on. */
+export const commentBase = (target: string) =>
+  target.startsWith('meeting:') ? `/api/meetings/${target.slice('meeting:'.length)}` : `/api/work-items/${target}`
 
-export const createComment = (workItemId: string, body: RichDoc, opts: { threadId?: string; anchor?: AnchorInput } = {}) =>
-  api<CommentResult>(`/api/work-items/${workItemId}/comments`, {
+export const listComments = (target: string) => api<CommentList>(`${commentBase(target)}/comments`)
+
+export const createComment = (target: string, body: RichDoc, opts: { threadId?: string; anchor?: AnchorInput } = {}) =>
+  api<CommentResult>(`${commentBase(target)}/comments`, {
     method: 'POST',
     body: { body, ...(opts.threadId ? { thread_id: opts.threadId } : {}), ...(opts.anchor ? { anchor: opts.anchor } : {}) },
   })
@@ -64,5 +69,5 @@ export const deleteComment = (id: string) => api<CommentResult>(`/api/comments/$
 export const setThreadResolved = (id: string, resolved: boolean) =>
   api<CommentResult>(`/api/comments/${id}/${resolved ? 'resolve' : 'reopen'}`, { method: 'POST' })
 
-/** Where the files of the comments of a work item are uploaded (RF-26). */
-export const commentFilesPath = (workItemId: string) => `/api/work-items/${workItemId}/comment-files`
+/** Where the files of the comments of a work item or a meeting are uploaded (RF-26). */
+export const commentFilesPath = (target: string) => `${commentBase(target)}/comment-files`

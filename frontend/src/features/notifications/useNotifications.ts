@@ -44,6 +44,7 @@ export function useNotificationsSync() {
   const onScreen = (n: AppNotification) => {
     const s = n.subject
     if (s.type === 'work_item') return route.params.wikey === s.key || route.query.item === s.key
+    if (s.type === 'meeting') return route.path === `/meetings/${s.id}` || route.query.meeting === s.id
     return route.path === (s.type === 'milestone' ? `/milestones/${s.id}` : `/projects/${s.id}`)
   }
 

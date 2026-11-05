@@ -1,6 +1,6 @@
 // Package comments keeps the comments of work items (spec 006, RF-22 to
-// RF-55): threads with one level of replies that can be resolved, and
-// threads anchored to a piece of the work item's page.
+// RF-55) and of meetings (spec 018, RF-20): threads with one level of
+// replies that can be resolved, and threads anchored to a piece of the page.
 package comments
 
 import (
@@ -26,7 +26,9 @@ import (
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
 	"openscum/internal/files"
+	"openscum/internal/meetings"
 	"openscum/internal/mentions"
+	"openscum/internal/pages"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
 	"openscum/internal/workcore"
@@ -35,6 +37,12 @@ import (
 
 // OwnerKind owns the files of the comments of a work item, by its id.
 const OwnerKind = "work_item_comment"
+
+// What comments are on.
+const (
+	KindWorkItem = "work_item"
+	KindMeeting  = meetings.Kind
+)
 
 // MaxRunes bounds the text of a comment (RF-27).
 const MaxRunes = 10_000
@@ -88,8 +96,8 @@ type Thread struct {
 	Replies       []Comment     `json:"replies"`
 }
 
-// List is every thread of a work item, oldest first (RF-29), with the
-// mentions of all of them.
+// List is every thread of a work item or a meeting, oldest first (RF-29),
+// with the mentions of all of them.
 type List struct {
 	Threads    []Thread                `json:"threads"`
 	Refs       map[string]mentions.Ref `json:"refs"`
@@ -128,9 +136,49 @@ type updateRequest struct {
 	Body json.RawMessage `json:"body"`
 }
 
-// item loads the work item, which also checks the caller can read it.
-func item(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID, lock bool) (sqlc.WorkItem, sqlc.Project, error) {
-	return workitems.Load(ctx, q, p, id, lock)
+// target is what the comments are on, with what they need of it: its
+// project for the permissions, and its page for the anchored threads.
+type target struct {
+	Kind        string
+	ID          uuid.UUID
+	Project     sqlc.Project
+	Page        json.RawMessage
+	PageVersion int32
+}
+
+// load reads the target, which also checks the caller can read it.
+func load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, kind string, id uuid.UUID, lock bool) (target, error) {
+	switch kind {
+	case KindWorkItem:
+		w, project, err := workitems.Load(ctx, q, p, id, lock)
+		return target{Kind: kind, ID: id, Project: project, Page: w.Description, PageVersion: w.PageVersion}, err
+	case KindMeeting:
+		m, project, err := meetings.Load(ctx, q, p, id, lock)
+		return target{Kind: kind, ID: id, Project: project, Page: m.Description, PageVersion: m.PageVersion}, err
+	}
+	return target{}, apperr.ErrNotFound
+}
+
+// of is the target of a stored comment.
+func of(c sqlc.WorkItemComment) (string, uuid.UUID) {
+	if c.MeetingID != nil {
+		return KindMeeting, *c.MeetingID
+	}
+	return KindWorkItem, *c.WorkItemID
+}
+
+func (t target) is(c sqlc.WorkItemComment) bool {
+	kind, id := of(c)
+	return kind == t.Kind && id == t.ID
+}
+
+// filesOwner owns the files of the target's comments.
+func (t target) filesOwner() files.Owner {
+	kind := OwnerKind
+	if t.Kind == KindMeeting {
+		kind = meetings.CommentKind
+	}
+	return files.Owner{Kind: kind, ID: t.ID, ProjectID: t.Project.ID}
 }
 
 // canComment: every role but viewer, in an active project (RF-23, RF-39).
@@ -145,13 +193,9 @@ func mayComment(p *authz.Principal, project sqlc.Project) error {
 	return projects.Writable(project)
 }
 
-func owner(w sqlc.WorkItem) files.Owner {
-	return files.Owner{Kind: OwnerKind, ID: w.ID, ProjectID: w.ProjectID}
-}
-
-// body validates the body of a comment against the files of its work item.
-func body(ctx context.Context, q *sqlc.Queries, w sqlc.WorkItem, raw json.RawMessage) (json.RawMessage, string, error) {
-	owned, err := files.Owned(ctx, q, owner(w))
+// body validates the body of a comment against the files of its target's comments.
+func body(ctx context.Context, q *sqlc.Queries, t target, raw json.RawMessage) (json.RawMessage, string, error) {
+	owned, err := files.Owned(ctx, q, t.filesOwner())
 	if err != nil {
 		return nil, "", err
 	}
@@ -168,29 +212,45 @@ func body(ctx context.Context, q *sqlc.Queries, w sqlc.WorkItem, raw json.RawMes
 	return doc, text, nil
 }
 
-func record(ctx context.Context, q *sqlc.Queries, p *authz.Principal, action string, id uuid.UUID, after map[string]any) error {
+func record(ctx context.Context, q *sqlc.Queries, p *authz.Principal, t target, action string, id uuid.UUID, after map[string]any) error {
+	if after == nil {
+		after = map[string]any{}
+	}
+	after[t.Kind+"_id"] = t.ID
 	// Never the text (RF-42).
-	return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: "work_item.comment_" + action,
-		TargetType: "work_item_comment", TargetID: id.String(), After: after})
+	return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: t.Kind + ".comment_" + action,
+		TargetType: t.Kind + "_comment", TargetID: id.String(), After: after})
 }
 
-// List returns the threads of a work item.
-func (s *Service) List(ctx context.Context, p *authz.Principal, workItemID uuid.UUID) (List, error) {
-	w, project, err := item(ctx, s.store.Queries, p, workItemID, false)
+// List returns the threads of a work item or a meeting.
+func (s *Service) List(ctx context.Context, p *authz.Principal, kind string, id uuid.UUID) (List, error) {
+	t, err := load(ctx, s.store.Queries, p, kind, id, false)
 	if err != nil {
 		return List{}, err
 	}
-	return list(ctx, s.store.Queries, p, w, project)
+	return list(ctx, s.store.Queries, p, t)
 }
 
-func list(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.WorkItem, project sqlc.Project) (List, error) {
-	rows, err := q.ListComments(ctx, w.ID)
+func rowsOf(ctx context.Context, q *sqlc.Queries, t target) ([]sqlc.ListCommentsRow, error) {
+	if t.Kind == KindMeeting {
+		rows, err := q.ListMeetingComments(ctx, &t.ID)
+		out := make([]sqlc.ListCommentsRow, len(rows))
+		for i, r := range rows {
+			out[i] = sqlc.ListCommentsRow(r)
+		}
+		return out, err
+	}
+	return q.ListComments(ctx, &t.ID)
+}
+
+func list(ctx context.Context, q *sqlc.Queries, p *authz.Principal, t target) (List, error) {
+	rows, err := rowsOf(ctx, q, t)
 	if err != nil {
 		return List{}, fmt.Errorf("leer comentarios: %w", err)
 	}
-	can := canComment(p, project)
-	manager := p.CanManageProject(projects.Ref(project))
-	live := richtext.Threads(w.Description)
+	can := canComment(p, t.Project)
+	manager := p.CanManageProject(projects.Ref(t.Project))
+	live := richtext.Threads(t.Page)
 	out := List{Threads: []Thread{}, CanComment: can}
 	at := map[uuid.UUID]int{}
 	var bodies [][]byte
@@ -206,13 +266,13 @@ func list(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.WorkI
 			bodies = append(bodies, r.Body)
 		}
 		if r.ThreadID == nil {
-			t := Thread{Comment: c, Quote: r.Quote, Anchored: r.Anchored, AnchorDeleted: r.Anchored && !live[r.ID],
+			th := Thread{Comment: c, Quote: r.Quote, Anchored: r.Anchored, AnchorDeleted: r.Anchored && !live[r.ID],
 				ResolvedAt: r.ResolvedAt, Replies: []Comment{}}
 			if r.ResolvedBy != nil && r.ResolvedByName != nil {
-				t.ResolvedBy = &workcore.Ref{ID: *r.ResolvedBy, Name: *r.ResolvedByName}
+				th.ResolvedBy = &workcore.Ref{ID: *r.ResolvedBy, Name: *r.ResolvedByName}
 			}
 			at[r.ID] = len(out.Threads)
-			out.Threads = append(out.Threads, t)
+			out.Threads = append(out.Threads, th)
 			continue
 		}
 		if i, ok := at[*r.ThreadID]; ok {
@@ -229,17 +289,17 @@ func list(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.WorkI
 }
 
 // Create adds a thread, a reply or a thread anchored in the page.
-func (s *Service) Create(ctx context.Context, p *authz.Principal, workItemID uuid.UUID, req createRequest) (Result, error) {
+func (s *Service) Create(ctx context.Context, p *authz.Principal, kind string, id uuid.UUID, req createRequest) (Result, error) {
 	var out Result
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		w, project, err := item(ctx, q, p, workItemID, true)
+		t, err := load(ctx, q, p, kind, id, true)
 		if err != nil {
 			return err
 		}
-		if err := mayComment(p, project); err != nil {
+		if err := mayComment(p, t.Project); err != nil {
 			return err
 		}
-		doc, text, err := body(ctx, q, w, req.Body)
+		doc, text, err := body(ctx, q, t, req.Body)
 		if err != nil {
 			return err
 		}
@@ -247,13 +307,18 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, workItemID uui
 		if err != nil {
 			return err
 		}
-		params := sqlc.CreateCommentParams{WorkItemID: w.ID, AuthorID: p.UserID, Body: doc, BodyText: text, Via: via}
-		after := map[string]any{"work_item_id": w.ID}
+		params := sqlc.CreateCommentParams{AuthorID: p.UserID, Body: doc, BodyText: text, Via: via}
+		if t.Kind == KindMeeting {
+			params.MeetingID = &t.ID
+		} else {
+			params.WorkItemID = &t.ID
+		}
+		after := map[string]any{}
 		switch {
 		case req.ThreadID != nil && req.Anchor != nil:
 			return apperr.ErrValidation.WithDetail("field", "anchor")
 		case req.ThreadID != nil:
-			root, err := thread(ctx, q, w, *req.ThreadID)
+			root, err := thread(ctx, q, t, *req.ThreadID)
 			if err != nil {
 				return err
 			}
@@ -267,44 +332,44 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, workItemID uui
 				after["reopened"] = true
 			}
 		case req.Anchor != nil:
-			saved, err := anchor(ctx, q, p, w, *req.Anchor)
+			saved, err := anchor(ctx, q, p, t, *req.Anchor)
 			if err != nil {
 				return err
 			}
 			out.Page = &saved
 			params.ID, params.Quote, params.Anchored = &req.Anchor.ThreadID, &req.Anchor.Quote, true
 			after["anchored"] = true
-			if w, err = q.GetWorkItem(ctx, w.ID); err != nil {
-				return fmt.Errorf("releer work item: %w", err)
+			if t, err = load(ctx, q, p, kind, id, false); err != nil {
+				return err
 			}
 		}
 		c, err := q.CreateComment(ctx, params)
 		if err != nil {
 			return fmt.Errorf("crear comentario: %w", err)
 		}
-		if err := record(ctx, q, p, "created", c.ID, after); err != nil {
+		if err := record(ctx, q, p, t, "created", c.ID, after); err != nil {
 			return err
 		}
-		if err := emitCreated(ctx, q, p, project, w, c, text); err != nil {
+		if err := emitCreated(ctx, q, p, t, c, text); err != nil {
 			return err
 		}
-		out.Comments, err = list(ctx, q, p, w, project)
+		out.Comments, err = list(ctx, q, p, t)
 		return err
 	})
 	return out, err
 }
 
-// thread returns the root of the thread of comment id, in work item w.
-func thread(ctx context.Context, q *sqlc.Queries, w sqlc.WorkItem, id uuid.UUID) (sqlc.WorkItemComment, error) {
+// thread returns the root of the thread of comment id, in target t.
+func thread(ctx context.Context, q *sqlc.Queries, t target, id uuid.UUID) (sqlc.WorkItemComment, error) {
 	c, err := q.GetCommentForUpdate(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && c.WorkItemID != w.ID) {
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !t.is(c)) {
 		return c, apperr.ErrNotFound
 	}
 	if err != nil {
 		return c, fmt.Errorf("leer comentario: %w", err)
 	}
 	if c.ThreadID != nil {
-		return thread(ctx, q, w, *c.ThreadID)
+		return thread(ctx, q, t, *c.ThreadID)
 	}
 	return c, nil
 }
@@ -312,9 +377,9 @@ func thread(ctx context.Context, q *sqlc.Queries, w sqlc.WorkItem, id uuid.UUID)
 // anchor saves the page with the new thread's mark. The page must be the
 // stored one, with the same anchors plus the new one: whoever can't edit the
 // page only marks it (RF-46).
-func anchor(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.WorkItem, a anchorRequest) (PageSaved, error) {
-	if a.PageVersion != w.PageVersion {
-		return PageSaved{}, pageConflict(w.PageVersion)
+func anchor(ctx context.Context, q *sqlc.Queries, p *authz.Principal, t target, a anchorRequest) (PageSaved, error) {
+	if a.PageVersion != t.PageVersion {
+		return PageSaved{}, pageConflict(t.PageVersion)
 	}
 	exists, err := q.CommentExists(ctx, a.ThreadID)
 	if err != nil {
@@ -323,11 +388,11 @@ func anchor(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.Wor
 	if exists {
 		return PageSaved{}, apperr.ErrValidation.WithDetail("field", "thread_id")
 	}
-	doc, text, page, err := files.Page(ctx, q, files.Owner{Kind: "work_item", ID: w.ID, ProjectID: w.ProjectID}, a.Page)
+	doc, text, page, err := files.Page(ctx, q, files.Owner{Kind: t.Kind, ID: t.ID, ProjectID: t.Project.ID}, a.Page)
 	if err != nil {
 		return PageSaved{}, err
 	}
-	before := richtext.Threads(w.Description)
+	before := richtext.Threads(t.Page)
 	if !slices.Contains(page.Threads, a.ThreadID) || len(page.Threads) != len(before)+1 {
 		return PageSaved{}, errPageChanged
 	}
@@ -336,44 +401,45 @@ func anchor(ctx context.Context, q *sqlc.Queries, p *authz.Principal, w sqlc.Wor
 			return PageSaved{}, errPageChanged
 		}
 	}
-	if !richtext.SameButAnchors(doc, w.Description) {
+	if !richtext.SameButAnchors(doc, t.Page) {
 		return PageSaved{}, errPageChanged
 	}
-	saved, err := q.UpdateWorkItemPage(ctx, sqlc.UpdateWorkItemPageParams{ID: w.ID, PageVersion: a.PageVersion, Description: doc, DescriptionText: text})
-	if err != nil {
-		return PageSaved{}, fmt.Errorf("guardar página: %w", err)
-	}
-	refs, err := mentions.Refs(ctx, q, p, saved.Description)
+	saved, err := pages.Update(ctx, q, t.Kind, t.ID, a.PageVersion, doc, text)
 	if err != nil {
 		return PageSaved{}, err
 	}
-	return PageSaved{Page: saved.Description, PageVersion: saved.PageVersion, Version: saved.Version, Refs: refs}, nil
+	refs, err := mentions.Refs(ctx, q, p, saved.Page)
+	if err != nil {
+		return PageSaved{}, err
+	}
+	return PageSaved{Page: saved.Page, PageVersion: saved.PageVersion, Version: saved.Version, Refs: refs}, nil
 }
 
-// comment loads a comment with its work item, locked, for a change.
-func comment(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID) (sqlc.WorkItemComment, sqlc.WorkItem, sqlc.Project, error) {
+// comment loads a comment with its target, for a change.
+func comment(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID) (sqlc.WorkItemComment, target, error) {
 	c, err := q.GetCommentForUpdate(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return c, sqlc.WorkItem{}, sqlc.Project{}, apperr.ErrNotFound
+		return c, target{}, apperr.ErrNotFound
 	}
 	if err != nil {
-		return c, sqlc.WorkItem{}, sqlc.Project{}, fmt.Errorf("leer comentario: %w", err)
+		return c, target{}, fmt.Errorf("leer comentario: %w", err)
 	}
-	w, project, err := item(ctx, q, p, c.WorkItemID, false)
+	kind, owner := of(c)
+	t, err := load(ctx, q, p, kind, owner, false)
 	if err != nil {
-		return c, w, project, err
+		return c, t, err
 	}
-	if err := mayComment(p, project); err != nil {
-		return c, w, project, err
+	if err := mayComment(p, t.Project); err != nil {
+		return c, t, err
 	}
-	return c, w, project, nil
+	return c, t, nil
 }
 
 // Update changes the text of one's own comment (RF-31, RF-35).
 func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, req updateRequest) (Result, error) {
 	var out Result
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		c, w, project, err := comment(ctx, q, p, id)
+		c, t, err := comment(ctx, q, p, id)
 		if err != nil {
 			return err
 		}
@@ -383,17 +449,17 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if c.AuthorID != p.UserID {
 			return apperr.ErrForbidden
 		}
-		doc, text, err := body(ctx, q, w, req.Body)
+		doc, text, err := body(ctx, q, t, req.Body)
 		if err != nil {
 			return err
 		}
 		if _, err := q.UpdateCommentBody(ctx, sqlc.UpdateCommentBodyParams{ID: id, Body: doc, BodyText: text}); err != nil {
 			return fmt.Errorf("editar comentario: %w", err)
 		}
-		if err := record(ctx, q, p, "updated", id, map[string]any{"work_item_id": w.ID}); err != nil {
+		if err := record(ctx, q, p, t, "updated", id, nil); err != nil {
 			return err
 		}
-		out.Comments, err = list(ctx, q, p, w, project)
+		out.Comments, err = list(ctx, q, p, t)
 		return err
 	})
 	return out, err
@@ -404,23 +470,23 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) (Result, error) {
 	var out Result
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		c, w, project, err := comment(ctx, q, p, id)
+		c, t, err := comment(ctx, q, p, id)
 		if err != nil {
 			return err
 		}
 		if c.DeletedAt != nil {
 			return apperr.ErrNotFound
 		}
-		if c.AuthorID != p.UserID && !p.CanManageProject(projects.Ref(project)) {
+		if c.AuthorID != p.UserID && !p.CanManageProject(projects.Ref(t.Project)) {
 			return apperr.ErrForbidden
 		}
 		if err := remove(ctx, q, c); err != nil {
 			return err
 		}
-		if err := record(ctx, q, p, "deleted", id, map[string]any{"work_item_id": w.ID, "author_id": c.AuthorID}); err != nil {
+		if err := record(ctx, q, p, t, "deleted", id, map[string]any{"author_id": c.AuthorID}); err != nil {
 			return err
 		}
-		out.Comments, err = list(ctx, q, p, w, project)
+		out.Comments, err = list(ctx, q, p, t)
 		return err
 	})
 	return out, err
@@ -466,7 +532,7 @@ func remove(ctx context.Context, q *sqlc.Queries, c sqlc.WorkItemComment) error 
 func (s *Service) SetResolved(ctx context.Context, p *authz.Principal, id uuid.UUID, resolved bool) (Result, error) {
 	var out Result
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		c, w, project, err := comment(ctx, q, p, id)
+		c, t, err := comment(ctx, q, p, id)
 		if err != nil {
 			return err
 		}
@@ -481,40 +547,40 @@ func (s *Service) SetResolved(ctx context.Context, p *authz.Principal, id uuid.U
 			if resolved {
 				action = "resolved"
 			}
-			if err := record(ctx, q, p, action, id, map[string]any{"work_item_id": w.ID}); err != nil {
+			if err := record(ctx, q, p, t, action, id, nil); err != nil {
 				return err
 			}
-			if !project.IsTemplate {
+			if !t.Project.IsTemplate {
 				typ := events.CommentThreadReopened
 				if resolved {
 					typ = events.CommentThreadResolved
 				}
 				actor := p.UserID
-				if err := events.Emit(ctx, q, events.New{Type: typ, ActorID: &actor, ProjectID: project.ID,
-					SubjectType: "work_item", SubjectID: w.ID, Payload: map[string]any{"thread_id": id}}); err != nil {
+				if err := events.Emit(ctx, q, events.New{Type: typ, ActorID: &actor, ProjectID: t.Project.ID,
+					SubjectType: t.Kind, SubjectID: t.ID, Payload: map[string]any{"thread_id": id}}); err != nil {
 					return err
 				}
 			}
 		}
-		out.Comments, err = list(ctx, q, p, w, project)
+		out.Comments, err = list(ctx, q, p, t)
 		return err
 	})
 	return out, err
 }
 
-// Upload stores a file for the comments of a work item (RF-26). It is not
-// tied to a comment: the comment that uses it may not exist yet.
-func (s *Service) Upload(ctx context.Context, p *authz.Principal, workItemID uuid.UUID, name string, data []byte) (files.File, error) {
+// Upload stores a file for the comments of a work item or a meeting (RF-26).
+// It is not tied to a comment: the comment that uses it may not exist yet.
+func (s *Service) Upload(ctx context.Context, p *authz.Principal, kind string, id uuid.UUID, name string, data []byte) (files.File, error) {
 	var out files.File
 	err := s.store.InTx(ctx, func(_ pgx.Tx, q *sqlc.Queries) error {
-		w, project, err := item(ctx, q, p, workItemID, false)
+		t, err := load(ctx, q, p, kind, id, false)
 		if err != nil {
 			return err
 		}
-		if err := mayComment(p, project); err != nil {
+		if err := mayComment(p, t.Project); err != nil {
 			return err
 		}
-		out, err = s.files.Upload(ctx, q, owner(w), p.UserID, name, data)
+		out, err = s.files.Upload(ctx, q, t.filesOwner(), p.UserID, name, data)
 		return err
 	})
 	return out, err
@@ -522,8 +588,8 @@ func (s *Service) Upload(ctx context.Context, p *authz.Principal, workItemID uui
 
 // emitCreated records the comment for the notifications (spec 017): its
 // thread, who it mentions and the first 140 characters of its text (RF-24).
-func emitCreated(ctx context.Context, q *sqlc.Queries, p *authz.Principal, project sqlc.Project, w sqlc.WorkItem, c sqlc.WorkItemComment, text string) error {
-	if project.IsTemplate {
+func emitCreated(ctx context.Context, q *sqlc.Queries, p *authz.Principal, t target, c sqlc.WorkItemComment, text string) error {
+	if t.Project.IsTemplate {
 		return nil
 	}
 	thread := c.ID
@@ -542,7 +608,7 @@ func emitCreated(ctx context.Context, q *sqlc.Queries, p *authz.Principal, proje
 	}
 	actor := p.UserID
 	return events.Emit(ctx, q, events.New{
-		Type: events.CommentCreated, ActorID: &actor, ProjectID: project.ID, SubjectType: "work_item", SubjectID: w.ID,
+		Type: events.CommentCreated, ActorID: &actor, ProjectID: t.Project.ID, SubjectType: t.Kind, SubjectID: t.ID,
 		Payload: map[string]any{"comment_id": c.ID, "thread_id": thread, "reply": c.ThreadID != nil, "mentions": mentioned, "excerpt": string(excerpt)},
 	})
 }

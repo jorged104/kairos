@@ -29,9 +29,11 @@ func NewHandler(svc *Service, logger *slog.Logger) *Handler {
 func (h *Handler) Routes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequirePermission(authz.WorkRead, h.logger))
-		r.Get("/work-items/{id}/comments", h.list)
-		r.Post("/work-items/{id}/comments", h.create)
-		r.Post("/work-items/{id}/comment-files", h.upload)
+		for kind, path := range map[string]string{KindWorkItem: "/work-items/{id}", KindMeeting: "/meetings/{id}"} {
+			r.Get(path+"/comments", h.list(kind))
+			r.Post(path+"/comments", h.create(kind))
+			r.Post(path+"/comment-files", h.upload(kind))
+		}
 		r.Patch("/comments/{id}", h.update)
 		r.Delete("/comments/{id}", h.with(h.svc.Delete))
 		r.Post("/comments/{id}/resolve", h.with(func(ctx context.Context, p *authz.Principal, id uuid.UUID) (Result, error) {
@@ -43,37 +45,41 @@ func (h *Handler) Routes(r chi.Router) {
 	})
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.PathUUID(r, "id")
-	if !ok {
-		apperr.Write(w, h.logger, apperr.ErrNotFound)
-		return
+func (h *Handler) list(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := httpx.PathUUID(r, "id")
+		if !ok {
+			apperr.Write(w, h.logger, apperr.ErrNotFound)
+			return
+		}
+		out, err := h.svc.List(r.Context(), authz.FromContext(r.Context()), kind, id)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, out)
 	}
-	out, err := h.svc.List(r.Context(), authz.FromContext(r.Context()), id)
-	if err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.PathUUID(r, "id")
-	if !ok {
-		apperr.Write(w, h.logger, apperr.ErrNotFound)
-		return
+func (h *Handler) create(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := httpx.PathUUID(r, "id")
+		if !ok {
+			apperr.Write(w, h.logger, apperr.ErrNotFound)
+			return
+		}
+		var req createRequest
+		if err := apperr.Decode(r, &req); err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		out, err := h.svc.Create(r.Context(), authz.FromContext(r.Context()), kind, id, req)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, out)
 	}
-	var req createRequest
-	if err := apperr.Decode(r, &req); err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	out, err := h.svc.Create(r.Context(), authz.FromContext(r.Context()), id, req)
-	if err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, out)
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -111,22 +117,24 @@ func (h *Handler) with(fn func(context.Context, *authz.Principal, uuid.UUID) (Re
 	}
 }
 
-// upload receives a file for the comments of a work item (RF-26).
-func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
-	id, ok := httpx.PathUUID(r, "id")
-	if !ok {
-		apperr.Write(w, h.logger, apperr.ErrNotFound)
-		return
+// upload receives a file for the comments of a work item or a meeting (RF-26).
+func (h *Handler) upload(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := httpx.PathUUID(r, "id")
+		if !ok {
+			apperr.Write(w, h.logger, apperr.ErrNotFound)
+			return
+		}
+		name, data, err := pages.ReadUpload(w, r)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		f, err := h.svc.Upload(r.Context(), authz.FromContext(r.Context()), kind, id, name, data)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, f)
 	}
-	name, data, err := pages.ReadUpload(w, r)
-	if err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	f, err := h.svc.Upload(r.Context(), authz.FromContext(r.Context()), id, name, data)
-	if err != nil {
-		apperr.Write(w, h.logger, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusCreated, f)
 }

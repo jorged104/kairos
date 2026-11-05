@@ -30,6 +30,7 @@ var routes = map[string]string{
 	KindWorkItem:  "/work-items/{id}",
 	KindMilestone: "/milestones/{id}",
 	KindProject:   "/projects/{id}",
+	KindMeeting:   "/meetings/{id}",
 }
 
 // Routes need work:read; each change checks the owner's own permission.
