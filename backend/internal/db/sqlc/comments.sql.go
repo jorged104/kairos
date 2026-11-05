@@ -47,16 +47,17 @@ func (q *Queries) CountReplies(ctx context.Context, threadID *uuid.UUID) (int64,
 
 const createComment = `-- name: CreateComment :one
 
-INSERT INTO work_item_comments (id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, via)
-VALUES (coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::uuid,
-        $4::uuid, $5::jsonb, $6::text, $7::text,
-        $8::boolean, $9::jsonb)
-RETURNING id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via
+INSERT INTO work_item_comments (id, work_item_id, meeting_id, thread_id, author_id, body, body_text, quote, anchored, via)
+VALUES (coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::uuid, $4::uuid,
+        $5::uuid, $6::jsonb, $7::text, $8::text,
+        $9::boolean, $10::jsonb)
+RETURNING id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via, meeting_id
 `
 
 type CreateCommentParams struct {
 	ID         *uuid.UUID
-	WorkItemID uuid.UUID
+	WorkItemID *uuid.UUID
+	MeetingID  *uuid.UUID
 	ThreadID   *uuid.UUID
 	AuthorID   uuid.UUID
 	Body       json.RawMessage
@@ -72,6 +73,7 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (W
 	row := q.db.QueryRow(ctx, createComment,
 		arg.ID,
 		arg.WorkItemID,
+		arg.MeetingID,
 		arg.ThreadID,
 		arg.AuthorID,
 		arg.Body,
@@ -96,6 +98,7 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (W
 		&i.ResolvedAt,
 		&i.ResolvedBy,
 		&i.Via,
+		&i.MeetingID,
 	)
 	return i, err
 }
@@ -110,7 +113,7 @@ func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getCommentForUpdate = `-- name: GetCommentForUpdate :one
-SELECT id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via FROM work_item_comments WHERE id = $1 FOR UPDATE
+SELECT id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via, meeting_id FROM work_item_comments WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetCommentForUpdate(ctx context.Context, id uuid.UUID) (WorkItemComment, error) {
@@ -131,6 +134,7 @@ func (q *Queries) GetCommentForUpdate(ctx context.Context, id uuid.UUID) (WorkIt
 		&i.ResolvedAt,
 		&i.ResolvedBy,
 		&i.Via,
+		&i.MeetingID,
 	)
 	return i, err
 }
@@ -147,7 +151,7 @@ ORDER BY c.created_at, c.id
 
 type ListCommentsRow struct {
 	ID             uuid.UUID
-	WorkItemID     uuid.UUID
+	WorkItemID     *uuid.UUID
 	ThreadID       *uuid.UUID
 	AuthorID       uuid.UUID
 	AuthorName     string
@@ -164,7 +168,7 @@ type ListCommentsRow struct {
 }
 
 // Every comment of a work item, roots and replies, with the names to show.
-func (q *Queries) ListComments(ctx context.Context, workItemID uuid.UUID) ([]ListCommentsRow, error) {
+func (q *Queries) ListComments(ctx context.Context, workItemID *uuid.UUID) ([]ListCommentsRow, error) {
 	rows, err := q.db.Query(ctx, listComments, workItemID)
 	if err != nil {
 		return nil, err
@@ -204,7 +208,7 @@ const setThreadResolved = `-- name: SetThreadResolved :one
 UPDATE work_item_comments
 SET resolved_at = CASE WHEN $1::boolean THEN now() END,
     resolved_by = CASE WHEN $1::boolean THEN $2::uuid END
-WHERE id = $3::uuid RETURNING id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via
+WHERE id = $3::uuid RETURNING id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via, meeting_id
 `
 
 type SetThreadResolvedParams struct {
@@ -231,13 +235,14 @@ func (q *Queries) SetThreadResolved(ctx context.Context, arg SetThreadResolvedPa
 		&i.ResolvedAt,
 		&i.ResolvedBy,
 		&i.Via,
+		&i.MeetingID,
 	)
 	return i, err
 }
 
 const updateCommentBody = `-- name: UpdateCommentBody :one
 UPDATE work_item_comments SET body = $2, body_text = $3, edited_at = now()
-WHERE id = $1 RETURNING id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via
+WHERE id = $1 RETURNING id, work_item_id, thread_id, author_id, body, body_text, quote, anchored, created_at, edited_at, deleted_at, resolved_at, resolved_by, via, meeting_id
 `
 
 type UpdateCommentBodyParams struct {
@@ -264,6 +269,7 @@ func (q *Queries) UpdateCommentBody(ctx context.Context, arg UpdateCommentBodyPa
 		&i.ResolvedAt,
 		&i.ResolvedBy,
 		&i.Via,
+		&i.MeetingID,
 	)
 	return i, err
 }

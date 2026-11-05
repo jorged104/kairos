@@ -71,7 +71,7 @@ func (s *Service) Save(ctx context.Context, p *authz.Principal, kind string, id 
 		if err != nil {
 			return err
 		}
-		if out, err = update(ctx, q, kind, id, req.PageVersion, doc, text); err != nil {
+		if out, err = Update(ctx, q, kind, id, req.PageVersion, doc, text); err != nil {
 			return err
 		}
 		if out.Refs, err = mentions.Refs(ctx, q, p, out.Page); err != nil {
@@ -92,7 +92,9 @@ func (s *Service) Save(ctx context.Context, p *authz.Principal, kind string, id 
 	return out, err
 }
 
-func update(ctx context.Context, q *sqlc.Queries, kind string, id uuid.UUID, pageVersion int32, doc json.RawMessage, text string) (Saved, error) {
+// Update stores the page of kind/id if its page version is still pageVersion;
+// anchoring a comment thread saves through here too (spec 006, RF-45).
+func Update(ctx context.Context, q *sqlc.Queries, kind string, id uuid.UUID, pageVersion int32, doc json.RawMessage, text string) (Saved, error) {
 	var (
 		out Saved
 		err error
@@ -110,6 +112,10 @@ func update(ctx context.Context, q *sqlc.Queries, kind string, id uuid.UUID, pag
 		var pr sqlc.Project
 		pr, err = q.UpdateProjectPage(ctx, sqlc.UpdateProjectPageParams{ID: id, PageVersion: pageVersion, Description: doc, DescriptionText: text})
 		out = Saved{Page: pr.Description, PageVersion: pr.PageVersion, Version: pr.Version}
+	case KindMeeting:
+		var m sqlc.Meeting
+		m, err = q.UpdateMeetingPage(ctx, sqlc.UpdateMeetingPageParams{ID: id, PageVersion: pageVersion, Description: doc, DescriptionText: text})
+		out = Saved{Page: m.Description, PageVersion: m.PageVersion, Version: m.Version}
 	}
 	if err != nil {
 		return out, fmt.Errorf("guardar página: %w", err)

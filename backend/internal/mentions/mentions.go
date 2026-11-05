@@ -78,6 +78,15 @@ func Refs(ctx context.Context, q *sqlc.Queries, p *authz.Principal, doc json.Raw
 			out[m.ID.String()] = visible(m.IsTemplate, m.Name)
 		}
 	}
+	if len(ids["meeting"]) > 0 {
+		rows, err := q.MentionedMeetings(ctx, ids["meeting"])
+		if err != nil {
+			return nil, fmt.Errorf("reuniones mencionadas: %w", err)
+		}
+		for _, m := range rows {
+			out[m.ID.String()] = visible(m.IsTemplate, m.Title)
+		}
+	}
 	if len(ids["project"]) > 0 {
 		rows, err := q.MentionedProjects(ctx, ids["project"])
 		if err != nil {
@@ -104,6 +113,7 @@ type Results struct {
 	WorkItems  []Result `json:"work_items"`
 	Milestones []Result `json:"milestones"`
 	Projects   []Result `json:"projects"`
+	Meetings   []Result `json:"meetings"` // spec 018, RF-18
 }
 
 var likeEscaper = strings.NewReplacer(`\`, `\`, `%`, `\%`, `_`, `\_`)
@@ -111,7 +121,7 @@ var likeEscaper = strings.NewReplacer(`\`, `\`, `%`, `\%`, `_`, `\_`)
 // Search finds work items by key or title, milestones and projects that p can
 // read, for the # search (RF-26). The scope is applied in the query.
 func Search(ctx context.Context, q *sqlc.Queries, p *authz.Principal, text string) (Results, error) {
-	out := Results{WorkItems: []Result{}, Milestones: []Result{}, Projects: []Result{}}
+	out := Results{WorkItems: []Result{}, Milestones: []Result{}, Projects: []Result{}, Meetings: []Result{}}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return out, nil
@@ -140,6 +150,13 @@ func Search(ctx context.Context, q *sqlc.Queries, p *authz.Principal, text strin
 	}
 	for _, pr := range ps {
 		out.Projects = append(out.Projects, Result{Kind: "project", ID: pr.ID, Label: pr.Identifier + " " + pr.Name})
+	}
+	mt, err := q.SearchMentionMeetings(ctx, sqlc.SearchMentionMeetingsParams{Templates: templates, Contains: contains})
+	if err != nil {
+		return out, fmt.Errorf("buscar reuniones: %w", err)
+	}
+	for _, m := range mt {
+		out.Meetings = append(out.Meetings, Result{Kind: "meeting", ID: m.ID, Label: m.Title + " · " + m.Identifier})
 	}
 	return out, nil
 }

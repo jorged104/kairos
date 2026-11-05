@@ -643,7 +643,7 @@ func (q *Queries) ListProjectWorkItemValuesForCopy(ctx context.Context, projectI
 }
 
 const listProjectWorkItemsForCopy = `-- name: ListProjectWorkItemsForCopy :many
-SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id FROM work_items WHERE project_id = $1 ORDER BY depth, sequence_number
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id FROM work_items WHERE project_id = $1 ORDER BY depth, sequence_number
 `
 
 func (q *Queries) ListProjectWorkItemsForCopy(ctx context.Context, projectID uuid.UUID) ([]WorkItem, error) {
@@ -691,6 +691,7 @@ func (q *Queries) ListProjectWorkItemsForCopy(ctx context.Context, projectID uui
 			&i.WeightedDoneRatio,
 			&i.PageVersion,
 			&i.SizeID,
+			&i.MeetingID,
 		); err != nil {
 			return nil, err
 		}

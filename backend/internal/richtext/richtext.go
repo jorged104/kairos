@@ -106,7 +106,7 @@ var pageNodeAttrs = func() map[string]map[string]attrRule {
 		"fileAttachment": {"fileId": uuidString, "name": dropString, "size": dropNumber},
 		// The label is resolved when reading (RF-27).
 		"mention": {
-			"kind": oneOf("user", "work_item", "milestone", "project"), "id": uuidString,
+			"kind": oneOf("user", "work_item", "milestone", "project", "meeting"), "id": uuidString,
 			"label": dropString, "mentionSuggestionChar": dropString,
 		},
 	}

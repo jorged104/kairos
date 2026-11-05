@@ -24,6 +24,7 @@ import (
 	"openscum/internal/health"
 	"openscum/internal/idpmappings"
 	"openscum/internal/mcp"
+	"openscum/internal/meetings"
 	"openscum/internal/mentions"
 	"openscum/internal/milestones"
 	"openscum/internal/notifications"
@@ -104,6 +105,7 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	workItemsH := workitems.NewHandler(workItemsSvc, logger)
 	viewsH := views.NewHandler(views.NewService(store, workItemsSvc), logger)
 	milestonesH := milestones.NewHandler(milestones.NewService(store), logger)
+	meetingsH := meetings.NewHandler(meetings.NewService(store), logger)
 	objectivesH := objectives.NewHandler(objectives.NewService(store), logger)
 	pagesH := pages.NewHandler(pages.NewService(store, filesSvc), logger)
 	mentionsH := mentions.NewHandler(store, logger)
@@ -152,6 +154,7 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 			workItemsH.Routes(p)
 			viewsH.Routes(p)
 			milestonesH.Routes(p)
+			meetingsH.Routes(p)
 			objectivesH.Routes(p)
 			pagesH.Routes(p)
 			mentionsH.Routes(p)

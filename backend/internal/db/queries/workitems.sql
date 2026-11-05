@@ -11,8 +11,8 @@ UPDATE projects SET wi_counter = wi_counter + 1 WHERE id = $1 RETURNING wi_count
 -- name: CreateWorkItem :one
 INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, sequence_number, title,
                         description, description_text, author_id, assignee_id, start_date, due_date,
-                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight, size_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                        estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight, size_id, meeting_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
 RETURNING *;
 
 -- name: GetWorkItem :one

@@ -33,9 +33,11 @@ const countNotifications = `-- name: CountNotifications :one
 SELECT count(*) FROM notifications n
 LEFT JOIN work_items w ON n.subject_type = 'work_item' AND w.id = n.subject_id
 LEFT JOIN milestones m ON n.subject_type = 'milestone' AND m.id = n.subject_id
+LEFT JOIN meetings mt ON n.subject_type = 'meeting' AND mt.id = n.subject_id
 WHERE n.user_id = $1::uuid
   AND (n.subject_type <> 'work_item' OR w.id IS NOT NULL)
   AND (n.subject_type <> 'milestone' OR m.id IS NOT NULL)
+  AND (n.subject_type <> 'meeting' OR mt.id IS NOT NULL)
   AND (NOT $2::boolean OR n.read_at IS NULL)
 `
 
@@ -89,7 +91,7 @@ func (q *Queries) GetFollow(ctx context.Context, arg GetFollowParams) (bool, err
 const listNotifications = `-- name: ListNotifications :many
 SELECT n.id, n.subject_type, n.subject_id, n.project_id, n.actors, n.events, n.mention, n.last_kind, n.last_data, n.via,
        n.read_at, n.updated_at, p.name AS project_name, p.identifier AS project_identifier,
-       coalesce(w.title, m.name, p.name)::text AS title, w.sequence_number AS sequence_number,
+       coalesce(w.title, m.name, mt.title, p.name)::text AS title, w.sequence_number AS sequence_number,
        (n.last_data ? 'comment_id' AND NOT EXISTS (
            SELECT 1 FROM work_item_comments c WHERE c.id = (n.last_data->>'comment_id')::uuid AND c.deleted_at IS NULL
        ))::boolean AS comment_gone
@@ -97,9 +99,11 @@ FROM notifications n
 JOIN projects p ON p.id = n.project_id
 LEFT JOIN work_items w ON n.subject_type = 'work_item' AND w.id = n.subject_id
 LEFT JOIN milestones m ON n.subject_type = 'milestone' AND m.id = n.subject_id
+LEFT JOIN meetings mt ON n.subject_type = 'meeting' AND mt.id = n.subject_id
 WHERE n.user_id = $1::uuid
   AND (n.subject_type <> 'work_item' OR w.id IS NOT NULL)
   AND (n.subject_type <> 'milestone' OR m.id IS NOT NULL)
+  AND (n.subject_type <> 'meeting' OR mt.id IS NOT NULL)
   AND (NOT $2::boolean OR n.read_at IS NULL)
   AND ($3::uuid IS NULL OR n.id = $3::uuid)
 ORDER BY (n.read_at IS NOT NULL), n.updated_at DESC, n.id

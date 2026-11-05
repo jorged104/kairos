@@ -425,6 +425,15 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 		if err != nil {
 			return err
 		}
+		if req.MeetingID != nil {
+			m, err := q.GetMeeting(ctx, *req.MeetingID)
+			if errors.Is(err, pgx.ErrNoRows) || (err == nil && m.ProjectID != projectID) {
+				return apperr.ErrValidation.WithDetail("field", "meeting_id")
+			}
+			if err != nil {
+				return fmt.Errorf("leer reunión: %w", err)
+			}
+		}
 		n, err := q.NextWorkItemNumber(ctx, projectID)
 		if err != nil {
 			return fmt.Errorf("numerar work item: %w", err)
@@ -434,7 +443,7 @@ func (s *Service) Create(ctx context.Context, p *authz.Principal, projectID uuid
 			SequenceNumber: n, Title: req.Title, Description: desc, DescriptionText: text, AuthorID: p.UserID,
 			AssigneeID: first(assignees), StartDate: workcore.ToTime(req.StartDate), DueDate: workcore.ToTime(req.DueDate),
 			EstimatedHours: req.EstimatedHours, RemainingHours: req.RemainingHours, DoneRatio: req.DoneRatio,
-			Position: req.Position, Depth: depth, Weight: weight, SizeID: req.SizeID.ID,
+			Position: req.Position, Depth: depth, Weight: weight, SizeID: req.SizeID.ID, MeetingID: req.MeetingID,
 		})
 		if err != nil {
 			return fmt.Errorf("crear work item: %w", err)
@@ -889,6 +898,13 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 	names, err := q.WorkItemPeople(ctx, []uuid.UUID{row.AuthorID})
 	if err != nil {
 		return out, fmt.Errorf("leer personas: %w", err)
+	}
+	if row.MeetingID != nil {
+		m, err := q.GetMeeting(ctx, *row.MeetingID)
+		if err != nil {
+			return out, fmt.Errorf("leer reunión: %w", err)
+		}
+		out.Meeting = &workcore.Ref{ID: m.ID, Name: m.Title}
 	}
 	for _, n := range names {
 		out.Author.Name = n.Name
