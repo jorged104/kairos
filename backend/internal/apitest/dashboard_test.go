@@ -18,6 +18,7 @@ type dashboardDTO struct {
 		ID       uuid.UUID `json:"id"`
 		Title    string    `json:"title"`
 		Closed   bool      `json:"closed"`
+		TypeID   uuid.UUID `json:"type_id"`
 		LateDays int       `json:"late_days"`
 		ClosedOn *string   `json:"closed_on"`
 		CanMove  bool      `json:"can_move"`
@@ -90,6 +91,12 @@ func TestDashboard(t *testing.T) {
 	// Open ones and the ones closed in the last 14 days, of active projects (RF-10, RF-11).
 	if len(d.Tasks) != 4 || titles["Atrasada"] != 10 || titles["Sin fecha"] != 0 {
 		t.Fatalf("tasks = %+v", d.Tasks)
+	}
+	// The type of each, for the colour of its card (change of 2026-11-05, RF-14a).
+	for _, task := range d.Tasks {
+		if task.TypeID != s.env.CatalogID("work_item_types", "Actividad") {
+			t.Fatalf("type of %q = %s", task.Title, task.TypeID)
+		}
 	}
 	for _, name := range []string{"Cerrada tarde", "Mía"} {
 		if _, ok := titles[name]; !ok {
