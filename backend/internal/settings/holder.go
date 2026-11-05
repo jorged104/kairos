@@ -20,6 +20,7 @@ import (
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/mail"
 )
 
 // ReloadInterval is how often another instance's change is picked up (RF-3).
@@ -61,6 +62,7 @@ type snapshot struct {
 	row          sqlc.SystemSetting
 	clientSecret string
 	s3Secret     string
+	mailPassword string
 	test         *SSOTest
 }
 
@@ -147,6 +149,9 @@ func (h *Holder) set(row sqlc.SystemSetting) {
 	if s.s3Secret, err = h.box.open(row.S3SecretKey); err != nil {
 		h.logger.Warn("no se puede descifrar la clave secreta del S3; hay que escribirla de nuevo")
 	}
+	if s.mailPassword, err = h.box.open(row.SmtpPassword); err != nil {
+		h.logger.Warn("no se puede descifrar la contraseña del correo; hay que escribirla de nuevo")
+	}
 	if len(row.OidcTest) > 0 {
 		var t SSOTest
 		if json.Unmarshal(row.OidcTest, &t) == nil {
@@ -225,6 +230,16 @@ func (h *Holder) Files() config.FilesConfig {
 	return config.FilesConfig{
 		Endpoint: s.row.S3Endpoint, Bucket: s.row.S3Bucket, Region: s.row.S3Region,
 		AccessKey: s.row.S3AccessKey, SecretKey: s.s3Secret, UseSSL: s.row.S3UseSsl,
+	}
+}
+
+// Mail is the outgoing mail (spec 019), with its password in clear.
+func (h *Holder) Mail() mail.Config {
+	s := h.cur.Load()
+	r := s.row
+	return mail.Config{
+		Enabled: r.MailEnabled, Host: r.SmtpHost, Port: int(r.SmtpPort), Security: r.SmtpSecurity,
+		Username: r.SmtpUsername, Password: s.mailPassword, FromEmail: r.MailFromEmail, FromName: r.MailFromName,
 	}
 }
 

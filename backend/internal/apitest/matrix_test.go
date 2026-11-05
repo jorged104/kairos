@@ -96,9 +96,10 @@ var matrixOps = []matrixOp{
 		m.admin.Post("/api/users/"+id.String()+"/offboard", nil)
 		return c.Post("/api/users/"+id.String()+"/restore", nil)
 	}, adminOnly(200)},
-	{"fijar contraseña de otro", func(m *matrixEnv, c *Client, a string) *Response {
-		return c.Do(http.MethodPut, "/api/users/"+m.target(a).String()+"/password", map[string]any{"password": "nueva-contrasena-x"})
-	}, adminOnly(204)},
+	// Spec 019: a link to a new password instead of setting it by hand.
+	{"enviar enlace de nueva contraseña", func(m *matrixEnv, c *Client, a string) *Response {
+		return c.Post("/api/users/"+m.target(a).String()+"/password-link", nil)
+	}, adminOnly(200)},
 	{"asignar rol viewer", func(m *matrixEnv, c *Client, a string) *Response {
 		return c.Post("/api/users/"+m.target(a).String()+"/roles", map[string]any{"role": "viewer"})
 	}, adminAndLeadIn(200)},

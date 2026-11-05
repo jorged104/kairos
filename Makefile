@@ -8,13 +8,16 @@ DB_WAIT_SECONDS := 60
 SQLC_IMAGE := sqlc/sqlc:1.30.0
 S3_BUCKET := kairos
 
-.PHONY: up up-sso up-s3 db api web down migrate sqlc test test-api test-web dev-api dev-web
+.PHONY: up up-sso up-s3 up-mail db api web down migrate sqlc test test-api test-web dev-api dev-web
 
 up: db ## Arranca BD, API y frontend; la API solo arranca si la BD está sana
 	docker compose up -d --build --no-deps api web
 
 up-sso: db ## Como up, más Keycloak de prueba (profile sso) en localhost:8180
 	docker compose --profile sso up -d --build --no-deps keycloak api web
+
+up-mail: db ## Como up, más Mailpit (profile mail): SMTP en localhost:1025 y bandeja en localhost:8025
+	docker compose --profile mail up -d --build --no-deps mail api web
 
 up-s3: db ## Como up, con los archivos de las páginas en S3 (SeaweedFS, profile s3) en localhost:8333
 	docker compose --profile s3 up -d s3

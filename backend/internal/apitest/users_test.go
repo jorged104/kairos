@@ -82,13 +82,18 @@ func newFixture(t *testing.T, opts ...Option) fixture {
 func TestAdminCreatesUser(t *testing.T) {
 	f := newFixture(t)
 	admin := f.env.As(f.admin)
-	u := decodeUser(t, admin.Post("/api/users", map[string]any{
-		"name": "Nuevo", "email": " Nuevo@X.com ", "password": "contrasena-inicial", "team_id": f.bi,
-	}).Expect(t, http.StatusCreated))
-	if u.Status != "active" || u.role("member") != "manual" || !u.inTeam(f.bi) || !*u.HasPassword {
+	res := admin.Post("/api/users", map[string]any{
+		"name": "Nuevo", "email": " Nuevo@X.com ", "team_id": f.bi,
+	}).Expect(t, http.StatusCreated)
+	u := decodeUser(t, res)
+	if u.Status != "active" || u.role("member") != "manual" || !u.inTeam(f.bi) || *u.HasPassword {
 		t.Fatalf("created = %+v", u)
 	}
-	login(f.env.Client(), "nuevo@x.com", "contrasena-inicial").Expect(t, http.StatusOK) // RF-69
+	// No initial password: the person creates it from the invitation (spec 019, RF-10, RF-13).
+	var created createdUserDTO
+	res.JSON(t, &created)
+	setPassword(f.env.Client(), created.Delivery.URL, "contrasena-inicial").Expect(t, http.StatusNoContent)
+	login(f.env.Client(), "nuevo@x.com", "contrasena-inicial").Expect(t, http.StatusOK)
 	if got := f.env.AuditActions(u.ID.String()); !slices.Contains(got, "user.created") || !slices.Contains(got, "user.team_added") {
 		t.Fatalf("audit = %v", got)
 	}
@@ -110,7 +115,6 @@ func TestLeadCreatesUsersOnlyInItsTeams(t *testing.T) {
 	lead.Post("/api/users", map[string]any{"name": "N", "email": "n2@x.com"}).Expect(t, http.StatusBadRequest, "validation_failed")
 	lead.Post("/api/users", map[string]any{"name": "N", "email": "n3@x.com", "team_id": f.other}).Expect(t, http.StatusForbidden, "forbidden")
 	lead.Post("/api/users", map[string]any{"name": "N", "email": "n4@x.com", "team_id": f.bi, "role": "lead"}).Expect(t, http.StatusForbidden, "forbidden")
-	lead.Post("/api/users", map[string]any{"name": "N", "email": "n5@x.com", "team_id": f.bi, "password": "contrasena-inicial"}).Expect(t, http.StatusForbidden, "forbidden")
 	f.env.As(f.member).Post("/api/users", map[string]any{"name": "N", "email": "n6@x.com"}).Expect(t, http.StatusForbidden, "forbidden")
 }
 
@@ -212,20 +216,26 @@ func TestLastAdminIsKept(t *testing.T) {
 	f.env.As(other).Post("/api/users/"+other.String()+"/deactivate", nil).Expect(t, http.StatusConflict, "last_admin")
 }
 
-func TestAdminSetsPasswordWithAudit(t *testing.T) {
+// The administrator no longer sets a password: it sends a link (spec 019, RF-32 to RF-36).
+func TestAdminSendsPasswordLinkWithAudit(t *testing.T) {
 	f := newFixture(t)
-	path := "/api/users/" + f.member.String() + "/password"
-	f.env.As(f.lead).Do(http.MethodPut, path, map[string]any{"password": "otra-contrasena-1"}).Expect(t, http.StatusForbidden, "forbidden")
-	f.env.As(f.admin).Do(http.MethodPut, path, map[string]any{"password": "otra-contrasena-1"}).Expect(t, http.StatusNoContent)
+	path := "/api/users/" + f.member.String() + "/password-link"
+	f.env.As(f.lead).Post(path, nil).Expect(t, http.StatusForbidden, "forbidden")
+	var d deliveryDTO
+	f.env.As(f.admin).Post(path, nil).Expect(t, http.StatusOK).JSON(t, &d)
+	setPassword(f.env.Client(), d.URL, "otra-contrasena-1").Expect(t, http.StatusNoContent)
 	login(f.env.Client(), "member@x.com", "otra-contrasena-1").Expect(t, http.StatusOK)
 
 	var raw string
 	if err := f.env.Store.Pool.QueryRow(context.Background(),
-		"SELECT coalesce(before::text,'') || coalesce(after::text,'') || action FROM audit_log WHERE action = 'user.password_set'").Scan(&raw); err != nil {
+		"SELECT string_agg(coalesce(before::text,'') || coalesce(after::text,'') || action, ' ') FROM audit_log WHERE action LIKE 'user.password%'").Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(raw, "otra-contrasena-1") {
-		t.Fatal("audit contains the password")
+	if strings.Contains(raw, "otra-contrasena-1") || strings.Contains(raw, secretOf(d.URL)) {
+		t.Fatal("audit contains the password or the link")
+	}
+	if !strings.Contains(raw, "user.password_link_sent") || !strings.Contains(raw, "user.password_set_by_link") {
+		t.Fatalf("audit = %s", raw)
 	}
 }
 

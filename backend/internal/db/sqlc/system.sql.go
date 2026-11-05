@@ -25,7 +25,7 @@ func (q *Queries) CountLiveFiles(ctx context.Context) (int64, error) {
 
 const getSystemSettings = `-- name: GetSystemSettings :one
 
-SELECT id, version, auth_mode, registration_enabled, default_role, oidc_issuer, oidc_discovery_url, oidc_client_id, oidc_client_secret, oidc_test, files_kind, s3_endpoint, s3_bucket, s3_region, s3_access_key, s3_secret_key, s3_use_ssl, theme_palette, theme_primary, theme_radius, updated_at, mcp_enabled FROM system_settings WHERE id
+SELECT id, version, auth_mode, registration_enabled, default_role, oidc_issuer, oidc_discovery_url, oidc_client_id, oidc_client_secret, oidc_test, files_kind, s3_endpoint, s3_bucket, s3_region, s3_access_key, s3_secret_key, s3_use_ssl, theme_palette, theme_primary, theme_radius, updated_at, mcp_enabled, mail_enabled, smtp_host, smtp_port, smtp_security, smtp_username, smtp_password, mail_from_email, mail_from_name FROM system_settings WHERE id
 `
 
 // Spec 015: system settings and user preferences.
@@ -55,6 +55,14 @@ func (q *Queries) GetSystemSettings(ctx context.Context) (SystemSetting, error) 
 		&i.ThemeRadius,
 		&i.UpdatedAt,
 		&i.McpEnabled,
+		&i.MailEnabled,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpSecurity,
+		&i.SmtpUsername,
+		&i.SmtpPassword,
+		&i.MailFromEmail,
+		&i.MailFromName,
 	)
 	return i, err
 }
@@ -127,7 +135,7 @@ func (q *Queries) InsertSystemSettings(ctx context.Context, arg InsertSystemSett
 }
 
 const lockSystemSettings = `-- name: LockSystemSettings :one
-SELECT id, version, auth_mode, registration_enabled, default_role, oidc_issuer, oidc_discovery_url, oidc_client_id, oidc_client_secret, oidc_test, files_kind, s3_endpoint, s3_bucket, s3_region, s3_access_key, s3_secret_key, s3_use_ssl, theme_palette, theme_primary, theme_radius, updated_at, mcp_enabled FROM system_settings WHERE id FOR UPDATE
+SELECT id, version, auth_mode, registration_enabled, default_role, oidc_issuer, oidc_discovery_url, oidc_client_id, oidc_client_secret, oidc_test, files_kind, s3_endpoint, s3_bucket, s3_region, s3_access_key, s3_secret_key, s3_use_ssl, theme_palette, theme_primary, theme_radius, updated_at, mcp_enabled, mail_enabled, smtp_host, smtp_port, smtp_security, smtp_username, smtp_password, mail_from_email, mail_from_name FROM system_settings WHERE id FOR UPDATE
 `
 
 func (q *Queries) LockSystemSettings(ctx context.Context) (SystemSetting, error) {
@@ -156,6 +164,14 @@ func (q *Queries) LockSystemSettings(ctx context.Context) (SystemSetting, error)
 		&i.ThemeRadius,
 		&i.UpdatedAt,
 		&i.McpEnabled,
+		&i.MailEnabled,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpSecurity,
+		&i.SmtpUsername,
+		&i.SmtpPassword,
+		&i.MailFromEmail,
+		&i.MailFromName,
 	)
 	return i, err
 }
@@ -194,7 +210,7 @@ UPDATE system_settings SET
     files_kind = $9, s3_endpoint = $10, s3_bucket = $11, s3_region = $12, s3_access_key = $13, s3_secret_key = $14, s3_use_ssl = $15,
     theme_palette = $16, theme_primary = $17, theme_radius = $18, updated_at = now()
 WHERE id
-RETURNING id, version, auth_mode, registration_enabled, default_role, oidc_issuer, oidc_discovery_url, oidc_client_id, oidc_client_secret, oidc_test, files_kind, s3_endpoint, s3_bucket, s3_region, s3_access_key, s3_secret_key, s3_use_ssl, theme_palette, theme_primary, theme_radius, updated_at, mcp_enabled
+RETURNING id, version, auth_mode, registration_enabled, default_role, oidc_issuer, oidc_discovery_url, oidc_client_id, oidc_client_secret, oidc_test, files_kind, s3_endpoint, s3_bucket, s3_region, s3_access_key, s3_secret_key, s3_use_ssl, theme_palette, theme_primary, theme_radius, updated_at, mcp_enabled, mail_enabled, smtp_host, smtp_port, smtp_security, smtp_username, smtp_password, mail_from_email, mail_from_name
 `
 
 type UpdateSystemSettingsParams struct {
@@ -263,6 +279,14 @@ func (q *Queries) UpdateSystemSettings(ctx context.Context, arg UpdateSystemSett
 		&i.ThemeRadius,
 		&i.UpdatedAt,
 		&i.McpEnabled,
+		&i.MailEnabled,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpSecurity,
+		&i.SmtpUsername,
+		&i.SmtpPassword,
+		&i.MailFromEmail,
+		&i.MailFromName,
 	)
 	return i, err
 }

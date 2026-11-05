@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/config"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/mail"
 )
 
 const (
@@ -49,10 +51,25 @@ type Service struct {
 	h              *Holder
 	CheckDiscovery func(ctx context.Context, o config.OIDCConfig) error
 	CheckS3        func(ctx context.Context, f config.FilesConfig) (step string, err error)
+	// Mailer sends the test mail (spec 019, RF-6).
+	Mailer mail.Sender
 }
 
 func NewService(h *Holder) *Service {
-	return &Service{h: h, CheckDiscovery: checkDiscovery, CheckS3: checkS3}
+	return &Service{h: h, CheckDiscovery: checkDiscovery, CheckS3: checkS3, Mailer: mail.SMTP{}}
+}
+
+// MailView is the outgoing mail without its password (spec 019, RF-2, RF-4).
+type MailView struct {
+	Enabled     bool   `json:"enabled"`
+	Host        string `json:"host"`
+	Port        int32  `json:"port"`
+	Security    string `json:"security"`
+	Username    string `json:"username"`
+	PasswordSet bool   `json:"password_set"`
+	FromEmail   string `json:"from_email"`
+	FromName    string `json:"from_name"`
+	Ready       bool   `json:"ready"`
 }
 
 type AccessView struct {
@@ -97,6 +114,7 @@ type View struct {
 	Storage            StorageView `json:"storage"`
 	Appearance         Theme       `json:"appearance"`
 	MCP                MCPView     `json:"mcp"`
+	Mail               MailView    `json:"mail"`
 	EmergencyAvailable bool        `json:"emergency_available"`
 	EmergencyEmail     string      `json:"emergency_email"`
 }
@@ -130,8 +148,12 @@ func (s *Service) View(ctx context.Context) (View, error) {
 			Kind: r.FilesKind, Endpoint: r.S3Endpoint, Bucket: r.S3Bucket, Region: r.S3Region, AccessKey: r.S3AccessKey,
 			SecretKeySet: snap.s3Secret != "", UseSSL: r.S3UseSsl, FilesCount: files, Locked: files > 0,
 		},
-		Appearance:         Theme{Palette: r.ThemePalette, Primary: r.ThemePrimary, Radius: r.ThemeRadius},
-		MCP:                MCPView{Enabled: r.McpEnabled},
+		Appearance: Theme{Palette: r.ThemePalette, Primary: r.ThemePrimary, Radius: r.ThemeRadius},
+		MCP:        MCPView{Enabled: r.McpEnabled},
+		Mail: MailView{
+			Enabled: r.MailEnabled, Host: r.SmtpHost, Port: r.SmtpPort, Security: r.SmtpSecurity, Username: r.SmtpUsername,
+			PasswordSet: snap.mailPassword != "", FromEmail: r.MailFromEmail, FromName: r.MailFromName, Ready: s.h.Mail().Ready(),
+		},
 		EmergencyAvailable: emergency,
 		EmergencyEmail:     s.h.env.Auth.BootstrapAdminEmail,
 	}, nil
@@ -155,6 +177,7 @@ type draft struct {
 	row          sqlc.SystemSetting
 	clientSecret string
 	s3Secret     string
+	mailPassword string
 }
 
 // update changes the row under lock, audits the fields that changed (the
@@ -172,6 +195,7 @@ func (s *Service) update(ctx context.Context, p *authz.Principal, section string
 		before := draft{row: row}
 		before.clientSecret, _ = s.h.box.open(row.OidcClientSecret)
 		before.s3Secret, _ = s.h.box.open(row.S3SecretKey)
+		before.mailPassword, _ = s.h.box.open(row.SmtpPassword)
 		d := before
 		if err := fn(q, &d); err != nil {
 			return err
@@ -232,7 +256,10 @@ func auditable(d draft) map[string]any {
 		"files_kind":         r.FilesKind, "s3_endpoint": r.S3Endpoint, "s3_bucket": r.S3Bucket, "s3_region": r.S3Region,
 		"s3_access_key": r.S3AccessKey, "s3_secret_key": secret(d.s3Secret), "s3_use_ssl": r.S3UseSsl,
 		"theme_palette": r.ThemePalette, "theme_primary": r.ThemePrimary, "theme_radius": r.ThemeRadius,
-		"mcp_enabled": r.McpEnabled,
+		"mcp_enabled":  r.McpEnabled,
+		"mail_enabled": r.MailEnabled, "smtp_host": r.SmtpHost, "smtp_port": r.SmtpPort, "smtp_security": r.SmtpSecurity,
+		"smtp_username": r.SmtpUsername, "smtp_password": secret(d.mailPassword),
+		"mail_from_email": r.MailFromEmail, "mail_from_name": r.MailFromName,
 	}
 }
 
@@ -474,4 +501,86 @@ func checkS3(ctx context.Context, f config.FilesConfig) (string, error) {
 		return "delete", err
 	}
 	return "", nil
+}
+
+type MailRequest struct {
+	Enabled   bool   `json:"enabled"`
+	Host      string `json:"host" validate:"max=255"`
+	Port      int32  `json:"port" validate:"min=1,max=65535"`
+	Security  string `json:"security" validate:"oneof=none starttls tls"`
+	Username  string `json:"username" validate:"max=255"`
+	Password  string `json:"password" validate:"max=500"` // empty keeps the one stored (RF-7 of spec 015)
+	FromEmail string `json:"from_email" validate:"max=320"`
+	FromName  string `json:"from_name" validate:"max=100"`
+}
+
+func (r *MailRequest) Normalize() {
+	r.Host, r.Username = strings.TrimSpace(r.Host), strings.TrimSpace(r.Username)
+	r.FromEmail, r.FromName = strings.TrimSpace(r.FromEmail), strings.TrimSpace(r.FromName)
+}
+
+// UpdateMail saves the outgoing mail; switched on, it needs a server and a
+// valid sender (spec 019, RF-2 to RF-5, RF-8).
+func (s *Service) UpdateMail(ctx context.Context, p *authz.Principal, req MailRequest) (View, error) {
+	if req.FromEmail != "" && !mail.ValidAddress(req.FromEmail) {
+		return View{}, apperr.ErrValidation.WithDetail("field", "from_email")
+	}
+	if req.Enabled && req.Host == "" {
+		return View{}, apperr.ErrValidation.WithDetail("field", "host")
+	}
+	if req.Enabled && req.FromEmail == "" {
+		return View{}, apperr.ErrValidation.WithDetail("field", "from_email")
+	}
+	return s.update(ctx, p, "mail", func(q *sqlc.Queries, d *draft) error {
+		if req.Password != "" {
+			d.mailPassword = req.Password
+		}
+		sealed, err := s.h.box.seal(d.mailPassword)
+		if err != nil {
+			return err
+		}
+		r := &d.row
+		r.MailEnabled, r.SmtpHost, r.SmtpPort, r.SmtpSecurity = req.Enabled, req.Host, req.Port, req.Security
+		r.SmtpUsername, r.MailFromEmail, r.MailFromName = req.Username, req.FromEmail, req.FromName
+		if err := q.SetMailSettings(ctx, sqlc.SetMailSettingsParams{
+			MailEnabled: r.MailEnabled, SmtpHost: r.SmtpHost, SmtpPort: r.SmtpPort, SmtpSecurity: r.SmtpSecurity,
+			SmtpUsername: r.SmtpUsername, SmtpPassword: sealed, MailFromEmail: r.MailFromEmail, MailFromName: r.MailFromName,
+		}); err != nil {
+			return fmt.Errorf("guardar correo: %w", err)
+		}
+		return nil
+	})
+}
+
+func errMail(step string) *apperr.Error {
+	return apperr.New(http.StatusBadRequest, "mail_test_failed", "No se pudo enviar el correo de prueba").WithDetail("step", step)
+}
+
+// TestMail sends a mail to the administrator with the saved settings, and
+// says the step where it failed (spec 019, RF-6, RF-7).
+func (s *Service) TestMail(ctx context.Context, p *authz.Principal) error {
+	if !p.Has(authz.SystemManage) {
+		return apperr.ErrForbidden
+	}
+	cfg := s.h.Mail()
+	if cfg.Host == "" || cfg.FromEmail == "" {
+		return apperr.New(http.StatusConflict, "mail_not_configured", "El correo no está configurado")
+	}
+	u, err := s.h.store.GetUser(ctx, p.UserID)
+	if err != nil {
+		return fmt.Errorf("leer usuario: %w", err)
+	}
+	err = s.Mailer.Send(ctx, cfg, mail.Message{
+		To: u.Email, Subject: "Kairos: correo de prueba",
+		Text: "Este es un correo de prueba de Kairos. Si lo lees, el correo saliente funciona.\n",
+		HTML: "<p>Este es un correo de prueba de Kairos. Si lo lees, el correo saliente funciona.</p>",
+	})
+	var me *mail.Error
+	if errors.As(err, &me) {
+		return errMail(me.Step)
+	}
+	if err != nil {
+		return errMail(mail.StepConnect)
+	}
+	return nil
 }

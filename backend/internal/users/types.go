@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
+	"openscum/internal/accounts"
 	"openscum/internal/apperr"
 	"openscum/internal/attributes"
 )
@@ -37,7 +39,15 @@ type Abilities struct {
 	Offboard    bool `json:"offboard"`
 	AssignRoles bool `json:"assign_roles"`
 	ManageTeams bool `json:"manage_teams"`
-	SetPassword bool `json:"set_password"`
+	// Resend the invitation, and send a link to a new password (spec 019, RF-20, RF-32).
+	Invite       bool `json:"invite"`
+	PasswordLink bool `json:"password_link"`
+}
+
+// Invitation is a pending one: unused, of a person without a password (spec 019, RF-19).
+type Invitation struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Expired   bool      `json:"expired"`
 }
 
 // User is what a viewer may see of a user (RF-115): the basic directory
@@ -55,15 +65,18 @@ type User struct {
 	// RetiredAttributes is read-only history, only for administrators (RF-105).
 	RetiredAttributes map[uuid.UUID]json.RawMessage `json:"retired_attributes,omitempty"`
 	HasPassword       *bool                         `json:"has_password,omitempty"`
+	Invitation        *Invitation                   `json:"invitation,omitempty"`
+	// Delivery says, on creation, whether the invitation went out, or its link (spec 019, RF-13).
+	Delivery *accounts.Delivery `json:"delivery,omitempty"`
 	// Weekly capacity in weight points (spec 008, RF-46).
 	Capacity *int32     `json:"capacity,omitempty"`
 	Can      *Abilities `json:"can,omitempty"`
 }
 
 type createRequest struct {
-	Name       string            `json:"name" validate:"required,max=200"`
-	Email      string            `json:"email" validate:"required,email,max=320"`
-	Password   string            `json:"password"`
+	Name  string `json:"name" validate:"required,max=200"`
+	Email string `json:"email" validate:"required,email,max=320"`
+	// No initial password: the person gets an invitation (spec 019, RF-10).
 	Role       string            `json:"role" validate:"omitempty,oneof=admin lead member viewer"`
 	TeamID     *uuid.UUID        `json:"team_id"`
 	Attributes attributes.Values `json:"attributes"`

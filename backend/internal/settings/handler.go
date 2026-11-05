@@ -32,6 +32,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Put("/system/settings/storage", put(h, h.svc.UpdateStorage))
 		r.Put("/system/settings/appearance", put(h, h.svc.UpdateAppearance))
 		r.Put("/system/settings/mcp", put(h, h.svc.UpdateMCP))
+		r.Put("/system/settings/mail", put(h, h.svc.UpdateMail))
+		r.Post("/system/settings/mail/test", h.testMail)
 	})
 }
 
@@ -58,4 +60,13 @@ func put[Req any](h *Handler, fn func(context.Context, *authz.Principal, Req) (V
 		}
 		httpx.WriteJSON(w, http.StatusOK, out)
 	}
+}
+
+// testMail sends the test mail (spec 019, RF-6).
+func (h *Handler) testMail(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.TestMail(r.Context(), authz.FromContext(r.Context())); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

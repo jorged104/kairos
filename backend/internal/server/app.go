@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"openscum/internal/accounts"
 	"openscum/internal/attributes"
 	"openscum/internal/audit"
 	"openscum/internal/auth"
@@ -57,6 +58,8 @@ type App struct {
 	Settings *settings.Service
 	// MCP serves the AI connections (spec 016); tests lower its rate limit.
 	MCP *mcp.Server
+	// Accounts sends the invitations and links (spec 019); tests wait for them.
+	Accounts *accounts.Service
 }
 
 // live holds the settings of the system edited from the interface (spec 015);
@@ -119,7 +122,9 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	gamificationH := gamification.NewHandler(gamification.NewService(store), logger)
 	teamsH := teams.NewHandler(teams.NewService(store, loader), logger)
 	attributesH := attributes.NewHandler(attributes.NewService(store), logger)
-	usersH := users.NewHandler(users.NewService(live.Config, store, authSvc, hasher, loader), logger)
+	accountsSvc := accounts.NewService(store, hasher, live.Auth, live.Mail, logger)
+	accountsH := accounts.NewHandler(accountsSvc, logger)
+	usersH := users.NewHandler(users.NewService(live.Config, store, authSvc, accountsSvc, loader), logger)
 
 	mcpConns := mcp.NewConnections(store, live.MCPEnabled, func() string { return cfg.Auth.PublicURL })
 	mcpH := mcp.NewHandler(mcpConns, logger)
@@ -132,6 +137,7 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 		api.Use(auth.CSRF(cfg.Auth.PublicURL, logger))
 		authH.PublicRoutes(api)
 		oidcH.Routes(api)
+		accountsH.PublicRoutes(api)
 		// The secret URL is the credential of an AI connection (spec 016).
 		api.Handle("/mcp/{secret}", mcpSrv)
 
@@ -167,5 +173,5 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc, MCP: mcpSrv}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc, MCP: mcpSrv, Accounts: accountsSvc}
 }
