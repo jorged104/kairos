@@ -216,7 +216,7 @@ func TestAssignees(t *testing.T) {
 			Payload map[string]any `json:"payload"`
 		} `json:"items"`
 	}
-	s.admin.Get("/api/events?subject_id="+wi.ID.String()).Expect(t, http.StatusOK).JSON(t, &evs)
+	s.admin.Get("/api/events?type=work_item.closed&subject_id="+wi.ID.String()).Expect(t, http.StatusOK).JSON(t, &evs)
 	if len(evs.Items) == 0 {
 		t.Fatal("no closed event")
 	}

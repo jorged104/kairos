@@ -56,6 +56,12 @@ export const routes = [
         meta: { permissions: ['audit:read'] as Permission[] },
       },
       { path: 'account', name: 'account', component: () => import('@/pages/AccountPage.vue') },
+      {
+        path: 'notifications',
+        name: 'notifications',
+        component: () => import('@/pages/NotificationsPage.vue'),
+        meta: { permissions: ['work:read'] as Permission[] },
+      },
       { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
       { path: 'portfolio', name: 'portfolio', component: () => import('@/pages/PortfolioPage.vue') },
       { path: 'tracking', name: 'tracking', component: () => import('@/pages/TrackingPage.vue') },

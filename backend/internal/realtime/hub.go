@@ -1,10 +1,11 @@
 // Package realtime holds the WebSocket hub. Connections are authenticated
 // with the session cookie and closed when the user stops being active
-// (RF-47 to RF-49). Domain events arrive with later specs.
+// (RF-47 to RF-49). The notifications of spec 017 are its first messages.
 package realtime
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -37,15 +38,16 @@ type Hub struct {
 	// Interval is how often connected users are re-checked; tests shorten it.
 	Interval time.Duration
 
-	mu    sync.Mutex
-	conns map[uuid.UUID]map[*websocket.Conn]struct{}
+	mu sync.Mutex
+	// Each connection has its own write lock: one writer at a time.
+	conns map[uuid.UUID]map[*websocket.Conn]*sync.Mutex
 }
 
 func NewHub(sessions SessionParser, loader PrincipalLoader, publicURL string, logger *slog.Logger) *Hub {
 	allowed, _ := url.Parse(publicURL)
 	return &Hub{
 		sessions: sessions, loader: loader, logger: logger, Interval: CheckInterval,
-		conns: map[uuid.UUID]map[*websocket.Conn]struct{}{},
+		conns: map[uuid.UUID]map[*websocket.Conn]*sync.Mutex{},
 		upgrader: websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {
 			o, err := url.Parse(r.Header.Get("Origin"))
 			return err == nil && o.Scheme == allowed.Scheme && o.Host == allowed.Host
@@ -86,9 +88,35 @@ func (h *Hub) add(id uuid.UUID, c *websocket.Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.conns[id] == nil {
-		h.conns[id] = map[*websocket.Conn]struct{}{}
+		h.conns[id] = map[*websocket.Conn]*sync.Mutex{}
 	}
-	h.conns[id][c] = struct{}{}
+	h.conns[id][c] = &sync.Mutex{}
+}
+
+// Send writes v as JSON to every open connection of the user, each tab of
+// theirs (spec 017, RF-33, RF-34). A connection that fails is closed; its
+// reader then removes it.
+func (h *Hub) Send(userID uuid.UUID, v any) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		h.logger.Error("serializar mensaje", slog.Any("error", err))
+		return
+	}
+	h.mu.Lock()
+	targets := make(map[*websocket.Conn]*sync.Mutex, len(h.conns[userID]))
+	for c, mu := range h.conns[userID] {
+		targets[c] = mu
+	}
+	h.mu.Unlock()
+	for c, mu := range targets {
+		mu.Lock()
+		_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		err := c.WriteMessage(websocket.TextMessage, b)
+		mu.Unlock()
+		if err != nil {
+			_ = c.Close()
+		}
+	}
 }
 
 func (h *Hub) remove(id uuid.UUID, c *websocket.Conn) {

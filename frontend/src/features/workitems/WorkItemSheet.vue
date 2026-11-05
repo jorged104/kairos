@@ -15,6 +15,7 @@ import { onClickOutside } from '@vueuse/core'
 import { createComment } from '@/api/comments'
 import CommentThread from '@/features/comments/CommentThread.vue'
 import CommentsSection from '@/features/comments/CommentsSection.vue'
+import FollowButton from '@/features/notifications/FollowButton.vue'
 import { useComments } from '@/features/comments/useComments'
 import PageSection, { type PageCommenting } from '@/features/pages/PageSection.vue'
 import { useFullWidth } from '@/features/pages/useFullWidth'
@@ -245,6 +246,7 @@ defineExpose({ close })
           <span class="font-mono">{{ wi.key }}</span>
         </nav>
         <div class="ml-auto flex items-center gap-1">
+          <FollowButton :work-item-id="wi.id" />
           <template v-if="panel">
             <Button as-child size="sm" variant="outline">
               <RouterLink :to="`/work-items/${wi.key}`" data-testid="open-as-page"><Expand aria-hidden="true" />{{ t('page.openAsPage') }}</RouterLink>

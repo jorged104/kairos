@@ -160,7 +160,7 @@ func TestWeightedProgress(t *testing.T) {
 			Payload map[string]any `json:"payload"`
 		} `json:"items"`
 	}
-	s.admin.Get("/api/events?subject_id="+b.ID.String()).Expect(t, http.StatusOK).JSON(t, &evs)
+	s.admin.Get("/api/events?type=work_item.closed&subject_id="+b.ID.String()).Expect(t, http.StatusOK).JSON(t, &evs)
 	if len(evs.Items) != 1 || evs.Items[0].Type != "work_item.closed" || evs.Items[0].Payload["weight"] != float64(1) {
 		t.Fatalf("events of b = %+v", evs.Items)
 	}

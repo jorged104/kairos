@@ -180,6 +180,29 @@ type MilestoneWorkItem struct {
 	CreatedAt   time.Time
 }
 
+type Notification struct {
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	SubjectType string
+	SubjectID   uuid.UUID
+	ProjectID   uuid.UUID
+	Actors      []uuid.UUID
+	Events      int32
+	Mention     bool
+	LastKind    string
+	LastData    json.RawMessage
+	Via         json.RawMessage
+	ReadAt      *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type NotifiedEvent struct {
+	EventID   uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt time.Time
+}
+
 type Objective struct {
 	ID              uuid.UUID
 	Title           string
@@ -610,6 +633,13 @@ type WorkItemDependency struct {
 	LagDays   int16
 	CreatedBy uuid.UUID
 	CreatedAt time.Time
+}
+
+type WorkItemFollow struct {
+	WorkItemID uuid.UUID
+	UserID     uuid.UUID
+	Following  bool
+	UpdatedAt  time.Time
 }
 
 type WorkItemLabel struct {

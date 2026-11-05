@@ -17,6 +17,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/events"
 	"openscum/internal/files"
 	"openscum/internal/mentions"
 	"openscum/internal/projects"
@@ -78,6 +79,11 @@ func (s *Service) Save(ctx context.Context, p *authz.Principal, kind string, id 
 		}
 		if !richtext.Changed(o.description, doc) {
 			return nil
+		}
+		if !o.project.IsTemplate {
+			if err := events.EmitMentions(ctx, q, p.UserID, o.project.ID, kind, id, o.description, doc); err != nil {
+				return err
+			}
 		}
 		// Only that it changed, never its content (RF-47).
 		return audit.Record(ctx, q, audit.Entry{Actor: audit.ByUser(p), Action: kind + ".page_updated", TargetType: kind,
