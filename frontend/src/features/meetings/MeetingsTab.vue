@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import ItemPanel from '@/features/workitems/ItemPanel.vue'
 import type { Project } from '@/types/work'
 import { fromLocalInput } from './dates'
 import MeetingTemplatesAdmin from './MeetingTemplatesAdmin.vue'
@@ -152,5 +153,7 @@ const showTemplates = ref(false)
         <Button size="sm" variant="outline" :disabled="page === pages" @click="page++">{{ t('common.next') }}</Button>
       </div>
     </template>
+    <!-- The meeting opened from the list (?meeting=), and a work item opened from its notes (?item=), RF-41. -->
+    <ItemPanel />
   </div>
 </template>
