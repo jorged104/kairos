@@ -25,7 +25,7 @@
     - la apariencia y su validación;
     - la apariencia pública en el login;
     - las preferencias.
-- [ ] **T5 — Frontend**
+- [x] **T5 — Frontend**
   - RF: todas las pantallas
   - Hecho cuando hay Vitest de:
     - el contraste;

@@ -19,6 +19,7 @@ import {
   PanelLeftOpen,
   ScrollText,
   Settings,
+  ServerCog,
   SlidersHorizontal,
   Target,
   Trophy,
@@ -68,6 +69,7 @@ const settings = computed(() =>
       { to: '/idp-mappings', label: t('nav.idpMappings'), icon: ArrowLeftRight, perm: 'idp_mappings:manage' },
       { to: '/admin/catalog', label: t('nav.catalog'), icon: Library, perm: 'catalog:manage' },
       { to: '/admin/gamification', label: t('nav.gamification'), icon: Award, perm: 'gamification:manage' },
+      { to: '/admin/system', label: t('nav.system'), icon: ServerCog, perm: 'system:manage' },
       { to: '/audit', label: t('nav.audit'), icon: ScrollText, perm: 'audit:read' },
       { to: '/status', label: t('nav.status'), icon: Activity },
     ] as Link[]

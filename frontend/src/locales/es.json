@@ -23,7 +23,8 @@
     "expand": "Expandir el menú",
     "collapse": "Contraer el menú",
     "ranking": "Ranking",
-    "gamification": "Gamificación"
+    "gamification": "Gamificación",
+    "system": "Sistema"
   },
   "common": {
     "save": "Guardar",
@@ -84,7 +85,9 @@
       "submit": "Entrar",
       "sso": "Entrar con la cuenta corporativa (SSO)",
       "noAccount": "¿No tienes cuenta?",
-      "register": "Regístrate"
+      "register": "Regístrate",
+      "emergency": "Acceso de emergencia",
+      "emergencyHint": "Solo para el administrador inicial mientras el acceso es solo por SSO."
     },
     "register": {
       "title": "Crear cuenta",
@@ -108,6 +111,15 @@
       "submit": "Cambiar contraseña",
       "done": "Contraseña cambiada",
       "noLocal": "Tu cuenta no tiene contraseña de Kairos: entras con la cuenta corporativa."
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "description": "Cómo ves Kairos en este y en tus otros dispositivos.",
+      "modes": {
+        "light": "Claro",
+        "dark": "Oscuro",
+        "system": "Como el sistema"
+      }
     }
   },
   "roles": {
@@ -359,7 +371,14 @@
     "points_adjust_self": "No puedes ajustar tus propios puntos.",
     "points_negative": "El ajuste dejaría el saldo por debajo de 0.",
     "level_conflict": "Ya hay un nivel con ese XP mínimo.",
-    "level_locked": "El primer nivel empieza siempre en 0 XP y no se puede borrar."
+    "level_locked": "El primer nivel empieza siempre en 0 XP y no se puede borrar.",
+    "sso_not_configured": "Falta configurar el SSO: emisor, client id y client secret.",
+    "sso_not_tested": "Haz un login de prueba correcto con el SSO actual antes de usar solo SSO.",
+    "no_emergency_access": "No hay acceso de emergencia: el administrador inicial no tiene contraseña.",
+    "sso_in_use": "Pasa el modo de acceso a «ambos» antes de cambiar el SSO.",
+    "sso_discovery_failed": "El proveedor de SSO no responde o su descubrimiento no es válido.",
+    "s3_check_failed": "No se pudo escribir, leer y borrar un objeto de prueba en el S3.",
+    "storage_locked": "Ya hay archivos guardados: no se puede cambiar dónde se guardan."
   },
   "richtext": {
     "bold": "Negrita",
@@ -1357,6 +1376,106 @@
       "note": "Motivo",
       "submit": "Registrar ajuste",
       "done": "Ajuste registrado."
+    }
+  },
+  "system": {
+    "title": "Sistema",
+    "secretKept": "Configurado. Déjalo vacío para conservarlo.",
+    "tabs": {
+      "access": "Acceso",
+      "sso": "SSO",
+      "storage": "Almacenamiento",
+      "appearance": "Apariencia"
+    },
+    "access": {
+      "mode": "Modo de acceso",
+      "modes": {
+        "local": "Solo contraseña",
+        "both": "Contraseña y SSO",
+        "oidc": "Solo SSO"
+      },
+      "modeHints": {
+        "local": "Las personas entran con su email y contraseña.",
+        "both": "Pueden entrar con contraseña o con el SSO de la organización.",
+        "oidc": "Solo con el SSO. El administrador inicial conserva un acceso de emergencia."
+      },
+      "needsTest": "Antes haz un login de prueba correcto en la pestaña SSO.",
+      "noEmergency": "Si el SSO falla, nadie podrá entrar: no hay administrador inicial con contraseña.",
+      "acceptNoEmergency": "Entiendo el riesgo y quiero usar solo SSO igualmente.",
+      "registration": "Registro abierto: cualquiera puede crearse una cuenta con contraseña.",
+      "defaultRole": "Rol de los usuarios nuevos",
+      "noRole": "Sin rol"
+    },
+    "sso": {
+      "inUse": "El SSO es ahora el único acceso. Para cambiarlo, pasa antes el modo a «Contraseña y SSO».",
+      "redirect": "URL de retorno",
+      "redirectHint": "Regístrala en tu proveedor de identidad como URL de redirección permitida.",
+      "copy": "Copiar",
+      "copied": "Copiada",
+      "issuer": "Emisor (issuer)",
+      "discovery": "URL de descubrimiento (opcional)",
+      "discoveryHint": "Solo si el proveedor publica su configuración en otra dirección que el emisor.",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "saved": "SSO guardado. Haz un login de prueba para confirmarlo.",
+      "test": "Login de prueba",
+      "testHint": "Entra con tu cuenta del proveedor. No cambia tu sesión ni crea usuarios.",
+      "testStart": "Probar inicio de sesión",
+      "testOk": "Correcto: el proveedor devolvió a {who} ({email}) el {at}.",
+      "testStale": "La configuración cambió después de esta prueba: repítela.",
+      "testFailed": "La última prueba falló: {error}"
+    },
+    "storage": {
+      "kind": "Dónde se guardan los archivos",
+      "kinds": {
+        "db": "En la base de datos",
+        "s3": "En un S3"
+      },
+      "locked": "Hay {n} archivos guardados: el tipo, el endpoint y el bucket quedan fijos. Las claves y la región se pueden cambiar. | Hay {n} archivo guardado: el tipo, el endpoint y el bucket quedan fijos. Las claves y la región se pueden cambiar. | Hay {n} archivos guardados: el tipo, el endpoint y el bucket quedan fijos. Las claves y la región se pueden cambiar.",
+      "endpoint": "Endpoint (host y puerto)",
+      "bucket": "Bucket",
+      "region": "Región",
+      "accessKey": "Clave de acceso",
+      "secretKey": "Clave secreta",
+      "useSsl": "Usar TLS",
+      "checkHint": "Al guardar, Kairos escribe, lee y borra un objeto de prueba en el bucket.",
+      "saved": "Almacenamiento guardado."
+    },
+    "appearance": {
+      "palette": "Paleta base",
+      "primary": "Color primario",
+      "radius": "Esquinas",
+      "palettes": {
+        "neutral": "Neutral",
+        "zinc": "Zinc",
+        "slate": "Slate",
+        "stone": "Stone",
+        "gray": "Gray"
+      },
+      "primaries": {
+        "default": "El de la paleta",
+        "blue": "Azul",
+        "green": "Verde",
+        "orange": "Naranja",
+        "red": "Rojo",
+        "rose": "Rosa",
+        "violet": "Violeta",
+        "yellow": "Amarillo"
+      },
+      "radii": {
+        "none": "Rectas",
+        "soft": "Suaves",
+        "round": "Redondeadas"
+      },
+      "light": "Claro",
+      "dark": "Oscuro",
+      "sampleTitle": "Informe trimestral",
+      "sampleText": "Así se verán las tarjetas y los textos secundarios.",
+      "samplePrimary": "Guardar",
+      "sampleSecondary": "Cancelar",
+      "sampleOutline": "Más opciones",
+      "reset": "Restablecer la apariencia inicial",
+      "saved": "Apariencia guardada para todos."
     }
   }
 }
