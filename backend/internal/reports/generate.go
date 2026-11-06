@@ -21,6 +21,7 @@ import (
 
 	"openscum/internal/apperr"
 	"openscum/internal/authz"
+	"openscum/internal/llm"
 	"openscum/internal/mcp"
 	"openscum/internal/projects"
 )
@@ -248,7 +249,7 @@ func (g *Generator) Generate(w http.ResponseWriter, r *http.Request, projectID u
 
 	ai := g.svc.ai()
 	body, _ := json.Marshal(map[string]any{
-		"llm":             map[string]string{"base_url": ai.BaseURL, "api_key": ai.APIKey, "model": ai.Model},
+		"llm":             map[string]string{"base_url": llm.Base(ai.BaseURL), "api_key": ai.APIKey, "model": ai.Model},
 		"system_prompt":   prep.system,
 		"prompt":          prep.prompt,
 		"tools":           g.tools.ReportTools(),

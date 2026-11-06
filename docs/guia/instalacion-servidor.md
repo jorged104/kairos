@@ -136,5 +136,6 @@ Guarda las copias también fuera del servidor, junto con `/etc/kairos/kairos.env
 | Entras y vuelves a la pantalla de login | El sitio no va por HTTPS, o `PUBLIC_URL` no coincide exactamente con la dirección del navegador |
 | Errores 500 tras actualizar | No se aplicaron las migraciones: `kairos run --rm migrate` |
 | No llega el tiempo real (notificaciones, cambios de otros) | El proxy no deja pasar WebSocket en `/ws` |
+| «Probar conexión» del servicio de IA falla | El motivo exacto que dio el servicio (cuota agotada, dirección mal escrita, parámetro no admitido…) queda en `kairos logs api`, en la línea «prueba del servicio de IA fallida». La dirección base termina normalmente en `/v1` |
 | «El agente de informes no está disponible» | `kairos ps` muestra si `agent` está en marcha; `kairos logs agent` dice por qué falla |
 | El SSO falla al volver del proveedor | La URL de retorno registrada en el IdP debe ser `<PUBLIC_URL>/api/auth/oidc/callback` |

@@ -661,6 +661,7 @@ func (s *Service) TestAI(ctx context.Context, p *authz.Principal) error {
 	err := llm.Check(ctx, s.AIClient, cfg)
 	var le *llm.Error
 	if errors.As(err, &le) {
+		s.h.logger.WarnContext(ctx, "prueba del servicio de IA fallida", "step", le.Step, "error", le.Err)
 		return apperr.New(http.StatusBadRequest, "ai_test_failed", "No se pudo usar el servicio de IA").WithDetail("step", le.Step)
 	}
 	return err

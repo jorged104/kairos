@@ -64,10 +64,11 @@ func Check(ctx context.Context, client *http.Client, cfg Config) error {
 				"parameters": map[string]any{"type": "object", "properties": map[string]any{}},
 			},
 		}},
+		// No token cap: recent models reject max_tokens, and reasoning models
+		// can spend a small cap before calling the tool.
 		"tool_choice": "required",
-		"max_tokens":  50,
 	})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(cfg.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, Endpoint(cfg.BaseURL), bytes.NewReader(body))
 	if err != nil {
 		return &Error{Step: StepConnect, Err: err}
 	}
@@ -82,10 +83,7 @@ func Check(ctx context.Context, client *http.Client, cfg Config) error {
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	var out struct {
-		Error *struct {
-			Message string `json:"message"`
-			Code    any    `json:"code"`
-		} `json:"error"`
+		Error   *apiError `json:"error"`
 		Choices []struct {
 			Message struct {
 				ToolCalls []json.RawMessage `json:"tool_calls"`
@@ -97,20 +95,52 @@ func Check(ctx context.Context, client *http.Client, cfg Config) error {
 	if out.Error != nil {
 		msg = strings.ToLower(out.Error.Message + " " + fmt.Sprint(out.Error.Code))
 	}
+	// The service's own message goes into the error for the log (not to the
+	// browser): it is what tells apart a quota, a bad parameter or a bad URL.
+	httpErr := fmt.Errorf("HTTP %d: %s", res.StatusCode, snippet(out.Error, raw))
 	switch {
 	case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
-		return &Error{Step: StepAuth, Err: fmt.Errorf("HTTP %d", res.StatusCode)}
+		return &Error{Step: StepAuth, Err: httpErr}
 	case res.StatusCode == http.StatusNotFound || strings.Contains(msg, "model_not_found") ||
 		(strings.Contains(msg, "model") && (strings.Contains(msg, "not found") || strings.Contains(msg, "does not exist"))):
-		return &Error{Step: StepModel, Err: fmt.Errorf("HTTP %d", res.StatusCode)}
+		return &Error{Step: StepModel, Err: httpErr}
 	case res.StatusCode >= 400 && (strings.Contains(msg, "tool") || strings.Contains(msg, "function")):
-		return &Error{Step: StepTools, Err: fmt.Errorf("HTTP %d", res.StatusCode)}
+		return &Error{Step: StepTools, Err: httpErr}
 	case res.StatusCode >= 300:
-		return &Error{Step: StepConnect, Err: fmt.Errorf("HTTP %d", res.StatusCode)}
+		return &Error{Step: StepConnect, Err: httpErr}
 	case len(out.Choices) == 0:
 		return &Error{Step: StepConnect, Err: errors.New("respuesta sin choices")}
 	case len(out.Choices[0].Message.ToolCalls) == 0:
 		return &Error{Step: StepTools, Err: errors.New("el modelo no llamó a la herramienta")}
 	}
 	return nil
+}
+
+// Base is the base address as the OpenAI clients expect it, also when the
+// full chat completions endpoint was pasted.
+func Base(base string) string {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	return strings.TrimRight(strings.TrimSuffix(base, "/chat/completions"), "/")
+}
+
+// Endpoint is the chat completions URL of a base address.
+func Endpoint(base string) string { return Base(base) + "/chat/completions" }
+
+// apiError is the error object of an OpenAI-compatible answer.
+type apiError struct {
+	Message string `json:"message"`
+	Code    any    `json:"code"`
+}
+
+// snippet is the service's error message, or the start of its body.
+func snippet(e *apiError, raw []byte) string {
+	s := string(raw)
+	if e != nil && e.Message != "" {
+		s = e.Message
+	}
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > 300 {
+		s = s[:300] + "…"
+	}
+	return s
 }
