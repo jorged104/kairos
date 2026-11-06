@@ -120,7 +120,7 @@ describe('pestañas del proyecto (spec 008)', () => {
   it('abre en Resumen con las cinco vistas delante (RF-1, RF-2, RF-6 a RF-11, RF-15)', async () => {
     const { wrapper } = await renderPage()
     const tabs = wrapper.findAll('[role=tab]').map((x) => x.text())
-    expect(tabs).toEqual(['Resumen', 'Tabla', 'Kanban', 'Cronograma', 'Equipo', 'Hitos', 'Reuniones', 'Fases', 'Datos'])
+    expect(tabs).toEqual(['Resumen', 'Tabla', 'Kanban', 'Cronograma', 'Equipo', 'Hitos', 'Reuniones', 'Informes', 'Fases', 'Datos'])
     const ov = wrapper.find('[data-testid=overview]')
     expect(ov.find('[data-testid=overview-progress]').text()).toContain('40 %')
     // The traffic light with plan, real and gap (spec 009, RF-35, RF-44, RF-45, RF-47).

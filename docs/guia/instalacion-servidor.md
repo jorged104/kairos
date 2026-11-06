@@ -8,7 +8,7 @@ Kairos en marcha para un equipo, en un servidor Linux con Docker. Usa [`deploy/s
 - Al menos 2 GB de RAM y 10 GB de disco.
 - Un nombre de dominio que apunte al servidor, por ejemplo `kairos.example.com`.
 - Un **proxy inverso con HTTPS** delante. Kairos exige HTTPS fuera de desarrollo, porque la cookie de sesión solo viaja por conexiones seguras. Aquí se usa Caddy, que obtiene el certificado solo; vale cualquier otro (nginx, Traefik).
-- Opcional: un servidor SMTP para las invitaciones y la recuperación de contraseña, un proveedor de identidad OIDC para el SSO y un almacenamiento compatible con S3 para los archivos.
+- Opcional: un servidor SMTP para las invitaciones y la recuperación de contraseña, un proveedor de identidad OIDC para el SSO, un almacenamiento compatible con S3 para los archivos y un servicio de IA compatible con la API de OpenAI para los informes.
 
 ## 1. Descargar el código
 
@@ -51,10 +51,10 @@ alias kairos='docker compose -p kairos -f /opt/kairos/deploy/servidor/compose.ym
 ```
 
 ```bash
-kairos build api web migrate      # unos minutos la primera vez
+kairos build api web migrate agent   # unos minutos la primera vez
 kairos up -d --wait db
 kairos run --rm migrate           # crea las tablas
-kairos up -d api web
+kairos up -d agent api web
 curl -s http://127.0.0.1:8081/health/ready    # {"status":"ok",...}
 ```
 
@@ -89,7 +89,8 @@ Si usas otro proxy, comprueba que:
    Esa cuenta queda como administradora.
 3. En **Sistema → Acceso**, desactiva el registro libre si no lo quieres abierto. Desde entonces, las cuentas nuevas las crea un administrador en **Usuarios**.
 4. En **Sistema → Correo**, configura el SMTP y pulsa «Enviar correo de prueba». Sin correo, las invitaciones funcionan igual: Kairos te muestra el enlace para que lo copies.
-5. Revisa el resto de pestañas de **Sistema** (SSO, almacenamiento de archivos, apariencia). Lo que se guarda ahí tiene prioridad sobre las variables de entorno.
+5. Si quieres informes con IA, en **Sistema → Informes con IA** indica el servicio (dirección base, modelo y clave) y pulsa «Probar conexión». El servidor tiene que poder salir hacia ese servicio. Los datos que la IA consulta se envían a él: elige uno en el que tu organización confíe.
+6. Revisa el resto de pestañas de **Sistema** (SSO, almacenamiento de archivos, apariencia). Lo que se guarda ahí tiene prioridad sobre las variables de entorno.
 
 > **Elige el almacenamiento de archivos antes de empezar a usar Kairos.** En cuanto hay un archivo guardado, el almacenamiento queda bloqueado y no se puede cambiar.
 
@@ -111,7 +112,7 @@ Para restaurar una copia sobre una instalación parada:
 kairos stop api web
 kairos exec -T db sh -c 'dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
 kairos exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /var/backups/kairos/kairos-AAAA-MM-DD.dump
-kairos up -d api web
+kairos up -d agent api web
 ```
 
 Guarda las copias también fuera del servidor, junto con `/etc/kairos/kairos.env`.
@@ -121,9 +122,9 @@ Guarda las copias también fuera del servidor, junto con `/etc/kairos/kairos.env
 | Qué | Cómo |
 |---|---|
 | Estado de los servicios | `kairos ps` |
-| Logs | `kairos logs -f api web` |
+| Logs | `kairos logs -f api web agent` |
 | ¿Responde? | `curl -s http://127.0.0.1:8081/health/ready` |
-| Reiniciar | `kairos restart api web` |
+| Reiniciar | `kairos restart agent api web` |
 | Parar | `kairos stop` |
 | Actualizar | [Actualización](actualizacion.md) |
 
@@ -135,4 +136,5 @@ Guarda las copias también fuera del servidor, junto con `/etc/kairos/kairos.env
 | Entras y vuelves a la pantalla de login | El sitio no va por HTTPS, o `PUBLIC_URL` no coincide exactamente con la dirección del navegador |
 | Errores 500 tras actualizar | No se aplicaron las migraciones: `kairos run --rm migrate` |
 | No llega el tiempo real (notificaciones, cambios de otros) | El proxy no deja pasar WebSocket en `/ws` |
+| «El agente de informes no está disponible» | `kairos ps` muestra si `agent` está en marcha; `kairos logs agent` dice por qué falla |
 | El SSO falla al volver del proveedor | La URL de retorno registrada en el IdP debe ser `<PUBLIC_URL>/api/auth/oidc/callback` |

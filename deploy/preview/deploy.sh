@@ -39,7 +39,7 @@ wait_ready() {
 # Keeps only the images of the current and previous good versions.
 prune_images() {
 	local repo tag
-	for repo in kairos-api kairos-web kairos-migrate; do
+	for repo in kairos-api kairos-web kairos-migrate kairos-agent; do
 		docker image ls "$repo" --format '{{.Tag}}' | while read -r tag; do
 			if [[ $tag != "$TAG" && $tag != "$PREV" ]]; then
 				docker image rm "$repo:$tag" >/dev/null 2>&1 || true
@@ -58,7 +58,7 @@ export TAG
 log "versión nueva: $TAG · última buena: ${PREV:-ninguna}"
 
 log "1/5 construyendo imágenes"
-compose build api web migrate || fail "la construcción falló; no se despliega"
+compose build api web migrate agent || fail "la construcción falló; no se despliega"
 
 log "2/5 base de datos"
 compose up -d --wait db || fail "la base de datos no arrancó; no se despliega"
@@ -67,7 +67,7 @@ log "3/5 migraciones"
 compose run --rm migrate || fail "las migraciones fallaron; sigue en marcha ${PREV:-la versión anterior}"
 
 log "4/5 arrancando $TAG"
-compose up -d --no-deps api web
+compose up -d --no-deps agent api web
 
 log "5/5 comprobando disponibilidad (máx. ${READY_TIMEOUT_SECONDS} s)"
 if wait_ready; then
@@ -80,7 +80,7 @@ fi
 log "la versión $TAG no está disponible"
 if [[ -n $PREV ]]; then
 	log "volviendo a $PREV"
-	TAG=$PREV compose up -d --no-deps api web
+	TAG=$PREV compose up -d --no-deps agent api web
 	if wait_ready; then
 		log "restaurada $PREV"
 	else

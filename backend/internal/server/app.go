@@ -35,6 +35,7 @@ import (
 	"openscum/internal/projectboard"
 	"openscum/internal/projects"
 	"openscum/internal/realtime"
+	"openscum/internal/reports"
 	"openscum/internal/schedule"
 	"openscum/internal/settings"
 	"openscum/internal/teams"
@@ -60,6 +61,8 @@ type App struct {
 	MCP *mcp.Server
 	// Accounts sends the invitations and links (spec 019); tests wait for them.
 	Accounts *accounts.Service
+	// Reports generates the AI reports; the tests point it at a fake agent.
+	Reports *reports.Generator
 }
 
 // live holds the settings of the system edited from the interface (spec 015);
@@ -131,6 +134,10 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	mcpSrv := mcp.NewServer(mcpConns, loader, live.MCPEnabled, logger)
 	mcpSrv.SetAPI(router)
 
+	reportsSvc := reports.NewService(store, live.AI, live.AgentURL)
+	reportsGen := reports.NewGenerator(reportsSvc, mcpSrv, func() string { return cfg.Agent.CallbackURL }, logger)
+	reportsH := reports.NewHandler(reportsSvc, reportsGen, logger)
+
 	router.Get("/ws", hub.ServeWS)
 
 	router.Route("/api", func(api chi.Router) {
@@ -140,6 +147,7 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 		accountsH.PublicRoutes(api)
 		// The secret URL is the credential of an AI connection (spec 016).
 		api.Handle("/mcp/{secret}", mcpSrv)
+		api.Post(reports.AgentToolPath, reportsH.ServeTool)
 
 		api.Group(func(p chi.Router) {
 			p.Use(auth.RequireSession(sessions, loader, logger))
@@ -167,11 +175,12 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 			commentsH.Routes(p)
 			mcpH.Routes(p)
 			notificationsH.Routes(p)
+			reportsH.Routes(p)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(auditH.Routes)
 			p.With(auth.RequirePermission(authz.AuditRead, logger)).Group(eventsH.Routes)
 			p.With(auth.RequirePermission(authz.IdpMappingsManage, logger)).Group(mappingsH.Routes)
 		})
 	})
 
-	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc, MCP: mcpSrv, Accounts: accountsSvc}
+	return &App{Handler: router, Sessions: sessions, Loader: loader, Hub: hub, Events: dispatcher, Settings: settingsSvc, MCP: mcpSrv, Accounts: accountsSvc, Reports: reportsGen}
 }

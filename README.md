@@ -18,7 +18,7 @@ Cada persona gana **XP** y **monedas** al cerrar su trabajo. Todos los puntos qu
 - **Gamificación:** XP, monedas, niveles y ranking por equipo.
 - **Usuarios y acceso:** usuario y contraseña, SSO (OIDC), roles y permisos, equipos jerárquicos, atributos, invitaciones por correo y recuperación de contraseña.
 - **Administración:** pantalla Sistema para acceso, SSO, almacenamiento, apariencia, correo y conexiones de IA, más auditoría de cambios.
-- **IA:** conexión de clientes como Claude o ChatGPT por MCP, con una URL propia para cada conexión.
+- **IA:** informes de proyecto escritos por un agente (deepagents) que consulta los datos reales del proyecto y sus subproyectos, con plantillas y prompts editables y cualquier servicio compatible con la API de OpenAI; y conexión de clientes como Claude o ChatGPT por MCP, con una URL propia para cada conexión.
 
 ## Instalación
 
@@ -46,6 +46,7 @@ Abre http://localhost:5173 y regístrate con `admin@kairos.local` para entrar co
 | Frontend | Vue 3, Vite, TypeScript, Vue Router, Pinia, TanStack Query, vue-i18n |
 | UI | Tailwind CSS v4, shadcn-vue (Reka UI), Lucide, TipTap |
 | Backend | Go, Chi, pgx/v5, sqlc, Squirrel, slog |
+| Agente de informes | Python 3.12, uv, deepagents (LangChain), Starlette |
 | Tiempo real | WebSocket (Gorilla) |
 | Base de datos | PostgreSQL 17, migraciones con Goose |
 | Infra | Docker + Docker Compose |
@@ -54,14 +55,14 @@ Abre http://localhost:5173 y regístrate con `admin@kairos.local` para entrar co
 ## Comandos de desarrollo
 
 ```bash
-make up          # BD + API + frontend en contenedores
+make up          # BD + API + agente de informes + frontend en contenedores
 make up-sso      # … más Keycloak de prueba
 make up-s3       # … con los archivos en S3 (SeaweedFS)
 make up-mail     # … más Mailpit para ver los correos
 make down        # para los contenedores
 make migrate     # aplica migraciones
 make sqlc        # regenera el código de sqlc
-make test        # tests de backend y frontend
+make test        # tests de backend, frontend y agente
 make dev-api     # API en el host
 make dev-web     # Vite en el host
 ```
@@ -113,5 +114,6 @@ El trabajo también puede empezar con un **issue en GitHub**: la skill `issue-a-
 | [017](docs/specs/017-notificaciones/spec.md) | Notificaciones |
 | [018](docs/specs/018-reuniones/spec.md) | Reuniones |
 | [019](docs/specs/019-correo/spec.md) | Correo: invitaciones y recuperación de contraseña |
+| [020](docs/specs/020-informes-ia/spec.md) | Informes de proyecto con IA |
 
 Las reglas para agentes de código (Claude Code, Codex, Copilot…) están en [AGENTS.md](AGENTS.md).

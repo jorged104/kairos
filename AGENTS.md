@@ -32,6 +32,7 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 | UI | Tailwind CSS v4, shadcn-vue (Reka UI), Lucide (`@lucide/vue`) |
 | Editor / tablas / DnD | TipTap, TanStack Table, VueDraggablePlus |
 | Backend | Go, Chi, pgx/v5, sqlc, Squirrel, go-playground/validator, slog |
+| Agente de informes (spec 020) | Python 3.12, uv, deepagents (LangChain), langchain-openai, Starlette ([ADR 0004](docs/adr/0004-agente-de-informes-en-python.md)) |
 | Tiempo real | Gorilla WebSocket |
 | Base de datos | PostgreSQL (relacional + JSONB), migraciones con Goose |
 | Infra | Docker + Docker Compose |
@@ -86,6 +87,8 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   ├── objectives/        # objetivos y resultados clave
 │   │   ├── gamification/      # ledger, reglas de XP/monedas, niveles
 │   │   ├── realtime/          # hub WebSocket
+│   │   ├── llm/               # prueba de conexión con un servicio de IA compatible con OpenAI
+│   │   ├── reports/           # informes con IA: plantillas, informes y generación con el agente
 │   │   ├── apitest/           # tests HTTP de la API completa contra una BD temporal e IdP simulado
 │   │   └── db/
 │   │       ├── store.go       # pool + queries sqlc + InTx
@@ -97,6 +100,11 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 │   │   └── httpx/             # WriteJSON / WriteError (formato de error común)
 │   ├── sqlc.yaml
 │   ├── go.mod
+│   └── Dockerfile
+├── agent/                     # agente de informes en Python con deepagents (spec 020, ADR 0004)
+│   ├── kairos_agent/          # app.py (POST /generate en NDJSON) y agent.py
+│   ├── tests/                 # pytest con servicio de IA y Kairos falsos
+│   ├── pyproject.toml, uv.lock
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
@@ -143,10 +151,10 @@ Cada módulo de `backend/internal/<dominio>/` sigue el mismo patrón: `handler.g
 
 ## Comandos
 
-Requisitos en el host: Docker con Compose v2, Go ≥ 1.24, Node ≥ 22 y `make`. Antes de nada: `cp .env.example .env`.
+Requisitos en el host: Docker con Compose v2, Go ≥ 1.24, Node ≥ 22, `make` y, para los tests del agente, [uv](https://docs.astral.sh/uv/). Antes de nada: `cp .env.example .env`.
 
 ```bash
-make up          # BD (espera hasta 60 s a que esté sana) + API + frontend en contenedores
+make up          # BD (espera hasta 60 s a que esté sana) + API + agente + frontend en contenedores
 make up-sso      # como up, más Keycloak de prueba en localhost:8180 (profile sso)
 make up-s3       # como up, con los archivos de las páginas en S3 (SeaweedFS en localhost:8333, profile s3)
 make up-mail     # como up, más Mailpit: SMTP en localhost:1025 y bandeja en localhost:8025 (profile mail)
@@ -156,7 +164,8 @@ make web         # solo el frontend (Vite, http://localhost:5173)
 make down        # para y elimina los contenedores
 make migrate     # aplica migraciones Goose (nunca se aplican al arrancar)
 make sqlc        # regenera código de sqlc (se ejecuta en contenedor)
-make test        # tests de backend y frontend (test-api / test-web por separado)
+make agent       # solo el agente de informes con IA (spec 020)
+make test        # tests de backend, frontend y agente (test-api / test-web / test-agent por separado)
                  # los de integración necesitan TEST_DATABASE_URL (en .env); sin ella se omiten salvo en CI
 make dev-api     # API en el host contra la BD en contenedor
 make dev-web     # Vite en el host
@@ -181,5 +190,6 @@ Cada push a `main` pasa los tests en GitHub y se despliega en un servidor domés
 * Autorización: los endpoints comprueban permisos (`authz`), nunca nombres de rol. Un permiso nuevo se añade a la matriz única de `internal/authz` y al test de matriz (`apitest/matrix_test.go` o `apitest/matrix_work_test.go`).
 * Toda mutación de usuarios, roles, equipos, atributos u homologaciones, y de catálogo, proyectos, fases, hitos, work items, dependencias u objetivos, se audita con `audit.Record` dentro de la misma transacción. Las descripciones solo como `description_changed`.
 * Los eventos de dominio (`work_item.closed`, `milestone.completed`…) se emiten con `events.Emit` dentro de la transacción del cambio, nunca después ([ADR 0002](docs/adr/0002-eventos-de-dominio-con-outbox.md)).
+* El agente de informes (`agent/`) no lee la base de datos: sus herramientas llaman de vuelta a la API con el token de la generación, y la API aplica permisos, árbol y límites (ADR 0004). Herramienta nueva para el agente = `internal/mcp/reports.go` + test en `apitest/reports_test.go`.
 * Las descripciones son documentos JSON de TipTap validados por `richtext.Clean`; nunca se guarda ni se pinta HTML ([ADR 0003](docs/adr/0003-descripciones-json-con-lista-blanca.md)).
 * Las modificaciones de proyectos, hitos, work items, objetivos y resultados clave llevan `version` y responden `version_conflict` si cambió.

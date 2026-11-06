@@ -193,6 +193,24 @@ var workOps = []workOp{
 	{"crear plantilla de reunión del proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/meeting-templates", map[string]any{"name": "T", "project_id": m.project(a)})
 	}, managers(201)},
+	// Spec 020: everyone reads the reports of a project; whoever manages it writes
+	// and generates them; templates and the AI service are the system administrator's.
+	{"ver informes del proyecto", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/projects/" + m.project(a).String() + "/reports")
+	}, workAll(200)},
+	{"crear informe", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/projects/"+m.project(a).String()+"/reports", map[string]any{"title": "I", "content": "# I", "origin": "manual"})
+	}, managers(201)},
+	{"generar informe sin IA configurada", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/projects/"+m.project(a).String()+"/reports/generate", map[string]any{"draft": "# I", "change": "más corto"})
+	}, managers(409)},
+	{"ver plantillas de informe", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/report-templates") }, workAll(200)},
+	{"crear plantilla de informe", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/system/report-templates", map[string]any{"name": "T-" + uuid.NewString(), "prompt": "p"})
+	}, map[string]int{"admin": 201}},
+	{"configurar servicio de IA", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Do(http.MethodPut, "/api/system/settings/ai", map[string]any{"enabled": false})
+	}, map[string]int{"admin": 200}},
 	{"ver mis notificaciones", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/notifications") }, workAll(200)},
 	{"ver mis conexiones de IA", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/mcp-connections") }, workAll(200)},
 	{"ver puntos de otro", func(m *workMatrix, c *Client, a string) *Response {

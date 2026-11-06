@@ -30,9 +30,9 @@ Los pasos usan el alias `kairos` de la [instalación en un servidor](instalacion
 ```bash
 cd /opt/kairos
 git pull --ff-only
-kairos build api web migrate      # la versión actual sigue funcionando mientras tanto
+kairos build api web migrate agent   # la versión actual sigue funcionando mientras tanto
 kairos run --rm migrate           # aplica las migraciones nuevas
-kairos up -d api web              # unos segundos sin servicio mientras se recrean
+kairos up -d agent api web           # unos segundos sin servicio mientras se recrean
 curl -s http://127.0.0.1:8081/health/ready
 ```
 
@@ -47,8 +47,8 @@ Las migraciones de Kairos son solo aditivas: la versión anterior de la API sigu
 ```bash
 cd /opt/kairos
 git checkout "$(cat /var/backups/kairos/version-anterior)"
-kairos build api web
-kairos up -d api web
+kairos build api web agent
+kairos up -d agent api web
 ```
 
 No deshagas migraciones con `goose down`: puede borrar datos. Si la base de datos quedó mal, restaura la copia de antes de actualizar.

@@ -20,6 +20,7 @@ import (
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/llm"
 	"openscum/internal/mail"
 )
 
@@ -63,6 +64,7 @@ type snapshot struct {
 	clientSecret string
 	s3Secret     string
 	mailPassword string
+	aiKey        string
 	test         *SSOTest
 }
 
@@ -151,6 +153,9 @@ func (h *Holder) set(row sqlc.SystemSetting) {
 	}
 	if s.mailPassword, err = h.box.open(row.SmtpPassword); err != nil {
 		h.logger.Warn("no se puede descifrar la contraseña del correo; hay que escribirla de nuevo")
+	}
+	if s.aiKey, err = h.box.open(row.AiApiKey); err != nil {
+		h.logger.Warn("no se puede descifrar la clave del servicio de IA; hay que escribirla de nuevo")
 	}
 	if len(row.OidcTest) > 0 {
 		var t SSOTest
@@ -242,6 +247,16 @@ func (h *Holder) Mail() mail.Config {
 		Username: r.SmtpUsername, Password: s.mailPassword, FromEmail: r.MailFromEmail, FromName: r.MailFromName,
 	}
 }
+
+// AI is the AI service of the reports (spec 020), with its key in clear.
+func (h *Holder) AI() llm.Config {
+	s := h.cur.Load()
+	r := s.row
+	return llm.Config{Enabled: r.AiEnabled, BaseURL: r.AiBaseUrl, APIKey: s.aiKey, Model: r.AiModel}
+}
+
+// AgentURL is the agent service that writes the reports; empty, none (ADR 0004).
+func (h *Holder) AgentURL() string { return h.env.Agent.URL }
 
 // MCPEnabled reports whether AI clients may connect (spec 016, RF-3).
 func (h *Holder) MCPEnabled() bool { return h.cur.Load().row.McpEnabled }

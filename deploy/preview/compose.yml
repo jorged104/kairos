@@ -61,11 +61,25 @@ services:
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       OIDC_ROLE_SOURCE: ${OIDC_ROLE_SOURCE:-idp}
       OIDC_LINK_BY_EMAIL: ${OIDC_LINK_BY_EMAIL:-false}
+      # Informes con IA (spec 020).
+      AGENT_URL: http://agent:8000
+      AGENT_CALLBACK_URL: http://api:8080
     networks:
       - internal
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+    labels:
+      traefik.enable: "false"
+
+  # Agente de informes con IA (spec 020, ADR 0004): interno, sin puertos.
+  agent:
+    image: kairos-agent:${TAG:?}
+    build:
+      context: ../../agent
+    networks:
+      - internal
     restart: unless-stopped
     labels:
       traefik.enable: "false"

@@ -51,6 +51,15 @@ export interface SystemSettings {
     from_name: string
     ready: boolean
   }
+  /** The AI service of the reports (spec 020); ready also needs the agent. */
+  ai: {
+    enabled: boolean
+    base_url: string
+    model: string
+    api_key_set: boolean
+    agent_available: boolean
+    ready: boolean
+  }
   emergency_available: boolean
   emergency_email: string
 }
@@ -74,6 +83,11 @@ export const saveMcp = (enabled: boolean) => put('mcp', { enabled })
 export const saveMail = (body: Omit<SystemSettings['mail'], 'password_set' | 'ready'> & { password: string }) => put('mail', body)
 
 export const testMail = () => api<void>('/api/system/settings/mail/test', { method: 'POST' })
+
+/** The AI service of the reports (spec 020); an empty key keeps the stored one. */
+export const saveAI = (body: { enabled: boolean; base_url: string; model: string; api_key: string }) => put('ai', body)
+
+export const testAI = () => api<void>('/api/system/settings/ai/test', { method: 'POST' })
 
 /** Where the browser goes to test the SSO; it comes back to the SSO tab (RF-28). */
 export const ssoTestUrl = '/api/auth/oidc/start?test=1'

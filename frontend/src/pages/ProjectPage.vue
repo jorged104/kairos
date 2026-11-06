@@ -17,6 +17,7 @@ import ProjectPhases from '@/features/projects/ProjectPhases.vue'
 import ProjectSummary from '@/features/projects/ProjectSummary.vue'
 import ProjectTeam from '@/features/projects/ProjectTeam.vue'
 import ProjectWorkItems from '@/features/projects/ProjectWorkItems.vue'
+import ReportsTab from '@/features/reports/ReportsTab.vue'
 import ProjectTimeline from '@/features/timeline/ProjectTimeline.vue'
 import FilterBar from '@/features/views/FilterBar.vue'
 import { useFilterOptions } from '@/features/views/useFilterOptions'
@@ -38,7 +39,7 @@ const { data: project, error: loadError } = useQuery({
   queryFn: () => getProject(props.id),
 })
 
-const ALL_TABS = ['overview', 'table', 'kanban', 'timeline', 'team', 'milestones', 'meetings', 'phases', 'data'] as const
+const ALL_TABS = ['overview', 'table', 'kanban', 'timeline', 'team', 'milestones', 'meetings', 'reports', 'phases', 'data'] as const
 type Tab = (typeof ALL_TABS)[number]
 // The team only for who manages it (RF-4).
 const TABS = computed(() => ALL_TABS.filter((x) => x !== 'team' || project.value?.can.manage_team))
@@ -100,7 +101,7 @@ function reload() {
           class="-mb-px border-b-2 px-3 py-2"
           :class="tab === x ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'"
           :data-testid="`tab-${x}`"
-          @click="router.replace({ query: { ...(working && ['table', 'kanban', 'timeline'].includes(x) ? route.query : {}), tab: x, item: undefined, meeting: undefined } })"
+          @click="router.replace({ query: { ...(working && ['table', 'kanban', 'timeline'].includes(x) ? route.query : {}), tab: x, item: undefined, meeting: undefined, report: undefined, edit: undefined } })"
         >
           {{ tabLabel(x) }}
         </button>
@@ -145,6 +146,7 @@ function reload() {
       <ProjectTeam v-else-if="tab === 'team'" :project="project" />
       <ProjectMilestones v-else-if="tab === 'milestones'" :project="project" />
       <MeetingsTab v-else-if="tab === 'meetings'" :project="project" />
+      <ReportsTab v-else-if="tab === 'reports'" :project="project" />
       <ProjectPhases v-else-if="tab === 'phases'" :project="project" @error="error = $event" />
       <ProjectSummary v-else :project="project" @error="error = $event" />
     </template>

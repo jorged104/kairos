@@ -21,6 +21,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/config"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/llm"
 	"openscum/internal/mail"
 )
 
@@ -53,6 +54,8 @@ type Service struct {
 	CheckS3        func(ctx context.Context, f config.FilesConfig) (step string, err error)
 	// Mailer sends the test mail (spec 019, RF-6).
 	Mailer mail.Sender
+	// AIClient checks the AI service (spec 020, RF-11); nil, the default one.
+	AIClient *http.Client
 }
 
 func NewService(h *Holder) *Service {
@@ -101,6 +104,17 @@ type StorageView struct {
 	Locked       bool   `json:"locked"`
 }
 
+// AIView is the AI service of the reports without its key (spec 020, RF-1
+// to RF-8). Ready also needs the agent service (ADR 0004).
+type AIView struct {
+	Enabled        bool   `json:"enabled"`
+	BaseURL        string `json:"base_url"`
+	Model          string `json:"model"`
+	APIKeySet      bool   `json:"api_key_set"`
+	AgentAvailable bool   `json:"agent_available"`
+	Ready          bool   `json:"ready"`
+}
+
 // MCPView is the switch of the AI connections (spec 016, RF-2).
 type MCPView struct {
 	Enabled bool `json:"enabled"`
@@ -115,6 +129,7 @@ type View struct {
 	Appearance         Theme       `json:"appearance"`
 	MCP                MCPView     `json:"mcp"`
 	Mail               MailView    `json:"mail"`
+	AI                 AIView      `json:"ai"`
 	EmergencyAvailable bool        `json:"emergency_available"`
 	EmergencyEmail     string      `json:"emergency_email"`
 }
@@ -154,6 +169,10 @@ func (s *Service) View(ctx context.Context) (View, error) {
 			Enabled: r.MailEnabled, Host: r.SmtpHost, Port: r.SmtpPort, Security: r.SmtpSecurity, Username: r.SmtpUsername,
 			PasswordSet: snap.mailPassword != "", FromEmail: r.MailFromEmail, FromName: r.MailFromName, Ready: s.h.Mail().Ready(),
 		},
+		AI: AIView{
+			Enabled: r.AiEnabled, BaseURL: r.AiBaseUrl, Model: r.AiModel, APIKeySet: snap.aiKey != "",
+			AgentAvailable: s.h.AgentURL() != "", Ready: s.h.AI().Ready() && s.h.AgentURL() != "",
+		},
 		EmergencyAvailable: emergency,
 		EmergencyEmail:     s.h.env.Auth.BootstrapAdminEmail,
 	}, nil
@@ -178,6 +197,7 @@ type draft struct {
 	clientSecret string
 	s3Secret     string
 	mailPassword string
+	aiKey        string
 }
 
 // update changes the row under lock, audits the fields that changed (the
@@ -196,6 +216,7 @@ func (s *Service) update(ctx context.Context, p *authz.Principal, section string
 		before.clientSecret, _ = s.h.box.open(row.OidcClientSecret)
 		before.s3Secret, _ = s.h.box.open(row.S3SecretKey)
 		before.mailPassword, _ = s.h.box.open(row.SmtpPassword)
+		before.aiKey, _ = s.h.box.open(row.AiApiKey)
 		d := before
 		if err := fn(q, &d); err != nil {
 			return err
@@ -260,6 +281,7 @@ func auditable(d draft) map[string]any {
 		"mail_enabled": r.MailEnabled, "smtp_host": r.SmtpHost, "smtp_port": r.SmtpPort, "smtp_security": r.SmtpSecurity,
 		"smtp_username": r.SmtpUsername, "smtp_password": secret(d.mailPassword),
 		"mail_from_email": r.MailFromEmail, "mail_from_name": r.MailFromName,
+		"ai_enabled": r.AiEnabled, "ai_base_url": r.AiBaseUrl, "ai_model": r.AiModel, "ai_api_key": secret(d.aiKey),
 	}
 }
 
@@ -583,4 +605,63 @@ func (s *Service) TestMail(ctx context.Context, p *authz.Principal) error {
 		return errMail(mail.StepConnect)
 	}
 	return nil
+}
+
+type AIRequest struct {
+	Enabled bool   `json:"enabled"`
+	BaseURL string `json:"base_url" validate:"omitempty,url,max=500"`
+	APIKey  string `json:"api_key" validate:"max=1000"` // empty keeps the one stored (RF-9)
+	Model   string `json:"model" validate:"max=200"`
+}
+
+func (r *AIRequest) Normalize() {
+	r.BaseURL, r.Model, r.APIKey = strings.TrimRight(strings.TrimSpace(r.BaseURL), "/"), strings.TrimSpace(r.Model), strings.TrimSpace(r.APIKey)
+}
+
+// UpdateAI saves the AI service of the reports; switched on, it needs an
+// address and a model (spec 020, RF-3 to RF-10).
+func (s *Service) UpdateAI(ctx context.Context, p *authz.Principal, req AIRequest) (View, error) {
+	if req.BaseURL != "" && !strings.HasPrefix(req.BaseURL, "http://") && !strings.HasPrefix(req.BaseURL, "https://") {
+		return View{}, apperr.ErrValidation.WithDetail("field", "base_url")
+	}
+	if req.Enabled && req.BaseURL == "" {
+		return View{}, apperr.ErrValidation.WithDetail("field", "base_url")
+	}
+	if req.Enabled && req.Model == "" {
+		return View{}, apperr.ErrValidation.WithDetail("field", "model")
+	}
+	return s.update(ctx, p, "ai", func(q *sqlc.Queries, d *draft) error {
+		if req.APIKey != "" {
+			d.aiKey = req.APIKey
+		}
+		sealed, err := s.h.box.seal(d.aiKey)
+		if err != nil {
+			return err
+		}
+		r := &d.row
+		r.AiEnabled, r.AiBaseUrl, r.AiModel = req.Enabled, req.BaseURL, req.Model
+		if err := q.SetAISettings(ctx, sqlc.SetAISettingsParams{
+			AiEnabled: r.AiEnabled, AiBaseUrl: r.AiBaseUrl, AiApiKey: sealed, AiModel: r.AiModel,
+		}); err != nil {
+			return fmt.Errorf("guardar servicio de IA: %w", err)
+		}
+		return nil
+	})
+}
+
+// TestAI checks the saved AI service and says where it failed (RF-11 to RF-13).
+func (s *Service) TestAI(ctx context.Context, p *authz.Principal) error {
+	if !p.Has(authz.SystemManage) {
+		return apperr.ErrForbidden
+	}
+	cfg := s.h.AI()
+	if cfg.BaseURL == "" || cfg.Model == "" {
+		return apperr.New(http.StatusConflict, "ai_not_configured", "El servicio de IA no está configurado")
+	}
+	err := llm.Check(ctx, s.AIClient, cfg)
+	var le *llm.Error
+	if errors.As(err, &le) {
+		return apperr.New(http.StatusBadRequest, "ai_test_failed", "No se pudo usar el servicio de IA").WithDetail("step", le.Step)
+	}
+	return err
 }

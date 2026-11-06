@@ -75,6 +75,10 @@ func RequirePermission(perm authz.Permission, logger *slog.Logger) func(http.Han
 // MCPPath is where the AI connections are served (spec 016).
 const MCPPath = "/api/mcp/"
 
+// AgentToolsPath is where the report agent sends its queries, with the token
+// of a generation as its only credential (spec 020).
+const AgentToolsPath = "/api/reports/agent/"
+
 var errCSRF = apperr.New(http.StatusForbidden, "csrf_rejected", "Origen de la petición no permitido")
 
 // CSRF rejects state-changing requests whose Origin (or Referer) is not the
@@ -90,7 +94,7 @@ func CSRF(publicURL string, logger *slog.Logger) func(http.Handler) http.Handler
 			}
 			// AI clients call from their own servers, with the secret URL as
 			// the only credential: no cookie to protect (spec 016).
-			if isInternal(r.Context()) || strings.HasPrefix(r.URL.Path, MCPPath) {
+			if isInternal(r.Context()) || strings.HasPrefix(r.URL.Path, MCPPath) || strings.HasPrefix(r.URL.Path, AgentToolsPath) {
 				next.ServeHTTP(w, r)
 				return
 			}

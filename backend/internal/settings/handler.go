@@ -34,6 +34,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Put("/system/settings/mcp", put(h, h.svc.UpdateMCP))
 		r.Put("/system/settings/mail", put(h, h.svc.UpdateMail))
 		r.Post("/system/settings/mail/test", h.testMail)
+		r.Put("/system/settings/ai", put(h, h.svc.UpdateAI))
+		r.Post("/system/settings/ai/test", h.testAI)
 	})
 }
 
@@ -65,6 +67,15 @@ func put[Req any](h *Handler, fn func(context.Context, *authz.Principal, Req) (V
 // testMail sends the test mail (spec 019, RF-6).
 func (h *Handler) testMail(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.TestMail(r.Context(), authz.FromContext(r.Context())); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// testAI checks the AI service of the reports (spec 020, RF-11).
+func (h *Handler) testAI(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.TestAI(r.Context(), authz.FromContext(r.Context())); err != nil {
 		apperr.Write(w, h.logger, err)
 		return
 	}
