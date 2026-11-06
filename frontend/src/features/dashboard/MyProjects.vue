@@ -4,16 +4,17 @@ import { RouterLink } from 'vue-router'
 import type { DashboardProject } from '@/api/dashboard'
 import LevelBadge from '@/features/schedule/LevelBadge.vue'
 
-// The projects the caller works on, the most late first (spec 013, RF-23 to RF-27).
-defineProps<{ projects: DashboardProject[] }>()
+// The projects the caller works on, the most late first (spec 013, RF-23 to
+// RF-27); with owner, another person's (RF-47).
+defineProps<{ projects: DashboardProject[]; owner?: string }>()
 const { t } = useI18n()
 const pct = (n: number) => `${n.toLocaleString('es', { maximumFractionDigits: 1 })} %`
 </script>
 
 <template>
   <section class="flex flex-col gap-3 rounded-xl border bg-background p-4" aria-labelledby="my-projects" data-testid="my-projects">
-    <h2 id="my-projects" class="text-base font-semibold">{{ t('dashboard.projects.title') }}</h2>
-    <p v-if="!projects.length" class="text-sm text-muted-foreground" data-testid="my-projects-empty">{{ t('dashboard.projects.empty') }}</p>
+    <h2 id="my-projects" class="text-base font-semibold">{{ owner ? t('dashboard.others.projects', { name: owner }) : t('dashboard.projects.title') }}</h2>
+    <p v-if="!projects.length" class="text-sm text-muted-foreground" data-testid="my-projects-empty">{{ owner ? t('dashboard.others.projectsEmpty') : t('dashboard.projects.empty') }}</p>
     <ul v-else class="flex flex-col divide-y">
       <li v-for="p in projects" :key="p.id" class="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0" data-testid="my-project">
         <div class="flex items-center gap-2">

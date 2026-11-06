@@ -139,6 +139,7 @@
     "offboarded": "Dado de baja"
   },
   "users": {
+    "viewPanel": "Ver panel",
     "title": "Usuarios",
     "new": "Nuevo usuario",
     "searchPlaceholder": "Buscar por nombre o email",
@@ -1274,6 +1275,22 @@
   },
   "dashboard": {
     "title": "Mi panel",
+    "others": {
+      "select": "Ver el panel de…",
+      "me": "Mi panel",
+      "title": "Panel de {name}",
+      "viewing": "Estás viendo el panel de {name}, en solo lectura.",
+      "back": "Volver a mi panel",
+      "profile": "Perfil de {name}",
+      "openUser": "Ver su ficha",
+      "tasks": "Tareas de {name}",
+      "tasksEmpty": "No tiene tareas abiertas ni cerradas en los últimos 14 días.",
+      "projects": "Proyectos de {name}",
+      "projectsEmpty": "No aporta a ningún proyecto activo.",
+      "charts": "Avance de {name}",
+      "noLoad": "No tiene tareas abiertas.",
+      "notAvailable": "Ese panel no está disponible."
+    },
     "today": "Datos a {date}",
     "profile": {
       "title": "Mi perfil",

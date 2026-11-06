@@ -8,6 +8,8 @@
 - Las columnas son más fáciles de desplazar (RF-14b, RF-14c).
 - Cada tarea de la respuesta trae su tipo (`type_id`).
 
+**Cambio:** 2026-11-06, a petición del usuario. El administrador y el líder pueden ver, en solo lectura, el panel de otra persona (RF-37 a RF-51).
+
 ## Contexto y objetivo
 Hoy, al entrar en Kairos, cada persona ve el estado técnico del sistema. No ve su trabajo: qué
 tareas tiene asignadas, cuáles van atrasadas, en qué proyectos participa ni cómo evoluciona.
@@ -23,7 +25,9 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
 
 ## Usuarios / actores
 - **Cualquier usuario con lectura de trabajo:** ve su propio panel y mueve sus tareas según los permisos y el flujo que ya existen.
-- Nadie ve el panel de otra persona.
+- **Administrador:** además, ve en solo lectura el panel de cualquier usuario activo (cambio de 2026-11-06).
+- **Líder:** además, ve en solo lectura el panel de las personas que gestiona en Usuarios: los miembros y observadores de los equipos que lidera y de sus subequipos.
+- Nadie más ve el panel de otra persona.
 
 ## Vocabulario
 - **Mis tareas:** las tareas que tienen a la persona entre sus asignados.
@@ -48,7 +52,7 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
 ### Página
 - RF-1: CUANDO un usuario con lectura de trabajo entre en la página de inicio, EL SISTEMA le mostrará Mi panel.
 - RF-2: EL SISTEMA mostrará el estado técnico del sistema en una ruta propia, accesible desde la navegación.
-- RF-3: EL SISTEMA mostrará en Mi panel solo datos del usuario que lo mira.
+- RF-3: EL SISTEMA mostrará en Mi panel solo datos del usuario que lo mira, salvo cuando muestre el panel de otra persona (RF-37 a RF-51).
 - RF-4: EL SISTEMA calculará todas las cifras del panel a la fecha de hoy del usuario.
 
 ### Tarjeta de perfil
@@ -94,6 +98,23 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
 - RF-35: EL SISTEMA ofrecerá cada gráfica también como tabla de datos accesible para lectores de pantalla.
 - RF-36: EL SISTEMA contará como cerradas por el usuario las tareas que tiene asignadas en el momento de la consulta, en la semana de su fecha de cierre.
 
+### Panel de otra persona (cambio de 2026-11-06)
+- RF-37: DONDE el usuario pueda ver el panel de otras personas, EL SISTEMA mostrará en Mi panel un selector «Ver el panel de…» con él mismo en primer lugar y después las personas cuyo panel puede ver, por nombre.
+- RF-38: EL SISTEMA ofrecerá en el selector solo usuarios activos.
+- RF-39: CUANDO el usuario elija a otra persona en el selector, EL SISTEMA mostrará el panel de esa persona con los mismos datos, órdenes y gráficas que vería ella.
+- RF-40: EL SISTEMA guardará en la dirección de la página la persona elegida, de modo que el enlace abra el mismo panel.
+- RF-41: MIENTRAS se muestre el panel de otra persona, EL SISTEMA indicará arriba, de forma visible, de quién es el panel, con un enlace para volver al propio.
+- RF-42: EL SISTEMA mostrará en el panel de otra persona todas sus tareas y proyectos, aunque el usuario que mira no pueda ver esos proyectos.
+- RF-43: MIENTRAS se muestre el panel de otra persona, EL SISTEMA no permitirá mover tarjetas, ni arrastrando ni con la alternativa sin arrastre.
+- RF-44: CUANDO el usuario pulse en el panel de otra persona una tarjeta de un proyecto que puede ver, EL SISTEMA abrirá la ficha de la tarea en el panel lateral con los permisos que el usuario tenga en ese proyecto.
+- RF-45: SI el usuario no puede ver el proyecto de una tarjeta o de un proyecto de la lista, ENTONCES EL SISTEMA los mostrará sin enlace.
+- RF-46: MIENTRAS se muestre el panel de otra persona, EL SISTEMA hará que el enlace de la tarjeta de perfil abra la ficha de esa persona en Usuarios, en lugar de Mi cuenta.
+- RF-47: MIENTRAS se muestre el panel de otra persona, EL SISTEMA escribirá los títulos en tercera persona («Tareas de Ana», «Proyectos de Ana») en lugar de «Mis tareas» y «Mis proyectos».
+- RF-48: SI el usuario pide el panel de una persona que no puede ver, ENTONCES EL SISTEMA no mostrará ningún dato de ella y responderá con el mismo error que si la persona no existiera.
+- RF-49: SI la dirección apunta a una persona que el usuario ya no puede ver (desactivada, fuera de sus equipos o con rol de líder o administrador), ENTONCES EL SISTEMA mostrará el aviso de RF-48 y el enlace para volver al propio panel.
+- RF-50: EL SISTEMA no registrará en auditoría ni notificará la consulta del panel de otra persona.
+- RF-51: DONDE el usuario pueda ver el panel de una persona, EL SISTEMA mostrará en la ficha de esa persona en Usuarios un enlace «Ver panel» que abra su panel.
+
 ## Requisitos no funcionales
 - **Tiempo real:** las cifras se calculan en cada consulta; no se guardan fotos.
 - **Rendimiento:** con un usuario que tiene 500 tareas abiertas en 20 proyectos, el panel responde en menos de 500 ms en el servidor de previsualización.
@@ -110,9 +131,14 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
 - **Usuario sin tareas ni proyectos:** la tarjeta de perfil muestra ceros, y el Kanban y «Mis proyectos» muestran su mensaje.
 - **Tarea sin fecha fin:** nunca está atrasada, va al final de su columna y no cuenta para la puntualidad.
 - **Usuario solo con permiso de lectura** (observador): ve su panel pero no puede mover tarjetas que no le dejan editar.
+- **Líder que también es miembro de otro equipo:** solo ve el panel de quienes gestiona en Usuarios; el de otro líder o un administrador, nunca (RF-48).
+- **Persona elegida que cambia de equipo mientras se mira su panel:** la siguiente recarga responde como en RF-49.
+- **Administrador o líder sin tareas propias:** el selector sigue apareciendo y su propio panel muestra los mensajes de vacío.
 
 ## Fuera de alcance
-- Ver el panel de otra persona o de un equipo.
+- Ver el panel de un equipo, con las tareas de todas sus personas juntas.
+- Mover tareas o hacer cambios desde el panel de otra persona.
+- Comparar personas entre sí o rankings de productividad.
 - XP, monedas, niveles y logros (gamificación, spec futura).
 - Personalizar el panel (mover u ocultar tarjetas o gráficas).
 - Notificaciones o recordatorios de tareas atrasadas.
@@ -132,6 +158,8 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
   4. Intentar moverla a un estado que el flujo no permite.
   5. Cerrar una tarea fuera de plazo y ver cómo cambian la gráfica semanal y la puntualidad.
   6. Ver un proyecto donde solo se tienen tareas, con el papel «con tareas».
+  7. Como líder, elegir en el selector a una persona de su equipo y ver su panel, sin poder mover tarjetas; comprobar que no aparece nadie de fuera de sus equipos.
+  8. Copiar el enlace de ese panel y abrirlo como un miembro: no ve ningún dato.
 
 ## Decisiones tomadas con el usuario (2026-11-04)
 - **Columnas:** una por estado del catálogo de tareas, y se pueden mover como en el kanban del proyecto.
@@ -140,6 +168,13 @@ Todo se calcula en tiempo real a la fecha de hoy y los conceptos sirven a cualqu
 - **Gráficas:** tareas cerradas por semana, puntualidad y carga actual por proyecto.
 - **Ubicación:** Mi panel sustituye a la página de inicio, y el estado del sistema pasa a su propia ruta.
 - **Perfil:** iniciales, nombre, roles y equipos, más tres cifras (abiertas, atrasadas y cerradas este mes) y un enlace a Mi cuenta.
+
+## Decisiones tomadas con el usuario (2026-11-06)
+- **Quién:** el administrador ve a todos; el líder, a las personas que gestiona en Usuarios.
+- **Solo lectura:** no se mueven tarjetas desde el panel de otra persona.
+- **Acceso:** selector en Mi panel y enlace «Ver panel» en la ficha del usuario.
+- **Tareas en proyectos que quien mira no ve:** se muestran completas.
+- **Constancia:** no se audita ni se avisa.
 
 ## Dudas abiertas
 Ninguna.

@@ -12,6 +12,49 @@ import (
 	"github.com/google/uuid"
 )
 
+const dashboardPeople = `-- name: DashboardPeople :many
+SELECT u.id, u.name,
+       ARRAY(SELECT r.role::text FROM user_roles r WHERE r.user_id = u.id ORDER BY r.role)::text[] AS roles,
+       ARRAY(SELECT m.team_id FROM team_members m WHERE m.user_id = u.id)::uuid[] AS team_ids
+FROM users u
+WHERE u.status = 'active'
+ORDER BY u.name, u.id
+`
+
+type DashboardPeopleRow struct {
+	ID      uuid.UUID
+	Name    string
+	Roles   []string
+	TeamIds []uuid.UUID
+}
+
+// The active users with their roles and teams, for the panels another person
+// may see (change of 2026-11-06, RF-37, RF-38).
+func (q *Queries) DashboardPeople(ctx context.Context) ([]DashboardPeopleRow, error) {
+	rows, err := q.db.Query(ctx, dashboardPeople)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DashboardPeopleRow
+	for rows.Next() {
+		var i DashboardPeopleRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Roles,
+			&i.TeamIds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const dashboardProjects = `-- name: DashboardProjects :many
 SELECT p.id, p.identifier, p.name, p.team_id, p.owner_id
 FROM projects p

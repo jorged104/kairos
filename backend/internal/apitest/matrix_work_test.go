@@ -150,6 +150,15 @@ var workOps = []workOp{
 	// Spec 012: everyone reads the board and keeps personal views; whoever
 	// manages a project moves it; leads and the administrator share views.
 	{"ver mi panel", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/dashboard") }, workAll(200)}, // spec 013
+	// Spec 013, change of 2026-11-06: the administrator sees anybody's panel,
+	// a lead those of their teams; to anybody else it does not exist.
+	{"ver personas de los paneles", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/dashboard/people") }, workAll(200)},
+	{"ver panel de alguien del equipo", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/users/" + m.actors["participant"].String() + "/dashboard")
+	}, map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200, "participant": 200, "owner": 404, "stranger": 404, "viewer": 404}},
+	{"ver panel de alguien de otro equipo", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Get("/api/users/" + m.actors["stranger"].String() + "/dashboard")
+	}, map[string]int{"admin": 200, "lead:in": 404, "lead:out": 404, "participant": 404, "owner": 404, "stranger": 200, "viewer": 404}},
 	// Spec 014: everyone sees their points and the tables; only the administrator changes them.
 	{"ver mis puntos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/points") }, workAll(200)},
 	{"ver tabla de puntos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/gamification/values") }, workAll(200)},

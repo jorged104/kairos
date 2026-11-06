@@ -91,6 +91,9 @@ const (
 	ProjectViewsShare         Permission = "project_views:share" // spec 012: views of the project list for everybody
 	GamificationManage        Permission = "gamification:manage" // spec 014: point values, levels, adjustments
 	SystemManage              Permission = "system:manage"       // spec 015: access, SSO, storage, appearance
+	// Spec 013, change of 2026-11-06: see another person's panel, read only.
+	DashboardOthersAll  Permission = "dashboard:others:all"
+	DashboardOthersTeam Permission = "dashboard:others:team"
 )
 
 // rolePermissions is the permission matrix of specs 003 and 004.
@@ -101,7 +104,7 @@ var rolePermissions = map[Role][]Permission{
 		IdpMappingsManage, PasswordsSet, AuditRead, SelfPassword,
 		WorkRead, WorkComment, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
 		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage, ProjectViewsShare,
-		GamificationManage, SystemManage,
+		GamificationManage, SystemManage, DashboardOthersAll,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,
@@ -109,6 +112,7 @@ var rolePermissions = map[Role][]Permission{
 		WorkRead, WorkComment, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner, ProjectViewsShare,
 		WorkItemsWriteTeam, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
 		ObjectivesCreateTeam, ObjectivesManageTeam, ObjectivesManageOwner,
+		DashboardOthersTeam,
 	},
 	RoleMember: {
 		DirectoryRead, SelfPassword,
@@ -195,6 +199,13 @@ func (p *Principal) CanActOn(all, team Permission, t Target) bool {
 }
 
 // CanReadFull reports whether the principal sees the full profile of the target.
+// CanSeeDashboardOf reports whether the principal may see the target's panel:
+// their own, anybody's for an admin, and those they lead for a lead (spec 013,
+// change of 2026-11-06).
+func (p *Principal) CanSeeDashboardOf(t Target) bool {
+	return t.UserID == p.UserID || p.CanActOn(DashboardOthersAll, DashboardOthersTeam, t)
+}
+
 func (p *Principal) CanReadFull(t Target) bool {
 	return t.UserID == p.UserID || p.CanActOn(UsersReadFullAll, UsersReadFullTeam, t)
 }

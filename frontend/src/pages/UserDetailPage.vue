@@ -29,10 +29,12 @@ import { useErrorMessage } from '@/composables/useErrorMessage'
 import { flatten } from '@/features/teams/tree'
 import AssignmentBadge from '@/features/users/AssignmentBadge.vue'
 import AttributeField from '@/features/users/AttributeField.vue'
+import { useAuthStore } from '@/stores/auth'
 import { ROLES, type AttributeValue, type Role, type User } from '@/types/api'
 
 const props = defineProps<{ id: string }>()
 const { t, d } = useI18n()
+const auth = useAuthStore()
 const qc = useQueryClient()
 const errorMessage = useErrorMessage()
 
@@ -142,6 +144,10 @@ function display(v: AttributeValue | undefined): string {
           {{ t(`status.${user.status}`) }}
         </Badge>
         <div class="ml-auto flex gap-2">
+          <!-- Their panel, read only (spec 013, RF-51); the API answers whether it may. -->
+          <Button v-if="user.status === 'active' && auth.can('dashboard:others:all', 'dashboard:others:team')" as-child variant="outline" size="sm">
+            <RouterLink :to="{ path: '/', query: { user: user.id } }" data-testid="user-panel">{{ t('users.viewPanel') }}</RouterLink>
+          </Button>
           <Button
             v-for="action in statusActions"
             :key="action"

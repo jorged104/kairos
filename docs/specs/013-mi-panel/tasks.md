@@ -14,3 +14,9 @@
   - Hecho cuando: hay Vitest de las tres gráficas, «Sin datos», «Otros» y las tablas de datos.
 - [ ] **T5 — Prueba manual** (tú)
   - Hecho cuando: la demo de los criterios de finalización funciona en la previsualización.
+
+## Cambio de 2026-11-06: panel de otra persona (RF-37 a RF-51)
+- [x] T6. Permisos `dashboard:others:all` (admin) y `dashboard:others:team` (líder) en la matriz y sus filas en `matrix_work_test.go`.
+- [x] T7. API: `GET /api/me/dashboard/people` y `GET /api/users/{id}/dashboard` (solo lectura, 404 si no se puede ver), con `TestDashboardOfOthers`.
+- [x] T8. Frontend: selector y aviso en Mi panel, títulos en tercera persona, Kanban sin mover, enlace a la ficha y «Ver panel» en Usuarios; Vitest.
+- [ ] T9. Demo manual (usuario): pasos 7 y 8 de los criterios de finalización.

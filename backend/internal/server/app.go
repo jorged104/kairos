@@ -102,7 +102,7 @@ func NewApp(cfg config.Config, store *db.Store, live *settings.Holder, logger *s
 	scheduleH := schedule.NewHandler(schedule.NewService(store), logger)
 	portfolioH := portfolio.NewHandler(portfolio.NewService(store.Queries), logger)
 	trackingH := tracking.NewHandler(tracking.NewService(store.Queries), logger)
-	dashboardH := dashboard.NewHandler(dashboard.NewService(store.Queries), logger)
+	dashboardH := dashboard.NewHandler(dashboard.NewService(store.Queries, loader.Load), logger)
 	boardH := projectboard.NewHandler(projectboard.NewService(store.Queries), projectboard.NewViews(store), logger)
 	fieldsH := customfields.NewHandler(customfields.NewService(store), logger)
 	filesSvc := files.NewService(store, storage)

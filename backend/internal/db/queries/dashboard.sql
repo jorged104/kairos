@@ -25,3 +25,13 @@ WHERE p.lifecycle = 'activo' AND NOT p.is_template
        OR EXISTS (SELECT 1 FROM work_item_assignees a JOIN work_items w ON w.id = a.work_item_id
                   WHERE w.project_id = p.id AND a.user_id = sqlc.arg(user_id)::uuid))
 ORDER BY p.name, p.identifier;
+
+-- name: DashboardPeople :many
+-- The active users with their roles and teams, for the panels another person
+-- may see (change of 2026-11-06, RF-37, RF-38).
+SELECT u.id, u.name,
+       ARRAY(SELECT r.role::text FROM user_roles r WHERE r.user_id = u.id ORDER BY r.role)::text[] AS roles,
+       ARRAY(SELECT m.team_id FROM team_members m WHERE m.user_id = u.id)::uuid[] AS team_ids
+FROM users u
+WHERE u.status = 'active'
+ORDER BY u.name, u.id;

@@ -47,6 +47,10 @@ beforeEach(() => {
     load: [{ project: { id: 'p1', name: 'Alfa' }, open: 4, late: 2 }, { project: null, open: 3, late: 0 }],
   }
   vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+    if (url.startsWith('/api/me/dashboard/people')) return json([{ id: 'u2', name: 'Mario Paz' }])
+    if (url.startsWith('/api/users/u2/dashboard'))
+      return json({ ...dashboard, user: { id: 'u2', name: 'Mario Paz', roles: ['member'], teams: [{ id: 't2', name: 'Campo' }] }, tasks: dashboard.tasks.map((x) => ({ ...x, can_move: false })) })
+    if (url.startsWith('/api/users/')) return json({ error: { code: 'not_found', message: 'x' } }, 404)
     if (url.startsWith('/api/me/dashboard')) return json(dashboard)
     if (url.startsWith('/api/me/points'))
       return json({ xp: 120, coins: 3, level: { id: 'l2', number: 2, name: 'Nivel 2', min_xp: 100 }, next: { id: 'l3', number: 3, name: 'Nivel 3', min_xp: 300 }, last_seq: 1 })
@@ -63,12 +67,12 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-async function render() {
+async function render(path = '/', who: Me = me) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: HomePage }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
-  await router.push('/')
+  await router.push(path)
   const pinia = createPinia()
   setActivePinia(pinia)
-  useAuthStore().set(me)
+  useAuthStore().set(who)
   const wrapper = mount({ template: '<RouterView />' }, { global: { plugins: [router, pinia, createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] } })
   await flushPromises()
   return wrapper
@@ -189,5 +193,42 @@ describe('mi panel (spec 013)', () => {
     await w.find('[data-testid=my-task-link]').trigger('click')
     await flushPromises()
     expect(w.find('[data-testid=item-panel]').exists()).toBe(true)
+  })
+})
+
+describe('panel de otra persona (spec 013, cambio de 2026-11-06)', () => {
+  const lead = { ...me, roles: [{ role: 'lead', source: 'manual' }], permissions: ['work:read', 'dashboard:others:team'] } as unknown as Me
+
+  it('sin el permiso no hay selector (RF-37)', async () => {
+    const w = await render()
+    expect(w.find('[data-testid=dashboard-person]').exists()).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u).startsWith('/api/me/dashboard/people'))).toBe(false)
+  })
+
+  it('el líder elige a una persona y ve su panel en solo lectura (RF-37 a RF-47)', async () => {
+    const w = await render('/', lead)
+    const select = w.find('[data-testid=dashboard-person]')
+    expect(select.findAll('option').map((o) => o.text())).toEqual(['Mi panel', 'Mario Paz'])
+    await select.setValue('u2')
+    await flushPromises()
+    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u).startsWith('/api/users/u2/dashboard'))).toBe(true)
+    expect(w.find('h1').text()).toBe('Panel de Mario Paz')
+    expect(w.find('[data-testid=dashboard-other]').text()).toContain('solo lectura')
+    const card = w.find('[data-testid=profile-card]')
+    expect(card.find('[data-testid=profile-name]').text()).toBe('Mario Paz')
+    expect(card.text()).toContain('Campo')
+    expect(card.find('[data-testid=profile-account]').attributes('href')).toBe('/users/u2')
+    expect(w.find('#my-tasks').text()).toBe('Tareas de Mario Paz')
+    expect(w.find('#my-projects').text()).toBe('Proyectos de Mario Paz')
+    expect(w.findAll('[data-testid=my-task]').every((x) => x.attributes('draggable') === 'false')).toBe(true)
+    expect(w.find('[data-testid=my-task-move]').exists()).toBe(false)
+    expect(w.text()).not.toContain('Arrastra una tarea')
+  })
+
+  it('un panel que no se puede ver no muestra datos y ofrece volver (RF-48, RF-49)', async () => {
+    const w = await render('/?user=u9', lead)
+    expect(w.find('[data-testid=profile-card]').exists()).toBe(false)
+    expect(w.text()).toContain('Ese panel no está disponible.')
+    expect(w.find('[data-testid=dashboard-back]').attributes('href')).toBe('/')
   })
 })
