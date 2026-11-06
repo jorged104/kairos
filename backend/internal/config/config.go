@@ -35,6 +35,14 @@ type Config struct {
 	OIDC        OIDCConfig
 	// Files is the S3 storage of page files; Endpoint empty keeps them in the database (RF-21, RF-22).
 	Files FilesConfig
+	Agent AgentConfig
+}
+
+// AgentConfig is the agent service that writes the reports (spec 020, ADR
+// 0004): URL empty, none; CallbackURL is how it reaches the API.
+type AgentConfig struct {
+	URL         string
+	CallbackURL string
 }
 
 type FilesConfig struct {
@@ -111,6 +119,13 @@ func Load() (Config, error) {
 		return cfg, err
 	}
 	cfg.Files = files
+	cfg.Agent = AgentConfig{
+		URL:         strings.TrimRight(strings.TrimSpace(os.Getenv("AGENT_URL")), "/"),
+		CallbackURL: strings.TrimRight(strings.TrimSpace(os.Getenv("AGENT_CALLBACK_URL")), "/"),
+	}
+	if cfg.Agent.CallbackURL == "" {
+		cfg.Agent.CallbackURL = "http://api:" + cfg.Port
+	}
 	return cfg, nil
 }
 
