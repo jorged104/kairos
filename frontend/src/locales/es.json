@@ -522,7 +522,8 @@
       "team": "Equipo",
       "milestones": "Hitos",
       "phases": "Fases",
-      "data": "Datos",
+      "history": "Project History",
+      "config": "Config",
       "meetings": "Reuniones",
       "reports": "Informes"
     },

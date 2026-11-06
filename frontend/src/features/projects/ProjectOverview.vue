@@ -241,7 +241,7 @@ const riskStyle = (r: { reason: 'overdue' | 'blocked' | 'behind'; level?: 'ahead
       <section class="rounded-xl border bg-background p-4 text-sm" data-testid="overview-health">
         <h2 class="mb-1 text-base font-semibold">{{ t('overview.health') }}: {{ t(`projects.healths.${project.health}`) }}</h2>
         <p class="text-muted-foreground">{{ project.health_explanation || t('overview.noHealthNote') }}</p>
-        <RouterLink v-if="project.can.manage" :to="{ query: { tab: 'data' } }" class="mt-1 inline-block font-medium hover:underline">{{ t('overview.editHealth') }}</RouterLink>
+        <RouterLink v-if="project.can.manage" :to="{ query: { tab: 'config' } }" class="mt-1 inline-block font-medium hover:underline">{{ t('overview.editHealth') }}</RouterLink>
       </section>
     </template>
   </div>
