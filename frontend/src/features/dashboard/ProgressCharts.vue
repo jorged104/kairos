@@ -7,7 +7,8 @@ import type { DashboardLoad, DashboardWeek } from '@/api/dashboard'
 // current load by project, each with its table of data (spec 013, RF-28 to
 // RF-35). One series per chart in one hue; «atrasadas» is a state and goes in
 // the destructive color, always with its label.
-const props = defineProps<{ weeks: DashboardWeek[]; load: DashboardLoad[] }>()
+// With owner, another person's (spec 013, RF-47).
+const props = defineProps<{ weeks: DashboardWeek[]; load: DashboardLoad[]; owner?: string }>()
 const { t, locale } = useI18n()
 
 const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d + 'T00:00:00Z'))
@@ -43,7 +44,7 @@ const loadName = (l: DashboardLoad) => l.project?.name ?? t('dashboard.charts.ot
 
 <template>
   <section class="flex flex-col gap-3" aria-labelledby="my-progress" data-testid="progress-charts">
-    <h2 id="my-progress" class="text-base font-semibold">{{ t('dashboard.charts.title') }}</h2>
+    <h2 id="my-progress" class="text-base font-semibold">{{ owner ? t('dashboard.others.charts', { name: owner }) : t('dashboard.charts.title') }}</h2>
     <div class="grid gap-4 lg:grid-cols-3">
       <!-- Closed per week. -->
       <article class="flex flex-col gap-2 rounded-xl border bg-background p-4" data-testid="chart-weekly">
@@ -127,7 +128,7 @@ const loadName = (l: DashboardLoad) => l.project?.name ?? t('dashboard.charts.ot
       <!-- Load by project. -->
       <article class="flex flex-col gap-2 rounded-xl border bg-background p-4" data-testid="chart-load">
         <h3 class="text-sm font-semibold">{{ t('dashboard.charts.load') }}</h3>
-        <p v-if="!load.length" class="text-sm text-muted-foreground">{{ t('dashboard.charts.noLoad') }}</p>
+        <p v-if="!load.length" class="text-sm text-muted-foreground">{{ owner ? t('dashboard.others.noLoad') : t('dashboard.charts.noLoad') }}</p>
         <template v-else>
           <ul class="flex gap-3 text-xs text-muted-foreground" :aria-label="t('dashboard.charts.loadAlt')">
             <li class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-destructive" aria-hidden="true" />{{ t('dashboard.charts.lateSeries') }}</li>

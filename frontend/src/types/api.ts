@@ -35,6 +35,9 @@ export type Permission =
   | 'gamification:manage'
   | 'system:manage'
   | 'self:password'
+  // Spec 013, change of 2026-11-06.
+  | 'dashboard:others:all'
+  | 'dashboard:others:team'
   // Spec 004.
   | 'work:read'
   | 'templates:use'

@@ -2,7 +2,8 @@ import { api } from './client'
 import { localDate } from './metrics'
 import type { Figures } from './schedule'
 
-// Mi panel (spec 013): the caller's own data only.
+// Mi panel (spec 013): the caller's own, or, read only, another person's for
+// an admin or a lead (change of 2026-11-06, RF-37 to RF-51).
 
 export interface DashboardRef {
   id: string
@@ -53,7 +54,16 @@ export interface DashboardLoad {
   late: number
 }
 
+/** Whose panel it is, only when it is another person's. */
+export interface DashboardPerson {
+  id: string
+  name: string
+  roles: string[]
+  teams: DashboardRef[]
+}
+
 export interface Dashboard {
+  user?: DashboardPerson
   today: string
   profile: { open: number; late: number; closed_month: number }
   tasks: DashboardTask[]
@@ -62,4 +72,8 @@ export interface Dashboard {
   load: DashboardLoad[]
 }
 
-export const getDashboard = () => api<Dashboard>('/api/me/dashboard', { query: { today: localDate() } })
+export const getDashboard = (userId?: string) =>
+  api<Dashboard>(userId ? `/api/users/${userId}/dashboard` : '/api/me/dashboard', { query: { today: localDate() } })
+
+/** The other people whose panel the caller may see (RF-37). */
+export const getDashboardPeople = () => api<DashboardRef[]>('/api/me/dashboard/people')

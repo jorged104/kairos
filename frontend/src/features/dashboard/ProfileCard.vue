@@ -3,36 +3,47 @@ import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import type { Dashboard } from '@/api/dashboard'
+import type { Dashboard, DashboardPerson } from '@/api/dashboard'
 import { getPoints } from '@/api/gamification'
 import LevelProgress from '@/features/gamification/LevelProgress.vue'
 import { useAuthStore } from '@/stores/auth'
 
 // The caller's card: who they are, three figures of their load (spec 013, RF-5
-// to RF-7) and their level (spec 014, RF-37).
-defineProps<{ profile: Dashboard['profile'] }>()
+// to RF-7) and their level (spec 014, RF-37). With user, another person's,
+// linking to their page in Usuarios (RF-46); their level only for who may see it.
+const props = defineProps<{ profile: Dashboard['profile']; user?: DashboardPerson }>()
 const { t } = useI18n()
 const auth = useAuthStore()
-const { data: points } = useQuery({ queryKey: ['points', 'me'], queryFn: () => getPoints() })
+const { data: points } = useQuery({
+  queryKey: computed(() => ['points', props.user?.id ?? 'me']),
+  queryFn: () => getPoints(props.user?.id),
+  enabled: computed(() => !props.user || auth.can('gamification:manage')),
+  retry: false,
+})
 
+const person = computed(() =>
+  props.user
+    ? { name: props.user.name, roles: props.user.roles, teams: props.user.teams }
+    : { name: auth.me?.name ?? '', roles: (auth.me?.roles ?? []).map((r) => r.role), teams: auth.me?.teams ?? [] },
+)
 const initials = computed(() =>
-  (auth.me?.name ?? '')
+  person.value.name
     .split(/\s+/)
     .map((w) => w[0] ?? '')
     .join('')
     .slice(0, 2)
     .toUpperCase(),
 )
-const roles = computed(() => (auth.me?.roles ?? []).map((r) => t(`roles.${r.role}`)).join(' · '))
-const teams = computed(() => (auth.me?.teams ?? []).map((x) => x.name).join(', '))
+const roles = computed(() => person.value.roles.map((r) => t(`roles.${r}`)).join(' · '))
+const teams = computed(() => person.value.teams.map((x) => x.name).join(', '))
 </script>
 
 <template>
-  <section class="flex flex-col gap-4 rounded-xl border bg-background p-4" :aria-label="t('dashboard.profile.title')" data-testid="profile-card">
+  <section class="flex flex-col gap-4 rounded-xl border bg-background p-4" :aria-label="user ? t('dashboard.others.profile', { name: user.name }) : t('dashboard.profile.title')" data-testid="profile-card">
     <div class="flex items-center gap-3">
       <span class="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-base font-semibold text-primary-foreground" aria-hidden="true">{{ initials }}</span>
       <div class="min-w-0">
-        <p class="truncate font-semibold" data-testid="profile-name">{{ auth.me?.name }}</p>
+        <p class="truncate font-semibold" data-testid="profile-name">{{ person.name }}</p>
         <p class="truncate text-xs text-muted-foreground">{{ roles }}</p>
         <p class="truncate text-xs text-muted-foreground">{{ teams || t('dashboard.profile.noTeams') }}</p>
       </div>
@@ -52,6 +63,7 @@ const teams = computed(() => (auth.me?.teams ?? []).map((x) => x.name).join(', '
       </div>
     </dl>
     <LevelProgress v-if="points" :points="points" />
-    <RouterLink to="/account" class="text-sm font-medium hover:underline" data-testid="profile-account">{{ t('dashboard.profile.account') }}</RouterLink>
+    <RouterLink v-if="user" :to="`/users/${user.id}`" class="text-sm font-medium hover:underline" data-testid="profile-account">{{ t('dashboard.others.openUser') }}</RouterLink>
+    <RouterLink v-else to="/account" class="text-sm font-medium hover:underline" data-testid="profile-account">{{ t('dashboard.profile.account') }}</RouterLink>
   </section>
 </template>

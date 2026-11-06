@@ -17,7 +17,8 @@ import type { Status, WorkItemType } from '@/types/work'
 // The caller's work items in a column per status of the catalog, the most
 // late first; dragging or «Mover a» changes the status with the same flow and
 // permissions as in the project (spec 013, RF-8 to RF-22).
-const props = defineProps<{ tasks: DashboardTask[]; statuses: Status[]; types?: WorkItemType[] }>()
+// With owner, another person's, read only: no card can move (spec 013, RF-43, RF-47).
+const props = defineProps<{ tasks: DashboardTask[]; statuses: Status[]; types?: WorkItemType[]; owner?: string }>()
 const { t, locale } = useI18n()
 const route = useRoute()
 
@@ -103,11 +104,11 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
 
 <template>
   <section class="flex flex-col gap-3 rounded-xl border bg-background p-4" aria-labelledby="my-tasks" data-testid="my-kanban">
-    <h2 id="my-tasks" class="text-base font-semibold">{{ t('dashboard.tasks.title') }}</h2>
+    <h2 id="my-tasks" class="text-base font-semibold">{{ owner ? t('dashboard.others.tasks', { name: owner }) : t('dashboard.tasks.title') }}</h2>
     <Alert v-if="error" variant="destructive" role="alert" data-testid="my-kanban-error">
       <AlertDescription>{{ errorMessage(error) }}</AlertDescription>
     </Alert>
-    <p v-if="!tasks.length" class="text-sm text-muted-foreground" data-testid="my-kanban-empty">{{ t('dashboard.tasks.empty') }}</p>
+    <p v-if="!tasks.length" class="text-sm text-muted-foreground" data-testid="my-kanban-empty">{{ owner ? t('dashboard.others.tasksEmpty') : t('dashboard.tasks.empty') }}</p>
     <template v-else>
       <div class="relative">
         <button
@@ -215,7 +216,7 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
           </div>
         </div>
       </div>
-      <p class="text-xs text-muted-foreground">{{ t('dashboard.tasks.dragHint') }}</p>
+      <p v-if="!owner" class="text-xs text-muted-foreground">{{ t('dashboard.tasks.dragHint') }}</p>
     </template>
   </section>
 </template>
