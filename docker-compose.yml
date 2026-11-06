@@ -44,12 +44,25 @@ services:
       FILES_S3_ACCESS_KEY: ${FILES_S3_ACCESS_KEY:-}
       FILES_S3_SECRET_KEY: ${FILES_S3_SECRET_KEY:-}
       FILES_S3_USE_SSL: ${FILES_S3_USE_SSL:-false}
+      # Informes con IA (spec 020): el agente en contenedor llama de vuelta a la API.
+      AGENT_URL: http://agent:8000
+      AGENT_CALLBACK_URL: http://api:8080
     ports:
       - "${API_PORT}:8080"
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
+
+  # Agente de informes con IA (spec 020, ADR 0004). Con make dev-api, la API
+  # en el host lo alcanza en localhost:8000 y él a la API en host.docker.internal.
+  agent:
+    build:
+      context: ./agent
+    ports:
+      - "${AGENT_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   web:
     build:

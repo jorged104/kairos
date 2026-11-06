@@ -62,6 +62,14 @@ jobs:
           TEST_S3_SECRET_KEY: dev-only-kairos-s3-secret
         run: go test ./...
 
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.1"
+
+      - name: Tests del agente de informes
+        working-directory: agent
+        run: uv run --frozen pytest -q
+
       - name: Dependencias del frontend
         working-directory: frontend
         run: npm ci --no-fund --no-audit
