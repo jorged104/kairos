@@ -107,6 +107,14 @@ type call struct {
 	ctx  context.Context
 	p    *authz.Principal
 	base string
+	max  int // the longest list shape keeps; 0, PageSize
+}
+
+func (c *call) limit() int {
+	if c.max > 0 {
+		return c.max
+	}
+	return PageSize
 }
 
 // do serves one API route inside the process, as the connection's owner.
@@ -250,7 +258,7 @@ func (c *call) shape(v any, labels map[string]string) any {
 				continue
 			}
 			out[k] = c.shape(val, labels)
-			if list, ok := val.([]any); ok && len(list) > PageSize {
+			if list, ok := val.([]any); ok && len(list) > c.limit() {
 				out[k+"_total"] = len(list)
 			}
 		}
@@ -263,8 +271,8 @@ func (c *call) shape(v any, labels map[string]string) any {
 		}
 		return out
 	case []any:
-		if len(x) > PageSize {
-			x = x[:PageSize]
+		if len(x) > c.limit() {
+			x = x[:c.limit()]
 		}
 		out := make([]any, len(x))
 		for i, val := range x {
