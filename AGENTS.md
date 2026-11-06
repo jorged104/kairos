@@ -47,8 +47,10 @@ Cada miembro tiene **XP** y **Monedas**. Completar una tarea genera XP (y opcion
 ├── .github/workflows/
 │   └── preview.yml            # tests + despliegue de previsualización en push a main
 ├── deploy/preview/            # compose, deploy.sh y guía del servidor de previsualización
+├── deploy/servidor/           # compose y entorno de ejemplo para instalar en un servidor propio
 ├── docs/
 │   ├── constitution.md        # principios no negociables del proyecto
+│   ├── guia/                  # instalación local y en servidor, configuración y actualización
 │   ├── specs/                 # specs funcionales (solo lectura para agentes), una carpeta por spec
 │   │   ├── 001-infraestructura-base/      # spec.md, plan.md, task(s).md
 │   │   ├── 002-entorno-previsualizacion/
