@@ -1359,7 +1359,19 @@
       },
       "range": "Del {from} al {to}",
       "you": "tú",
-      "noTeam": "No perteneces a ningún equipo, así que no tienes ranking."
+      "noTeam": "No perteneces a ningún equipo, así que no tienes ranking.",
+      "subtitle": "XP ganado en el periodo",
+      "always": "Desde el principio",
+      "mine": "Tu posición",
+      "positionOf": "{position}.º de {total}",
+      "myXp": "Tu XP en el periodo",
+      "leading": "Vas en cabeza: le sacas {xp} XP a {name}.",
+      "leadingAlone": "Vas en cabeza.",
+      "behind": "Te faltan {xp} XP para alcanzar a {name}.",
+      "tied": "Empatas en XP con {name}.",
+      "podium": "Podio",
+      "standings": "Clasificación",
+      "people": "{n} personas | {n} persona | {n} personas"
     },
     "admin": {
       "title": "Gamificación"
