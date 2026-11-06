@@ -1,0 +1,85 @@
+# Instalación en un servidor propio (docs/guia/instalacion-servidor.md).
+# Se usa siempre con el fichero de entorno del servidor:
+#   docker compose -p kairos -f deploy/servidor/compose.yml --env-file /etc/kairos/kairos.env ...
+# Solo «web» publica un puerto, y únicamente en 127.0.0.1: delante va el proxy
+# inverso con HTTPS del servidor.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  # Aplica las migraciones pendientes: docker compose ... run --rm migrate
+  migrate:
+    image: kairos-migrate:${KAIROS_TAG:-local}
+    build:
+      context: ../../backend
+      target: migrate
+    environment:
+      GOOSE_DBSTRING: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - migrate
+
+  api:
+    image: kairos-api:${KAIROS_TAG:-local}
+    build:
+      context: ../../backend
+      target: api
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      API_PORT: "8080"
+      AUTH_MODE: ${AUTH_MODE:?}
+      SESSION_SECRET: ${SESSION_SECRET:?}
+      PUBLIC_URL: ${PUBLIC_URL:?}
+      COOKIE_SECURE: "true"
+      TRUST_PROXY: "true"
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      DEFAULT_ROLE: ${DEFAULT_ROLE-member}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      OIDC_ROLE_SOURCE: ${OIDC_ROLE_SOURCE:-idp}
+      OIDC_LINK_BY_EMAIL: ${OIDC_LINK_BY_EMAIL:-false}
+      FILES_S3_ENDPOINT: ${FILES_S3_ENDPOINT:-}
+      FILES_S3_BUCKET: ${FILES_S3_BUCKET:-}
+      FILES_S3_REGION: ${FILES_S3_REGION:-}
+      FILES_S3_ACCESS_KEY: ${FILES_S3_ACCESS_KEY:-}
+      FILES_S3_SECRET_KEY: ${FILES_S3_SECRET_KEY:-}
+      FILES_S3_USE_SSL: ${FILES_S3_USE_SSL:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Estáticos del frontend y proxy de /api, /ws y /health hacia «api»
+  # (frontend/nginx.conf busca la API por ese nombre de servicio).
+  web:
+    image: kairos-web:${KAIROS_TAG:-local}
+    build:
+      context: ../../frontend
+      target: prod
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8081}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata: {}
