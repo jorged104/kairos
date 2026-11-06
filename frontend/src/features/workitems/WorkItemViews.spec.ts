@@ -370,10 +370,10 @@ describe('ancho completo', () => {
 
 describe('páginas de proyecto e hito', () => {
   it('el proyecto tiene su página, editable solo para quien lo gestiona (RF-43)', async () => {
-    const { default: ProjectSummary } = await import('@/features/projects/ProjectSummary.vue')
+    const { default: ProjectHistory } = await import('@/features/projects/ProjectHistory.vue')
     const render = async (manage: boolean) => {
       const p = { ...project, description: item.description, can: { ...project.can, manage } }
-      const page = defineComponent({ setup: () => () => h(ProjectSummary, { project: p }) })
+      const page = defineComponent({ setup: () => () => h(ProjectHistory, { project: p }) })
       const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: page }] })
       await router.push('/')
       const wrapper = mount(RouterView, {

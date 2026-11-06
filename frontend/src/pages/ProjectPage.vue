@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import ProjectKanban from '@/features/kanban/ProjectKanban.vue'
 import MeetingsTab from '@/features/meetings/MeetingsTab.vue'
+import ProjectHistory from '@/features/projects/ProjectHistory.vue'
 import ProjectMilestones from '@/features/projects/ProjectMilestones.vue'
 import ProjectOverview from '@/features/projects/ProjectOverview.vue'
 import ProjectPhases from '@/features/projects/ProjectPhases.vue'
@@ -26,7 +27,8 @@ import ViewsBar from '@/features/views/ViewsBar.vue'
 import { healthVariant, lifecycleVariant } from '@/features/work/Badges'
 
 // Project page (spec 008, RF-1 to RF-5): overview, table, kanban, timeline
-// and team, then the milestones, phases and data of spec 004 (RF-136).
+// and team, then the milestones, phases and data of spec 004 (RF-136); the
+// project's page in History and its data in Config.
 const props = defineProps<{ id: string }>()
 const { t } = useI18n()
 const route = useRoute()
@@ -39,12 +41,12 @@ const { data: project, error: loadError } = useQuery({
   queryFn: () => getProject(props.id),
 })
 
-const ALL_TABS = ['overview', 'table', 'kanban', 'timeline', 'team', 'milestones', 'meetings', 'reports', 'phases', 'data'] as const
+const ALL_TABS = ['overview', 'table', 'kanban', 'timeline', 'team', 'milestones', 'meetings', 'reports', 'phases', 'history', 'config'] as const
 type Tab = (typeof ALL_TABS)[number]
 // The team only for who manages it (RF-4).
 const TABS = computed(() => ALL_TABS.filter((x) => x !== 'team' || project.value?.can.manage_team))
 // The tabs before spec 008 keep their links.
-const OLD: Record<string, Tab> = { summary: 'data', 'work-items': 'table' }
+const OLD: Record<string, Tab> = { summary: 'config', data: 'config', 'work-items': 'table' }
 const tab = computed<Tab>(() => {
   const q = route.query.tab as string
   const x = (OLD[q] ?? q) as Tab
@@ -148,6 +150,7 @@ function reload() {
       <MeetingsTab v-else-if="tab === 'meetings'" :project="project" />
       <ReportsTab v-else-if="tab === 'reports'" :project="project" />
       <ProjectPhases v-else-if="tab === 'phases'" :project="project" @error="error = $event" />
+      <ProjectHistory v-else-if="tab === 'history'" :project="project" />
       <ProjectSummary v-else :project="project" @error="error = $event" />
     </template>
   </div>

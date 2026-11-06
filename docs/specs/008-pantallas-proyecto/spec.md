@@ -40,7 +40,7 @@ de **equipo** con papeles por proyecto, capacidad y sugerencias de asignación.
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### Navegación
-- RF-1: EL SISTEMA mostrará en la ficha de un proyecto las pestañas Resumen, Tabla, Kanban, Cronograma y Equipo, en ese orden, seguidas de las pestañas Hitos, Fases y Datos que ya existían (spec 004).
+- RF-1: EL SISTEMA mostrará en la ficha de un proyecto las pestañas Resumen, Tabla, Kanban, Cronograma y Equipo, en ese orden, seguidas de las pestañas Hitos, Fases y Datos que ya existían (spec 004). Desde el 2026-11-06, a petición del usuario, la pestaña Datos se llama Config y la página del proyecto pasa a una pestaña propia, Project History, entre Fases y Config.
 - RF-2: EL SISTEMA abrirá un proyecto en la pestaña Resumen.
 - RF-3: EL SISTEMA guardará en la dirección de la página la pestaña, la vista y los filtros activos, de modo que el enlace abra lo mismo.
 - RF-4: MIENTRAS el usuario no pueda gestionar el equipo del proyecto (RF-33), EL SISTEMA no le mostrará la pestaña Equipo.
