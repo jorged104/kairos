@@ -439,6 +439,20 @@ type ProjectProgressDaily struct {
 	UpdatedAt time.Time
 }
 
+type ProjectReport struct {
+	ID           uuid.UUID
+	ProjectID    uuid.UUID
+	TemplateID   *uuid.UUID
+	TemplateName string
+	Title        string
+	Content      string
+	AuthorID     uuid.UUID
+	UpdatedBy    uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Version      int32
+}
+
 type ProjectStatus struct {
 	ID             uuid.UUID
 	Name           string
@@ -468,6 +482,17 @@ type ProjectView struct {
 type ProjectWorkItemType struct {
 	ProjectID uuid.UUID
 	TypeID    uuid.UUID
+}
+
+type ReportTemplate struct {
+	ID             uuid.UUID
+	Name           string
+	NameNormalized string
+	Description    string
+	Prompt         string
+	ArchivedAt     *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type ScheduleSetting struct {
@@ -531,6 +556,10 @@ type SystemSetting struct {
 	SmtpPassword        []byte
 	MailFromEmail       string
 	MailFromName        string
+	AiEnabled           bool
+	AiBaseUrl           string
+	AiApiKey            []byte
+	AiModel             string
 }
 
 type Team struct {
