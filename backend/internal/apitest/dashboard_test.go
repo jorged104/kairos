@@ -8,6 +8,14 @@ import (
 )
 
 type dashboardDTO struct {
+	User *struct {
+		ID    uuid.UUID `json:"id"`
+		Name  string    `json:"name"`
+		Roles []string  `json:"roles"`
+		Teams []struct {
+			Name string `json:"name"`
+		} `json:"teams"`
+	} `json:"user"`
 	Today   string `json:"today"`
 	Profile struct {
 		Open        int `json:"open"`
@@ -148,4 +156,66 @@ func TestDashboardLoadOthers(t *testing.T) {
 	if len(d.Load) != 9 || d.Load[0].Project.Name != "Proyecto A" || d.Load[8].Project != nil || d.Load[8].Open != 3 {
 		t.Fatalf("load = %+v", d.Load)
 	}
+}
+
+// The panel of another person, read only (spec 013, change of 2026-11-06).
+func TestDashboardOfOthers(t *testing.T) {
+	s := newWorkSetup(t)
+	p := s.project(t, s.lead, map[string]any{"identifier": "ALF", "name": "Alfa"})
+	s.item(t, s.lead, p.ID, map[string]any{"title": "De Mario", "assignee_ids": []uuid.UUID{s.memberID}, "due_date": "2026-03-01"})
+	// Only Otto's, in a project of another team that the lead does not manage.
+	o := s.project(t, s.admin, map[string]any{"identifier": "OTR", "name": "Otro", "team_id": s.other, "owner_id": s.outsiderID})
+	s.item(t, s.outsider, o.ID, map[string]any{"title": "De Otto", "assignee_ids": []uuid.UUID{s.outsiderID}})
+
+	// The people: the lead sees Mario and the viewer of BI, not Otto, the
+	// admin or themself (RF-37, RF-38).
+	var people []struct {
+		ID   uuid.UUID `json:"id"`
+		Name string    `json:"name"`
+	}
+	s.lead.Get("/api/me/dashboard/people").Expect(t, http.StatusOK).JSON(t, &people)
+	if len(people) != 2 || people[0].ID != s.memberID || people[1].Name != "viewer@x.com" {
+		t.Fatalf("personas del líder = %+v", people)
+	}
+	s.admin.Get("/api/me/dashboard/people").Expect(t, http.StatusOK).JSON(t, &people)
+	if len(people) != 4 { // Laura, Mario, Otto and the viewer
+		t.Fatalf("personas del admin = %+v", people)
+	}
+	s.member.Get("/api/me/dashboard/people").Expect(t, http.StatusOK).JSON(t, &people)
+	if len(people) != 0 {
+		t.Fatalf("personas de un miembro = %+v", people)
+	}
+
+	// Mario's panel as the lead: his work, read only, and who he is (RF-39, RF-43).
+	var d dashboardDTO
+	s.lead.Get("/api/users/"+s.memberID.String()+"/dashboard?today=2026-03-10").Expect(t, http.StatusOK).JSON(t, &d)
+	if d.User == nil || d.User.Name != "Mario" || len(d.User.Teams) != 1 || d.User.Teams[0].Name != "BI Reportes" {
+		t.Fatalf("persona = %+v", d.User)
+	}
+	if len(d.Tasks) != 1 || d.Tasks[0].Title != "De Mario" || d.Tasks[0].LateDays != 9 || d.Tasks[0].CanMove {
+		t.Fatalf("tareas = %+v", d.Tasks)
+	}
+	if d.Profile.Open != 1 || d.Profile.Late != 1 {
+		t.Fatalf("perfil = %+v", d.Profile)
+	}
+	// His own has no "user" and he can move it.
+	var own dashboardDTO
+	s.member.Get("/api/users/"+s.memberID.String()+"/dashboard?today=2026-03-10").Expect(t, http.StatusOK).JSON(t, &own)
+	if own.User != nil || len(own.Tasks) != 1 || !own.Tasks[0].CanMove {
+		t.Fatalf("propio = %+v", own)
+	}
+
+	// Otto's, as the admin, with his project and role (RF-42).
+	s.admin.Get("/api/users/"+s.outsiderID.String()+"/dashboard").Expect(t, http.StatusOK).JSON(t, &d)
+	if len(d.Tasks) != 1 || d.Tasks[0].Title != "De Otto" || len(d.Projects) != 1 || d.Projects[0].Role != "owner" {
+		t.Fatalf("panel de Otto = %+v", d)
+	}
+
+	// Outside the lead's teams, another lead, unknown or inactive: not found (RF-48, RF-49).
+	s.lead.Get("/api/users/"+s.outsiderID.String()+"/dashboard").Expect(t, http.StatusNotFound)
+	s.lead.Get("/api/users/"+s.adminID.String()+"/dashboard").Expect(t, http.StatusNotFound)
+	s.admin.Get("/api/users/"+uuid.NewString()+"/dashboard").Expect(t, http.StatusNotFound)
+	s.admin.Get("/api/users/no-es-uuid/dashboard").Expect(t, http.StatusNotFound)
+	s.exec(t, "UPDATE users SET status = 'inactive' WHERE id = $1", s.memberID)
+	s.lead.Get("/api/users/"+s.memberID.String()+"/dashboard").Expect(t, http.StatusNotFound)
 }

@@ -1,10 +1,12 @@
 // Package dashboard serves Mi panel: the caller's work items, the projects
-// they work on and the series of their progress (spec 013). It only ever
-// reads the caller's own data (RF-3).
+// they work on and the series of their progress (spec 013). Besides their
+// own, an admin or a lead may see, read only, the panel of the people they
+// can (change of 2026-11-06, RF-37 to RF-51).
 package dashboard
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"openscum/internal/apperr"
 	"openscum/internal/auth"
@@ -82,7 +85,17 @@ type Load struct {
 	Late    int  `json:"late"`
 }
 
+// Person is whose panel it is, when it is not the caller's (RF-41, RF-46).
+type Person struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Roles []string  `json:"roles"`
+	Teams []Ref     `json:"teams"`
+}
+
 type Dashboard struct {
+	// Only on another person's panel.
+	User     *Person   `json:"user,omitempty"`
 	Today    string    `json:"today"`
 	Profile  Profile   `json:"profile"`
 	Tasks    []Task    `json:"tasks"`
@@ -91,9 +104,93 @@ type Dashboard struct {
 	Load     []Load    `json:"load"`
 }
 
-type Service struct{ q *sqlc.Queries }
+// Loader reads a user's roles, teams and project roles, as at login.
+type Loader func(ctx context.Context, id uuid.UUID) (*authz.Principal, error)
 
-func NewService(q *sqlc.Queries) *Service { return &Service{q: q} }
+type Service struct {
+	q    *sqlc.Queries
+	load Loader
+}
+
+func NewService(q *sqlc.Queries, load Loader) *Service { return &Service{q: q, load: load} }
+
+// People are the other active users whose panel the caller may see, by name
+// (RF-37, RF-38).
+func (s *Service) People(ctx context.Context, p *authz.Principal) ([]Ref, error) {
+	out := []Ref{}
+	if !p.Has(authz.DashboardOthersAll) && !p.Has(authz.DashboardOthersTeam) {
+		return out, nil
+	}
+	rows, err := s.q.DashboardPeople(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("personas del panel: %w", err)
+	}
+	for _, r := range rows {
+		if r.ID != p.UserID && p.CanSeeDashboardOf(target(r.ID, r.Roles, r.TeamIds)) {
+			out = append(out, Ref{ID: r.ID, Name: r.Name})
+		}
+	}
+	return out, nil
+}
+
+func target(id uuid.UUID, roles []string, teams []uuid.UUID) authz.Target {
+	t := authz.Target{UserID: id, TeamIDs: teams}
+	for _, r := range roles {
+		t.Roles = append(t.Roles, authz.Role(r))
+	}
+	return t
+}
+
+// GetFor builds the panel of a person, read only, as that person would see it
+// (RF-39, RF-42, RF-43). Somebody the caller may not see, inactive or
+// missing, is not found alike (RF-48, RF-49).
+func (s *Service) GetFor(ctx context.Context, p *authz.Principal, id uuid.UUID, today time.Time) (Dashboard, error) {
+	if id == p.UserID {
+		return s.Get(ctx, p, today)
+	}
+	u, err := s.q.GetUser(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && u.Status != "active") {
+		return Dashboard{}, apperr.ErrNotFound
+	}
+	if err != nil {
+		return Dashboard{}, fmt.Errorf("leer usuario: %w", err)
+	}
+	roles, err := s.q.ListUserRoles(ctx, id)
+	if err != nil {
+		return Dashboard{}, fmt.Errorf("leer roles: %w", err)
+	}
+	teams, err := s.q.ListUserTeams(ctx, id)
+	if err != nil {
+		return Dashboard{}, fmt.Errorf("leer equipos: %w", err)
+	}
+	person := &Person{ID: u.ID, Name: u.Name, Roles: []string{}, Teams: []Ref{}}
+	teamIDs := make([]uuid.UUID, 0, len(teams))
+	for _, r := range roles {
+		person.Roles = append(person.Roles, r.Role)
+	}
+	for _, t := range teams {
+		teamIDs = append(teamIDs, t.ID)
+		if t.ArchivedAt == nil {
+			person.Teams = append(person.Teams, Ref{ID: t.ID, Name: t.Name})
+		}
+	}
+	if !p.CanSeeDashboardOf(target(id, person.Roles, teamIDs)) {
+		return Dashboard{}, apperr.ErrNotFound
+	}
+	them, err := s.load(ctx, id)
+	if err != nil {
+		return Dashboard{}, fmt.Errorf("cargar usuario del panel: %w", err)
+	}
+	out, err := s.Get(ctx, them, today)
+	if err != nil {
+		return out, err
+	}
+	for i := range out.Tasks {
+		out.Tasks[i].CanMove = false
+	}
+	out.User = person
+	return out, nil
+}
 
 func day(t time.Time) time.Time { return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC) }
 
@@ -231,11 +328,35 @@ func NewHandler(svc *Service, logger *slog.Logger) *Handler {
 }
 
 func (h *Handler) Routes(r chi.Router) {
-	r.With(auth.RequirePermission(authz.WorkRead, h.logger)).Get("/me/dashboard", h.get)
+	r.Group(func(r chi.Router) {
+		r.Use(auth.RequirePermission(authz.WorkRead, h.logger))
+		r.Get("/me/dashboard", h.get)
+		r.Get("/me/dashboard/people", h.people)
+		r.Get("/users/{id}/dashboard", h.get)
+	})
 }
 
-// get reads ?today=YYYY-MM-DD, the caller's date (RF-4), or uses the server's.
+func (h *Handler) people(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.People(r.Context(), authz.FromContext(r.Context()))
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// get reads ?today=YYYY-MM-DD, the caller's date (RF-4), or uses the server's;
+// with an {id}, the panel is that person's.
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+	p := authz.FromContext(r.Context())
+	id := p.UserID
+	if v := chi.URLParam(r, "id"); v != "" {
+		var err error
+		if id, err = uuid.Parse(v); err != nil {
+			apperr.Write(w, h.logger, apperr.ErrNotFound)
+			return
+		}
+	}
 	today := time.Now().UTC()
 	if v := r.URL.Query().Get("today"); v != "" {
 		t, err := time.Parse(time.DateOnly, v)
@@ -245,7 +366,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		}
 		today = t
 	}
-	out, err := h.svc.Get(r.Context(), authz.FromContext(r.Context()), today)
+	out, err := h.svc.GetFor(r.Context(), p, id, today)
 	if err != nil {
 		apperr.Write(w, h.logger, err)
 		return
