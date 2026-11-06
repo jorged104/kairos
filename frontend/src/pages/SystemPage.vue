@@ -6,7 +6,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { getSystemSettings, type SystemSettings } from '@/api/system'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import ReportTemplatesAdmin from '@/features/reports/ReportTemplatesAdmin.vue'
 import AccessSettings from '@/features/system/AccessSettings.vue'
+import AISettings from '@/features/system/AISettings.vue'
 import AppearanceSettings from '@/features/system/AppearanceSettings.vue'
 import MailSettings from '@/features/system/MailSettings.vue'
 import McpSettings from '@/features/system/McpSettings.vue'
@@ -21,7 +23,7 @@ const router = useRouter()
 const client = useQueryClient()
 const errorMessage = useErrorMessage()
 
-const tabs = ['access', 'sso', 'storage', 'mail', 'appearance', 'mcp'] as const
+const tabs = ['access', 'sso', 'storage', 'mail', 'appearance', 'mcp', 'reports'] as const
 type Tab = (typeof tabs)[number]
 const tab = computed<Tab>(() => (tabs as readonly string[]).includes(String(route.query.tab)) ? (route.query.tab as Tab) : 'access')
 const select = (t: Tab) => router.replace({ query: { ...route.query, tab: t } })
@@ -60,6 +62,10 @@ function saved(s: SystemSettings) {
       <StorageSettings v-else-if="tab === 'storage'" :settings="data" @saved="saved" />
       <McpSettings v-else-if="tab === 'mcp'" :settings="data" @saved="saved" />
       <MailSettings v-else-if="tab === 'mail'" :settings="data" @saved="saved" />
+      <div v-else-if="tab === 'reports'" class="flex flex-col gap-8">
+        <AISettings :settings="data" @saved="saved" />
+        <ReportTemplatesAdmin />
+      </div>
       <AppearanceSettings v-else :settings="data" @saved="saved" />
     </template>
   </div>

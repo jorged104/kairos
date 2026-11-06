@@ -388,7 +388,25 @@
     "passwords_differ": "Las dos contraseñas no coinciden.",
     "mail_test_failed": "No se pudo enviar el correo de prueba.",
     "mail_not_configured": "El correo no está configurado.",
-    "user_has_password": "La persona ya tiene contraseña; envíale un enlace de nueva contraseña."
+    "user_has_password": "La persona ya tiene contraseña; envíale un enlace de nueva contraseña.",
+    "ai_not_configured": "La generación de informes con IA no está disponible.",
+    "ai_test_failed": "No se pudo usar el servicio de IA.",
+    "report_generation_busy": "Ya tienes dos informes generándose. Espera a que termine alguno.",
+    "report_template_name_taken": "Ya hay una plantilla de informe con ese nombre.",
+    "report_template_archived": "Esa plantilla está archivada.",
+    "agent_unavailable": "El agente de informes no está disponible ahora mismo.",
+    "ai_unreachable": "No se pudo conectar con el servicio de IA.",
+    "ai_auth": "El servicio de IA rechazó la clave.",
+    "ai_model": "El modelo configurado no existe en el servicio de IA.",
+    "ai_quota": "El servicio de IA no tiene cuota disponible.",
+    "ai_context_length": "Hay demasiados datos o texto para el modelo. Prueba con instrucciones más concretas.",
+    "ai_timeout": "El servicio de IA no respondió en 30 segundos.",
+    "ai_too_long": "La generación superó el tiempo máximo de 10 minutos.",
+    "ai_tools": "El modelo no admite consultas (llamadas a herramientas).",
+    "ai_rejected": "El servicio de IA rechazó la petición.",
+    "ai_error": "La IA no pudo terminar el informe.",
+    "ai_empty": "La IA no generó contenido.",
+    "cancelled": "Generación cancelada."
   },
   "richtext": {
     "bold": "Negrita",
@@ -505,7 +523,8 @@
       "milestones": "Hitos",
       "phases": "Fases",
       "data": "Datos",
-      "meetings": "Reuniones"
+      "meetings": "Reuniones",
+      "reports": "Informes"
     },
     "noPhases": "El proyecto no tiene metodología con fases.",
     "phaseStart": "Inicio",
@@ -1413,7 +1432,8 @@
       "storage": "Almacenamiento",
       "appearance": "Apariencia",
       "mcp": "IA (MCP)",
-      "mail": "Correo"
+      "mail": "Correo",
+      "reports": "Informes con IA"
     },
     "access": {
       "mode": "Modo de acceso",
@@ -1534,6 +1554,27 @@
         "tls": "seguridad (TLS)",
         "auth": "autenticación",
         "send": "envío"
+      }
+    },
+    "ai": {
+      "privacy": "Al generar un informe, Kairos envía al servicio de IA configurado los datos del proyecto que la IA consulta: nombres, fechas, avances, tareas y descripciones. Usa un servicio en el que tu organización confíe.",
+      "noAgent": "El agente de informes no está configurado en este servidor (variable AGENT_URL), así que todavía no se pueden generar informes.",
+      "enabled": "Activar la generación de informes con IA",
+      "enabledHint": "Apagada, los informes guardados se siguen leyendo y editando a mano.",
+      "baseUrl": "Dirección base de la API",
+      "baseUrlHint": "Cualquier servicio compatible con la API de OpenAI, por ejemplo https://api.openai.com/v1 o un modelo propio.",
+      "model": "Modelo",
+      "apiKey": "Clave de API",
+      "apiKeyOptional": "Opcional, si tu servicio no la pide",
+      "test": "Probar conexión",
+      "testHint": "La prueba usa la configuración guardada y comprueba que el modelo puede hacer consultas.",
+      "testOk": "El servicio de IA responde y puede hacer consultas.",
+      "testFailed": "La prueba falló: {step}.",
+      "steps": {
+        "connect": "no se pudo conectar con el servicio",
+        "auth": "la clave fue rechazada",
+        "model": "el modelo no existe",
+        "tools": "el modelo no admite consultas (llamadas a herramientas)"
       }
     }
   },
@@ -1683,6 +1724,64 @@
       "done": "Contraseña guardada. Ya puedes entrar.",
       "invalid": "Este enlace no es válido: caducó, ya se usó o se pidió otro más reciente.",
       "askAgain": "Pedir un enlace nuevo"
+    }
+  },
+  "reports": {
+    "hint": "Informes del proyecto y de sus subproyectos, escritos con IA a partir de los datos reales.",
+    "new": "Nuevo informe",
+    "newTitle": "Nuevo informe",
+    "editTitle": "Editar informe",
+    "empty": "Este proyecto todavía no tiene informes.",
+    "emptyGenerate": "Este proyecto todavía no tiene informes. Pulsa «Nuevo informe» para generar el primero.",
+    "noTemplate": "Sin plantilla",
+    "by": "por {name}",
+    "updated": "modificado el {date} por {name}",
+    "back": "Volver",
+    "confirmDelete": "Pulsa otra vez para borrar",
+    "template": "Tipo de informe",
+    "instructions": "Instrucciones adicionales (opcional)",
+    "instructionsHint": "Por ejemplo: destaca los riesgos del subproyecto de compras.",
+    "scope": "La IA solo puede leer {project} y sus subproyectos, con tus permisos, y no cambia nada.",
+    "generate": "Generar",
+    "title": "Título",
+    "content": "Contenido en Markdown",
+    "modes": {
+      "write": "Markdown",
+      "preview": "Vista previa"
+    },
+    "change": "Pedir un cambio a la IA",
+    "changeHint": "Por ejemplo: añade una sección de riesgos o resume los subproyectos en una tabla.",
+    "changeSend": "Pedir cambio",
+    "undo": "Deshacer el último cambio",
+    "unsaved": "Hay cambios sin guardar.",
+    "leave": "Tienes un informe sin guardar. ¿Salir y perderlo?",
+    "copy": "Copiar mi texto",
+    "copied": "Copiado",
+    "stream": {
+      "thinking": "Pensando…",
+      "waiting": "El texto aparecerá aquí a medida que la IA lo escriba.",
+      "aProject": "un proyecto"
+    },
+    "tools": {
+      "project_tree": "Leyendo los subproyectos de {project}",
+      "get_project": "Leyendo la ficha de {project}",
+      "project_overview": "Leyendo el avance de {project}",
+      "list_milestones": "Leyendo los hitos de {project}",
+      "get_milestone": "Leyendo un hito de {project}",
+      "list_work_items": "Leyendo las tareas de {project}",
+      "get_work_item": "Leyendo una tarea de {project}"
+    },
+    "templates": {
+      "title": "Plantillas de informe",
+      "hint": "Cada plantilla es un tipo de informe con su prompt. Cambiarla no toca los informes guardados.",
+      "new": "Nueva plantilla",
+      "name": "Nombre",
+      "description": "Descripción",
+      "prompt": "Prompt",
+      "promptHint": "Qué debe contener el informe y cómo. Kairos añade siempre reglas fijas: Markdown, solo datos consultados y sin inventar cifras.",
+      "archived": "Archivada",
+      "archive": "Archivar",
+      "confirmArchive": "Pulsa otra vez para archivar"
     }
   }
 }
