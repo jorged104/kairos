@@ -15,7 +15,7 @@ Algunas variables (marcadas con **①** abajo) **solo cuentan la primera vez que
 |---|---|
 | `DATABASE_URL` | Conexión a PostgreSQL: `postgres://usuario:contraseña@host:5432/bd?sslmode=disable`. Los `compose.yml` la arman a partir de `POSTGRES_*` |
 | `AUTH_MODE` ① | Cómo se entra: `local` (usuario y contraseña), `oidc` (solo SSO) o `both` |
-| `SESSION_SECRET` | Al menos 32 bytes aleatorios (`openssl rand -base64 48`). Firma las sesiones y **cifra los secretos guardados en Sistema** (contraseñas de SMTP, SSO y S3): si cambia, hay que volver a escribirlos |
+| `SESSION_SECRET` | Al menos 32 bytes aleatorios (`openssl rand -base64 48`). Firma las sesiones y **cifra los secretos guardados en Sistema** (contraseñas de SMTP, SSO, S3 y la clave del servicio de IA): si cambia, hay que volver a escribirlos |
 | `PUBLIC_URL` | La dirección exacta con la que se abre Kairos, sin barra final. Se usa para la protección CSRF, el WebSocket, la vuelta del SSO y los enlaces de los correos |
 
 ### Acceso
@@ -57,6 +57,15 @@ Sin `FILES_S3_ENDPOINT`, los archivos se guardan en PostgreSQL. **El almacenamie
 | `FILES_S3_SECRET_KEY` ① | — | Clave secreta |
 | `FILES_S3_USE_SSL` ① | `true` | Conectar por HTTPS |
 
+### Informes con IA
+
+El servicio de IA (dirección, clave y modelo) no va en variables: se configura en **Sistema → Informes con IA**. Las variables solo dicen dónde está el agente que escribe los informes ([ADR 0004](../adr/0004-agente-de-informes-en-python.md)); los `compose.yml` ya las ponen.
+
+| Variable | Por defecto | Qué es |
+|---|---|---|
+| `AGENT_URL` | — | Dirección interna del agente, por ejemplo `http://agent:8000`. Vacía: no se pueden generar informes, aunque se leen y editan los guardados |
+| `AGENT_CALLBACK_URL` | `http://api:<API_PORT>` | Cómo llega el agente a la API para hacer sus consultas |
+
 ### Otras
 
 | Variable | Por defecto | Qué es |
@@ -74,6 +83,7 @@ Sin `FILES_S3_ENDPOINT`, los archivos se guardan en PostgreSQL. **El almacenamie
 | Almacenamiento | Base de datos o S3, con una prueba antes de guardar |
 | Apariencia | Paleta, color primario y esquinas de toda la interfaz |
 | IA (MCP) | Activar las conexiones de clientes de IA y revisar o revocar las de todos |
+| Informes con IA | Servicio compatible con la API de OpenAI (dirección base, modelo y clave), con una prueba de conexión; y las plantillas de informe con su prompt |
 | Correo | Servidor SMTP y remitente, con un correo de prueba. Activa las invitaciones y «¿Olvidaste tu contraseña?» |
 
 Los secretos guardados aquí no se vuelven a mostrar: el campo queda vacío y solo se reemplazan si escribes uno nuevo.
@@ -83,3 +93,4 @@ Los secretos guardados aquí no se vuelven a mostrar: el campo queda vacío y so
 - No subas nunca al repositorio un `.env` ni un `kairos.env` con valores reales.
 - Las rutas `/api/mcp/...` llevan el secreto de cada conexión de IA. El nginx de `web` no las registra; no las registres tampoco en tu proxy.
 - Los enlaces de invitación y recuperación llevan el secreto tras `#`, que el navegador nunca envía al servidor.
+- El agente de informes no publica puertos fuera de la red de Docker y no lee la base de datos: solo consulta la API con el token de cada generación, que deja de valer al terminar.
