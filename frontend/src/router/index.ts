@@ -68,6 +68,7 @@ export const routes = [
       { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
       { path: 'portfolio', name: 'portfolio', component: () => import('@/pages/PortfolioPage.vue') },
       { path: 'tracking', name: 'tracking', component: () => import('@/pages/TrackingPage.vue') },
+      { path: 'my-team', name: 'my-team', component: () => import('@/pages/MyTeamPage.vue') },
       { path: 'ranking', name: 'ranking', component: () => import('@/pages/RankingPage.vue') },
       {
         path: 'admin/system',

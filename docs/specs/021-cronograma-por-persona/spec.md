@@ -79,7 +79,7 @@ Desde el nombre de cada persona se abre su panel (spec 013).
 - **Persona desactivada:** no aparece en Mi equipo; en el proyecto aparece si sigue siendo miembro, sin enlace a su panel.
 - **Persona en dos equipos del líder:** aparece una sola vez, con ambos equipos.
 - **Tarea de un proyecto en pausa o cerrado:** cuenta mientras la tarea siga abierta.
-- **Más de 8 proyectos en Mi equipo:** los que pasan de 8 comparten el color «Otros» en la leyenda.
+- **Más de 7 proyectos en Mi equipo:** los que pasan de 7 comparten el color «Otros» en la leyenda (el rojo queda para las vencidas).
 
 ## Fuera de alcance
 - Mover o redimensionar barras para cambiar fechas o reasignar desde estos cronogramas.

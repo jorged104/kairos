@@ -1,13 +1,16 @@
 import type { ProjectSchedule } from '@/api/schedule'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RouterView, createMemoryHistory, createRouter, type Router } from 'vue-router'
 import type { Member, Overview, Suggestion, ViewList } from '@/api/projectScreens'
+import type { WorkloadRow } from '@/api/workload'
 import { dragged, fromDay, ticks, toDay, today } from '@/features/timeline/dates'
 import ProjectPage from '@/pages/ProjectPage.vue'
 import { createAppI18n } from '@/lib/i18n'
+import { useAuthStore } from '@/stores/auth'
+import type { Me } from '@/types/api'
 import type { Catalog, Project, WorkItem, WorkNode } from '@/types/work'
 
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }))
@@ -67,6 +70,13 @@ const members: Member[] = [
   { user: { id: 'u', name: 'Ana Pérez' }, status: 'active', role: 'pm', owner: true, in_team: false, explicit: false, can_work: true, capacity: 10, load: { project: 4, total: 12, items: 2, overloaded: true } },
   { user: { id: 'u2', name: 'Luis Gómez' }, status: 'active', role: 'member', owner: false, in_team: true, explicit: false, can_work: true, capacity: null, load: { project: 1, total: 1, items: 1, overloaded: false } },
 ]
+const teamSchedule: WorkloadRow[] = [
+  { user: { id: 'u2', name: 'Luis Gómez' }, free_from: null, open: 0, weight: 0, undated: 0, bars: [] },
+  {
+    user: { id: 'u', name: 'Ana Pérez' }, free_from: '2026-03-21', open: 2, weight: 4, undated: 0,
+    bars: [{ id: 'w1', key: 'KAI-1', title: 'Diseño', project: { id: 'p1', identifier: 'KAI', name: 'Kairos' }, start: '2026-03-02', end: '2026-03-20', done_ratio: 40, overdue: false }],
+  },
+]
 const suggestions: Suggestion[] = [{ id: 'w5', key: 'KAI-5', title: 'Sin asignar', weight: 2, due_date: null, label_ids: [], people: [{ id: 'u2', name: 'Luis Gómez' }] }]
 let views: ViewList
 let fetchMock: ReturnType<typeof vi.fn>
@@ -85,6 +95,8 @@ beforeEach(() => {
     if (url.startsWith('/api/projects/p1/tree')) return json({ items: nodes })
     if (url.startsWith('/api/projects/p1/members')) return json({ items: members })
     if (url.startsWith('/api/projects/p1/assignment-suggestions')) return json({ items: suggestions })
+    if (url.startsWith('/api/projects/p1/team-schedule')) return json({ items: teamSchedule })
+    if (url.startsWith('/api/me/dashboard/people')) return json([{ id: 'u2', name: 'Luis Gómez' }])
     if (url.startsWith('/api/projects/p1/milestones')) return json({ items: [] })
     if (url.endsWith('/api/projects/p1')) return json(project)
     if (url.endsWith('/api/catalog')) return json(catalog)
@@ -105,11 +117,14 @@ afterEach(() => {
   localStorage.clear()
 })
 
-async function renderPage(path = '/projects/p1'): Promise<{ wrapper: ReturnType<typeof mount>; router: Router }> {
+async function renderPage(path = '/projects/p1', who?: Me): Promise<{ wrapper: ReturnType<typeof mount>; router: Router }> {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:id', component: ProjectPage, props: true }, { path: '/:p(.*)*', component: { template: '<div />' } }] })
   await router.push(path)
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  if (who) useAuthStore().set(who)
   const wrapper = mount(RouterView, {
-    global: { plugins: [router, createPinia(), createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    global: { plugins: [router, pinia, createAppI18n(), [VueQueryPlugin, { queryClient: new QueryClient() }]] },
     attachTo: document.body,
   })
   await flushPromises()
@@ -375,5 +390,18 @@ describe('equipo (spec 008)', () => {
     const assign = calls('PATCH').find(([u]) => String(u).endsWith('/api/work-items/w5'))!
     expect(bodyOf(assign)).toMatchObject({ assignee_ids: ['u2'], assignee_id: 'u2' })
     expect(wrapper.find('[data-testid=team-notice]').text()).toBe('KAI-5 asignada a Luis Gómez.')
+  })
+
+  it('muestra el cronograma por persona, con enlace al panel solo de quien se puede ver (spec 021, RF-14 a RF-16)', async () => {
+    const lead = { id: 'u', name: 'Ana Pérez', permissions: ['work:read', 'dashboard:others:team'] } as unknown as Me
+    const { wrapper } = await renderPage('/projects/p1?tab=team', lead)
+    const rows = wrapper.findAll('[data-testid=team-schedule] [data-testid=workload-row]')
+    expect(rows.map((r) => r.find('[data-testid=workload-person]').text())).toEqual(['Luis Gómez', 'Ana Pérez'])
+    expect(rows[0]!.find('a[data-testid=workload-person]').attributes('href')).toBe('/?user=u2')
+    expect(rows[1]!.findAll('[data-testid=workload-bar]')).toHaveLength(1)
+
+    // Without the permissions, nobody else's panel: only one's own.
+    const { wrapper: other } = await renderPage('/projects/p1?tab=team', { id: 'u9', name: 'Pepe', permissions: ['work:read'] } as unknown as Me)
+    expect(other.findAll('[data-testid=team-schedule] a[data-testid=workload-person]')).toHaveLength(0)
   })
 })

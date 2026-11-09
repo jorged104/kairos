@@ -25,7 +25,8 @@
     "ranking": "Ranking",
     "gamification": "Gamificación",
     "system": "Sistema",
-    "notifications": "Notificaciones"
+    "notifications": "Notificaciones",
+    "myTeam": "Mi equipo"
   },
   "common": {
     "save": "Guardar",
@@ -821,7 +822,38 @@
       "tech_lead": "Líder técnico",
       "member": "Miembro",
       "observer": "Observador"
-    }
+    },
+    "schedule": "Cronograma por persona",
+    "scheduleHint": "Tareas abiertas de este proyecto con fecha de fin. Pulsa una barra para abrir la tarea."
+  },
+  "workload": {
+    "person": "Persona",
+    "free": "Libre",
+    "freeFrom": "Libre desde el {date}",
+    "undated": "{n} sin fecha | {n} sin fecha",
+    "overdue": "vencida",
+    "bar": "{key} {title} · {project} · {start} → {end} · {ratio} %",
+    "legend": "Proyectos",
+    "others": "Otros",
+    "empty": "No hay personas que mostrar."
+  },
+  "myTeam": {
+    "title": "Mi equipo",
+    "subtitle": "Las personas de tus equipos, su carga y cuándo quedan libres.",
+    "team": "Equipo",
+    "allTeams": "Todos los equipos",
+    "people": "Personas",
+    "teams": "Equipos",
+    "capacity": "Capacidad",
+    "load": "Carga",
+    "open": "Abiertas",
+    "free": "Disponibilidad",
+    "overloaded": "Sobrecargada",
+    "noCapacity": "Sin capacidad",
+    "schedule": "Cronograma del equipo",
+    "scheduleHint": "Tareas abiertas de todos los proyectos con fecha de fin. Pulsa una barra para abrir la tarea.",
+    "empty": "Tu equipo no tiene personas.",
+    "forbidden": "No tienes acceso a Mi equipo."
   },
   "labels": {
     "title": "Etiquetas",

@@ -8,17 +8,22 @@ import {
   type Member, type ProjectRole, type Suggestion,
 } from '@/api/projectScreens'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { getDashboardPeople } from '@/api/dashboard'
+import { localDate } from '@/api/metrics'
+import { getProjectTeamSchedule } from '@/api/workload'
 import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
 import LabelChips from '@/features/work/LabelChips.vue'
 import { useCatalog } from '@/features/work/useCatalog'
 import { usePeople } from '@/features/work/usePeople'
+import PersonSchedule from '@/features/workload/PersonSchedule.vue'
 import { patchWorkItem } from '@/features/workitems/patch'
 import { useAuthStore } from '@/stores/auth'
 import type { Label, Project } from '@/types/work'
 
 // The project's team for who manages it: roles, capacity and load, and the
-// work items to assign with suggestions (spec 008, RF-33 to RF-54).
+// work items to assign with suggestions (spec 008, RF-33 to RF-54), and the
+// schedule by person (spec 021, RF-16 to RF-18).
 const props = defineProps<{ project: Project }>()
 const { t, locale } = useI18n()
 const qc = useQueryClient()
@@ -31,7 +36,14 @@ const membersKey = computed(() => ['members', props.project.id])
 const suggestionsKey = computed(() => ['suggestions', props.project.id])
 const { data: members } = useQuery({ queryKey: membersKey, queryFn: () => listMembers(props.project.id) })
 const { data: suggestions } = useQuery({ queryKey: suggestionsKey, queryFn: () => listSuggestions(props.project.id) })
+const scheduleKey = computed(() => ['team-schedule', props.project.id])
+const { data: schedule } = useQuery({ queryKey: scheduleKey, queryFn: () => getProjectTeamSchedule(props.project.id) })
 const writable = computed(() => props.project.lifecycle === 'activo')
+// A name opens the panel of whom the viewer may see (spec 021, RF-14).
+const canSeeOthers = computed(() => auth.can('dashboard:others:all', 'dashboard:others:team'))
+const { data: visible } = useQuery({ queryKey: ['dashboard', 'people'], queryFn: getDashboardPeople, enabled: canSeeOthers })
+const linkable = (id: string) => id === auth.me?.id || (visible.value ?? []).some((p) => p.id === id)
+const today = localDate()
 const canCapacity = computed(() => auth.can('users:update:all') || auth.can('users:update:team'))
 
 const error = ref<unknown>(null)
@@ -48,6 +60,7 @@ async function run(fn: () => Promise<unknown>, done?: string) {
   await Promise.all([
     qc.invalidateQueries({ queryKey: membersKey.value }),
     qc.invalidateQueries({ queryKey: suggestionsKey.value }),
+    qc.invalidateQueries({ queryKey: scheduleKey.value }),
     qc.invalidateQueries({ queryKey: ['overview', props.project.id] }),
     qc.invalidateQueries({ queryKey: ['tree', props.project.id] }),
   ])
@@ -209,5 +222,13 @@ const date = (d: string | null) => (d ? new Intl.DateTimeFormat(locale.value, { 
         </article>
       </section>
     </div>
+
+    <section class="flex flex-col gap-3 rounded-xl border bg-background p-4" aria-labelledby="team-schedule" data-testid="team-schedule">
+      <div class="flex flex-col gap-1">
+        <h2 id="team-schedule" class="text-base font-semibold">{{ t('team.schedule') }}</h2>
+        <p class="text-sm text-muted-foreground">{{ t('team.scheduleHint') }}</p>
+      </div>
+      <PersonSchedule v-if="schedule" :rows="schedule" :today="today" :linkable="linkable" />
+    </section>
   </div>
 </template>
