@@ -24,6 +24,7 @@ import (
 	"openscum/internal/portfolio"
 	"openscum/internal/schedule"
 	"openscum/internal/workcore"
+	"openscum/internal/workload"
 	"openscum/pkg/httpx"
 )
 
@@ -129,6 +130,90 @@ func (s *Service) People(ctx context.Context, p *authz.Principal) ([]Ref, error)
 		if r.ID != p.UserID && p.CanSeeDashboardOf(target(r.ID, r.Roles, r.TeamIds)) {
 			out = append(out, Ref{ID: r.ID, Name: r.Name})
 		}
+	}
+	return out, nil
+}
+
+// Member is a person of Mi equipo: their schedule, teams and load against
+// capacity (spec 021, RF-21 to RF-24).
+type Member struct {
+	workload.Row
+	Teams      []Ref  `json:"teams"`
+	Capacity   *int32 `json:"capacity"`
+	Overloaded bool   `json:"overloaded"`
+}
+
+type Team struct {
+	Today  string   `json:"today"`
+	Teams  []Ref    `json:"teams"` // to filter by (RF-26)
+	People []Member `json:"people"`
+}
+
+// Team is Mi equipo: the people whose panel the caller may see, with their
+// work items of every project (spec 021). Without the permissions, forbidden
+// (RF-20).
+func (s *Service) Team(ctx context.Context, p *authz.Principal, today time.Time) (Team, error) {
+	if !p.Has(authz.DashboardOthersAll) && !p.Has(authz.DashboardOthersTeam) {
+		return Team{}, apperr.ErrForbidden
+	}
+	rows, err := s.q.DashboardPeople(ctx)
+	if err != nil {
+		return Team{}, fmt.Errorf("personas del equipo: %w", err)
+	}
+	all, err := s.q.ListTeams(ctx)
+	if err != nil {
+		return Team{}, fmt.Errorf("equipos: %w", err)
+	}
+	names := map[uuid.UUID]string{}
+	for _, t := range all {
+		if t.ArchivedAt == nil {
+			names[t.ID] = t.Name
+		}
+	}
+	people := []workcore.Ref{}
+	ids := []uuid.UUID{}
+	teamsOf := map[uuid.UUID][]Ref{}
+	used := map[uuid.UUID]bool{}
+	for _, r := range rows {
+		if r.ID == p.UserID || !p.CanSeeDashboardOf(target(r.ID, r.Roles, r.TeamIds)) {
+			continue
+		}
+		people = append(people, workcore.Ref{ID: r.ID, Name: r.Name})
+		ids = append(ids, r.ID)
+		ts := []Ref{}
+		for _, id := range r.TeamIds {
+			if n, ok := names[id]; ok {
+				ts = append(ts, Ref{ID: id, Name: n})
+				used[id] = true
+			}
+		}
+		sort.Slice(ts, func(i, j int) bool { return ts[i].Name < ts[j].Name })
+		teamsOf[r.ID] = ts
+	}
+	out := Team{Today: day(today).Format(time.DateOnly), Teams: []Ref{}, People: []Member{}}
+	for _, t := range all {
+		if used[t.ID] {
+			out.Teams = append(out.Teams, Ref{ID: t.ID, Name: t.Name})
+		}
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	caps, err := s.q.TeamPeople(ctx, ids)
+	if err != nil {
+		return Team{}, fmt.Errorf("capacidad: %w", err)
+	}
+	capOf := map[uuid.UUID]*int32{}
+	for _, c := range caps {
+		capOf[c.ID] = c.WeeklyCapacity
+	}
+	items, err := s.q.PersonScheduleItems(ctx, sqlc.PersonScheduleItemsParams{Ids: ids})
+	if err != nil {
+		return Team{}, fmt.Errorf("cronograma por persona: %w", err)
+	}
+	for _, r := range workload.Build(people, items, today) {
+		c := capOf[r.User.ID]
+		out.People = append(out.People, Member{Row: r, Teams: teamsOf[r.User.ID], Capacity: c, Overloaded: c != nil && r.Weight > int64(*c)})
 	}
 	return out, nil
 }
@@ -333,7 +418,35 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/me/dashboard", h.get)
 		r.Get("/me/dashboard/people", h.people)
 		r.Get("/users/{id}/dashboard", h.get)
+		r.Get("/me/team", h.team)
 	})
+}
+
+// team is Mi equipo at ?today=YYYY-MM-DD, or the server's date (spec 021).
+func (h *Handler) team(w http.ResponseWriter, r *http.Request) {
+	today, ok := h.today(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.Team(r.Context(), authz.FromContext(r.Context()), today)
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) today(w http.ResponseWriter, r *http.Request) (time.Time, bool) {
+	v := r.URL.Query().Get("today")
+	if v == "" {
+		return time.Now().UTC(), true
+	}
+	t, err := time.Parse(time.DateOnly, v)
+	if err != nil {
+		apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "today"))
+		return t, false
+	}
+	return t, true
 }
 
 func (h *Handler) people(w http.ResponseWriter, r *http.Request) {
@@ -357,14 +470,9 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	today := time.Now().UTC()
-	if v := r.URL.Query().Get("today"); v != "" {
-		t, err := time.Parse(time.DateOnly, v)
-		if err != nil {
-			apperr.Write(w, h.logger, apperr.ErrInvalidFilter.WithDetail("field", "today"))
-			return
-		}
-		today = t
+	today, ok := h.today(w, r)
+	if !ok {
+		return
 	}
 	out, err := h.svc.GetFor(r.Context(), p, id, today)
 	if err != nil {
