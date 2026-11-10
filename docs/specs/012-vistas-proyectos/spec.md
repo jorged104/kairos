@@ -84,7 +84,7 @@ vista).
 ### Pantalla y modos
 - RF-27: EL SISTEMA ofrecerá en la pantalla Proyectos tres modos: Kanban, Cronograma y Tabla.
 - RF-28: EL SISTEMA abrirá la pantalla en modo Kanban mientras el usuario no haya usado otro modo o abierto una vista.
-- RF-29: EL SISTEMA mostrará en los tres modos solo los proyectos no archivados que no son plantilla y que el usuario puede ver.
+- RF-29: EL SISTEMA mostrará en los tres modos solo los proyectos no archivados que no son plantilla y que el usuario puede ver (quién ve cada proyecto: spec 023).
 - RF-30: EL SISTEMA guardará en la dirección de la página el modo, la vista y los filtros activos, de modo que el enlace abra lo mismo.
 - RF-31: EL SISTEMA mantendrá los filtros, el orden y la agrupación al cambiar de modo.
 - RF-32: EL SISTEMA mantendrá en la pantalla las acciones de crear proyecto que ya existen.
