@@ -25,6 +25,7 @@ import {
   Trophy,
   UserCog,
   Users,
+  UsersRound,
   X,
 } from '@lucide/vue'
 import { logout } from '@/api/auth'
@@ -36,7 +37,7 @@ import { features } from '@/lib/features'
 import { useAuthStore } from '@/stores/auth'
 import type { Permission } from '@/types/api'
 
-type Link = { to: string; label: string; icon: Component; perm?: Permission; also?: string[] }
+type Link = { to: string; label: string; icon: Component; perm?: Permission | Permission[]; also?: string[] }
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -46,7 +47,7 @@ const route = useRoute()
 const fullWidth = useFullWidth()
 const wide = computed(() => fullWidth.on.value && !!route.meta.fullWidth)
 
-const allowed = (l: Link) => !l.perm || auth.can(l.perm)
+const allowed = (l: Link) => !l.perm || auth.can(...[l.perm].flat())
 // The work of the organization.
 const work = computed(() =>
   (
@@ -55,6 +56,8 @@ const work = computed(() =>
       { to: '/projects', label: t('nav.projects'), icon: FolderKanban, perm: 'work:read', also: ['/milestones', '/work-items'] },
       { to: '/portfolio', label: t('nav.portfolio'), icon: BriefcaseBusiness, perm: 'work:read' },
       { to: '/tracking', label: t('nav.tracking'), icon: ChartGantt, perm: 'work:read' },
+      // Spec 021, RF-19.
+      { to: '/my-team', label: t('nav.myTeam'), icon: UsersRound, perm: ['dashboard:others:all', 'dashboard:others:team'] },
       { to: '/ranking', label: t('nav.ranking'), icon: Trophy },
       ...(features.objectives ? [{ to: '/objectives', label: t('nav.objectives'), icon: Target, perm: 'work:read' }] : []),
     ] as Link[]

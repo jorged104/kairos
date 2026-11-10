@@ -44,6 +44,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Patch("/projects/{id}/members/{userId}", h.setRole)
 		r.Delete("/projects/{id}/members/{userId}", h.removeMember)
 		r.Get("/projects/{id}/assignment-suggestions", h.suggestions)
+		r.Get("/projects/{id}/team-schedule", h.teamSchedule)
 		r.Get("/projects/{id}/overview", h.overview)
 		r.Get("/projects/{id}/schedule", h.schedule)
 		r.Post("/projects/{id}/baseline", h.baseline)
@@ -158,6 +159,20 @@ func (h *Handler) suggestions(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.svc.Suggestions(r.Context(), authz.FromContext(r.Context()), id)
 	h.reply(w, http.StatusOK, map[string]any{"items": items}, err)
+}
+
+// teamSchedule is the schedule by person of the project (spec 021).
+func (h *Handler) teamSchedule(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	today, ok := h.today(w, r)
+	if !ok {
+		return
+	}
+	rows, err := h.svc.TeamSchedule(r.Context(), authz.FromContext(r.Context()), id, today)
+	h.reply(w, http.StatusOK, map[string]any{"items": rows}, err)
 }
 
 // overview takes today as the caller's date (YYYY-MM-DD) (spec 008, RF-6).

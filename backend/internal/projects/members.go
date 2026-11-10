@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"sort"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -16,6 +17,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/workcore"
+	"openscum/internal/workload"
 )
 
 // Team of a project (spec 008, RF-33 to RF-54).
@@ -66,6 +68,29 @@ func (s *Service) Members(ctx context.Context, p *authz.Principal, id uuid.UUID)
 		return nil, apperr.ErrForbidden
 	}
 	return members(ctx, s.store.Queries, row)
+}
+
+// TeamSchedule is the schedule by person of the project's team, without its
+// observers nor who can only read, for those who manage it (spec 021, RF-16 to
+// RF-18). Somebody deactivated stays while a member.
+func (s *Service) TeamSchedule(ctx context.Context, p *authz.Principal, id uuid.UUID, today time.Time) ([]workload.Row, error) {
+	ms, err := s.Members(ctx, p, id)
+	if err != nil {
+		return nil, err
+	}
+	people := []workcore.Ref{}
+	ids := []uuid.UUID{}
+	for _, m := range ms {
+		if m.Role != authz.ProjectRoleObserver && (m.CanWork || m.Status != "active") {
+			people = append(people, m.User)
+			ids = append(ids, m.User.ID)
+		}
+	}
+	items, err := s.store.Queries.PersonScheduleItems(ctx, sqlc.PersonScheduleItemsParams{Ids: ids, ProjectID: &id})
+	if err != nil {
+		return nil, fmt.Errorf("cronograma por persona: %w", err)
+	}
+	return workload.Build(people, items, today), nil
 }
 
 // members builds the team: owner, participants and people added on purpose.
