@@ -4,7 +4,7 @@
 SELECT id, name, status FROM users WHERE id = ANY(@ids::uuid[]);
 
 -- name: MentionedWorkItems :many
-SELECT w.id, p.identifier, w.sequence_number, w.title, p.is_template
+SELECT w.id, p.identifier, w.sequence_number, w.title, (p.is_template OR p.is_inbox)::bool AS is_template
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE w.id = ANY(@ids::uuid[]);
 
@@ -14,13 +14,13 @@ FROM milestones m JOIN projects p ON p.id = m.project_id
 WHERE m.id = ANY(@ids::uuid[]);
 
 -- name: MentionedProjects :many
-SELECT id, identifier, name, is_template FROM projects WHERE id = ANY(@ids::uuid[]);
+SELECT id, identifier, name, (is_template OR is_inbox)::bool AS is_template FROM projects WHERE id = ANY(@ids::uuid[]);
 
 -- name: SearchMentionWorkItems :many
 -- By key (KAI-12 or its start) or by title; templates only for who may use them.
 SELECT w.id, p.identifier, w.sequence_number, w.title
 FROM work_items w JOIN projects p ON p.id = w.project_id
-WHERE (NOT p.is_template OR @templates::bool)
+WHERE (NOT p.is_template OR @templates::bool) AND NOT p.is_inbox
   AND ((p.identifier || '-' || w.sequence_number) ILIKE @prefix::text OR w.title ILIKE @contains::text)
 ORDER BY p.identifier, w.sequence_number
 LIMIT 10;
@@ -35,6 +35,6 @@ LIMIT 10;
 -- name: SearchMentionProjects :many
 SELECT id, identifier, name
 FROM projects
-WHERE (NOT is_template OR @templates::bool) AND (identifier ILIKE @prefix::text OR name ILIKE @contains::text)
+WHERE (NOT is_template OR @templates::bool) AND NOT is_inbox AND (identifier ILIKE @prefix::text OR name ILIKE @contains::text)
 ORDER BY name
 LIMIT 10;

@@ -19,7 +19,7 @@ SELECT w.project_id, w.id, w.parent_id, w.weight, s.is_closed,
        (bi.work_item_id IS NOT NULL)::bool AS in_baseline,
        bi.start_date AS base_start, bi.due_date AS base_due
 FROM work_items w
-JOIN projects p ON p.id = w.project_id AND NOT p.is_template AND p.lifecycle <> 'archivado'
+JOIN projects p ON p.id = w.project_id AND NOT p.is_template AND NOT p.is_inbox AND p.lifecycle <> 'archivado'
 JOIN statuses s ON s.id = w.status_id
 LEFT JOIN project_baseline_items bi ON bi.work_item_id = w.id AND bi.baseline_id = (
     SELECT b.id FROM project_baselines b WHERE b.project_id = w.project_id ORDER BY b.version DESC LIMIT 1)
@@ -77,7 +77,7 @@ SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.is_program, p.por
        p.start_date, p.end_date,
        coalesce((SELECT sum(w.weight) FROM work_items w WHERE w.project_id = p.id), 0)::int AS effort
 FROM projects p
-WHERE NOT p.is_template
+WHERE NOT p.is_template AND NOT p.is_inbox
 ORDER BY p.name, p.identifier
 `
 
@@ -143,7 +143,7 @@ const setProjectPortfolio = `-- name: SetProjectPortfolio :one
 
 UPDATE projects SET is_program = $2, portfolio_weight = $3, version = version + 1, updated_at = now()
 WHERE id = $1
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id, is_inbox
 `
 
 type SetProjectPortfolioParams struct {
@@ -182,6 +182,7 @@ func (q *Queries) SetProjectPortfolio(ctx context.Context, arg SetProjectPortfol
 		&i.IsProgram,
 		&i.PortfolioWeight,
 		&i.StatusID,
+		&i.IsInbox,
 	)
 	return i, err
 }

@@ -16,7 +16,7 @@ SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.is_program, p.por
        p.start_date, p.end_date,
        coalesce((SELECT sum(w.weight) FROM work_items w WHERE w.project_id = p.id), 0)::int AS effort
 FROM projects p
-WHERE NOT p.is_template
+WHERE NOT p.is_template AND NOT p.is_inbox
 ORDER BY p.name, p.identifier;
 
 -- name: PortfolioPlanItems :many
@@ -27,7 +27,7 @@ SELECT w.project_id, w.id, w.parent_id, w.weight, s.is_closed,
        (bi.work_item_id IS NOT NULL)::bool AS in_baseline,
        bi.start_date AS base_start, bi.due_date AS base_due
 FROM work_items w
-JOIN projects p ON p.id = w.project_id AND NOT p.is_template AND p.lifecycle <> 'archivado'
+JOIN projects p ON p.id = w.project_id AND NOT p.is_template AND NOT p.is_inbox AND p.lifecycle <> 'archivado'
 JOIN statuses s ON s.id = w.status_id
 LEFT JOIN project_baseline_items bi ON bi.work_item_id = w.id AND bi.baseline_id = (
     SELECT b.id FROM project_baselines b WHERE b.project_id = w.project_id ORDER BY b.version DESC LIMIT 1);

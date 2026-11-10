@@ -364,6 +364,7 @@ type Project struct {
 	IsProgram         bool
 	PortfolioWeight   *int32
 	StatusID          *uuid.UUID
+	IsInbox           bool
 }
 
 type ProjectBaseline struct {
@@ -674,6 +675,8 @@ type WorkItem struct {
 	PageVersion       int32
 	SizeID            *uuid.UUID
 	MeetingID         *uuid.UUID
+	TeamID            *uuid.UUID
+	TeamMode          *string
 }
 
 type WorkItemAssignee struct {

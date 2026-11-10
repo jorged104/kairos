@@ -44,7 +44,7 @@ func (q *Queries) MentionedMilestones(ctx context.Context, ids []uuid.UUID) ([]M
 }
 
 const mentionedProjects = `-- name: MentionedProjects :many
-SELECT id, identifier, name, is_template FROM projects WHERE id = ANY($1::uuid[])
+SELECT id, identifier, name, (is_template OR is_inbox)::bool AS is_template FROM projects WHERE id = ANY($1::uuid[])
 `
 
 type MentionedProjectsRow struct {
@@ -112,7 +112,7 @@ func (q *Queries) MentionedUsers(ctx context.Context, ids []uuid.UUID) ([]Mentio
 }
 
 const mentionedWorkItems = `-- name: MentionedWorkItems :many
-SELECT w.id, p.identifier, w.sequence_number, w.title, p.is_template
+SELECT w.id, p.identifier, w.sequence_number, w.title, (p.is_template OR p.is_inbox)::bool AS is_template
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE w.id = ANY($1::uuid[])
 `
@@ -193,7 +193,7 @@ func (q *Queries) SearchMentionMilestones(ctx context.Context, arg SearchMention
 const searchMentionProjects = `-- name: SearchMentionProjects :many
 SELECT id, identifier, name
 FROM projects
-WHERE (NOT is_template OR $1::bool) AND (identifier ILIKE $2::text OR name ILIKE $3::text)
+WHERE (NOT is_template OR $1::bool) AND NOT is_inbox AND (identifier ILIKE $2::text OR name ILIKE $3::text)
 ORDER BY name
 LIMIT 10
 `
@@ -233,7 +233,7 @@ func (q *Queries) SearchMentionProjects(ctx context.Context, arg SearchMentionPr
 const searchMentionWorkItems = `-- name: SearchMentionWorkItems :many
 SELECT w.id, p.identifier, w.sequence_number, w.title
 FROM work_items w JOIN projects p ON p.id = w.project_id
-WHERE (NOT p.is_template OR $1::bool)
+WHERE (NOT p.is_template OR $1::bool) AND NOT p.is_inbox
   AND ((p.identifier || '-' || w.sequence_number) ILIKE $2::text OR w.title ILIKE $3::text)
 ORDER BY p.identifier, w.sequence_number
 LIMIT 10

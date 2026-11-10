@@ -15,7 +15,8 @@ import (
 const personScheduleItems = `-- name: PersonScheduleItems :many
 
 SELECT a.user_id, w.id, w.project_id, p.identifier, p.name AS project_name, w.sequence_number, w.title,
-       w.start_date, w.due_date, w.weight, coalesce(w.weighted_done_ratio, w.done_ratio)::smallint AS done_ratio
+       w.start_date, w.due_date, w.weight, coalesce(w.weighted_done_ratio, w.done_ratio)::smallint AS done_ratio,
+       p.is_inbox
 FROM work_item_assignees a
 JOIN work_items w ON w.id = a.work_item_id
 JOIN statuses s ON s.id = w.status_id
@@ -42,6 +43,7 @@ type PersonScheduleItemsRow struct {
 	DueDate        *time.Time
 	Weight         int16
 	DoneRatio      int16
+	IsInbox        bool
 }
 
 // Spec 021: cronograma por persona.
@@ -68,6 +70,7 @@ func (q *Queries) PersonScheduleItems(ctx context.Context, arg PersonScheduleIte
 			&i.DueDate,
 			&i.Weight,
 			&i.DoneRatio,
+			&i.IsInbox,
 		); err != nil {
 			return nil, err
 		}
