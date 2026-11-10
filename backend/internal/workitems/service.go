@@ -1066,7 +1066,7 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 			return out, err
 		}
 	}
-	out.Dependencies, err = dependencies(ctx, q, row)
+	out.Dependencies, err = dependencies(ctx, q, p, row)
 	return out, err
 }
 

@@ -77,7 +77,7 @@ type createRequest struct {
 	Name  string `json:"name" validate:"required,max=200"`
 	Email string `json:"email" validate:"required,email,max=320"`
 	// No initial password: the person gets an invitation (spec 019, RF-10).
-	Role       string            `json:"role" validate:"omitempty,oneof=admin lead member viewer"`
+	Role       string            `json:"role" validate:"omitempty,oneof=admin director lead member viewer"`
 	TeamID     *uuid.UUID        `json:"team_id"`
 	Attributes attributes.Values `json:"attributes"`
 }
@@ -106,7 +106,7 @@ type passwordRequest struct {
 }
 
 type roleRequest struct {
-	Role string `json:"role" validate:"required,oneof=admin lead member viewer"`
+	Role string `json:"role" validate:"required,oneof=admin director lead member viewer"`
 }
 
 type teamRequest struct {

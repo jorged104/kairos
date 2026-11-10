@@ -235,7 +235,8 @@ func TestProjectBoard(t *testing.T) {
 	for i, p := range b.Projects {
 		byName[p.Name] = i
 	}
-	if _, ok := byName["Archivado"]; ok || len(b.Projects) != 4 || b.Today != "2026-03-10" { // RF-29
+	// Neither archived (RF-29) nor of a team the member does not see (spec 023, RF-24).
+	if _, ok := byName["Archivado"]; ok || len(b.Projects) != 3 || b.Today != "2026-03-10" {
 		t.Fatalf("board projects = %+v", b.Projects)
 	}
 	h := b.Projects[byName["Hoja"]]
@@ -253,8 +254,20 @@ func TestProjectBoard(t *testing.T) {
 	}
 	var lb boardDTO
 	s.lead.Get("/api/project-board").Expect(t, http.StatusOK).JSON(t, &lb)
-	if !lb.Projects[byName["Hoja"]].CanManage || lb.Projects[byName["Otro"]].CanManage {
+	leadSees := map[string]bool{}
+	for _, p := range lb.Projects {
+		leadSees[p.Name] = p.CanManage
+	}
+	if manage, ok := leadSees["Hoja"]; !ok || !manage {
 		t.Fatalf("lead can manage = %+v", lb.Projects)
+	}
+	if _, ok := leadSees["Otro"]; ok { // spec 023, RF-24
+		t.Fatalf("the lead sees a project of another team")
+	}
+	var ab boardDTO
+	s.admin.Get("/api/project-board").Expect(t, http.StatusOK).JSON(t, &ab)
+	if len(ab.Projects) != 4 {
+		t.Fatalf("admin board = %d projects", len(ab.Projects))
 	}
 	if len(b.Programs) != 1 || b.Programs[0].ID != prog.ID || !b.Programs[0].Figures.HasPlan { // RF-52
 		t.Fatalf("programs = %+v", b.Programs)

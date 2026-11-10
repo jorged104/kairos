@@ -55,6 +55,11 @@ type Task struct {
 	CanMove  bool           `json:"can_move"`
 	// Without a project: its team and mode, if any (spec 022, RF-30).
 	Loose *TaskLoose `json:"loose,omitempty"`
+	// Hidden: in another person's panel, of a project the viewer does not
+	// see; only its dates and status are left (spec 023, RF-26).
+	Hidden bool `json:"hidden"`
+
+	project authz.ProjectRef
 }
 
 type TaskLoose struct {
@@ -76,6 +81,8 @@ type Project struct {
 	Open       int              `json:"open"`
 	Late       int              `json:"late"`
 	Figures    schedule.Figures `json:"figures"`
+
+	ref authz.ProjectRef
 }
 
 type Week struct {
@@ -91,6 +98,8 @@ type Load struct {
 	Project *Ref `json:"project"` // null: «Otros»
 	Open    int  `json:"open"`
 	Late    int  `json:"late"`
+
+	ref authz.ProjectRef
 }
 
 // Person is whose panel it is, when it is not the caller's (RF-41, RF-46).
@@ -218,7 +227,7 @@ func (s *Service) Team(ctx context.Context, p *authz.Principal, today time.Time)
 	if err != nil {
 		return Team{}, fmt.Errorf("cronograma por persona: %w", err)
 	}
-	for _, r := range workload.Build(people, items, today) {
+	for _, r := range workload.Build(people, items, today, p.SeesProject) {
 		c := capOf[r.User.ID]
 		out.People = append(out.People, Member{Row: r, Teams: teamsOf[r.User.ID], Capacity: c, Overloaded: c != nil && r.Weight > int64(*c)})
 	}
@@ -280,8 +289,41 @@ func (s *Service) GetFor(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 	for i := range out.Tasks {
 		out.Tasks[i].CanMove = false
 	}
+	hide(p, &out)
 	out.User = person
 	return out, nil
+}
+
+// hide leaves out of another person's panel what the viewer does not see
+// (spec 023, RF-26): their work items of those projects keep only their
+// dates and status, and the projects go out of the lists and into «Otros».
+func hide(p *authz.Principal, out *Dashboard) {
+	for i, t := range out.Tasks {
+		if t.Loose == nil && !p.SeesProject(t.project) {
+			out.Tasks[i] = Task{StatusID: t.StatusID, Closed: t.Closed, DueDate: t.DueDate, ClosedOn: t.ClosedOn,
+				LateDays: t.LateDays, Weight: t.Weight, Hidden: true}
+		}
+	}
+	projects := []Project{}
+	for _, pr := range out.Projects {
+		if p.SeesProject(pr.ref) {
+			projects = append(projects, pr)
+		}
+	}
+	out.Projects = projects
+	load, others := []Load{}, Load{}
+	for _, l := range out.Load {
+		if l.Project != nil && p.SeesProject(l.ref) {
+			load = append(load, l)
+			continue
+		}
+		others.Open += l.Open
+		others.Late += l.Late
+	}
+	if others.Open > 0 || others.Late > 0 {
+		load = append(load, others)
+	}
+	out.Load = load
 }
 
 func day(t time.Time) time.Time { return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC) }
@@ -303,13 +345,16 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 	type count struct{ open, late int }
 	byProject := map[uuid.UUID]*count{}
 	names := map[uuid.UUID]string{}
+	refs := map[uuid.UUID]authz.ProjectRef{}
 	for _, r := range rows {
 		t := Task{
 			ID: r.ID, Key: fmt.Sprintf("%s-%d", r.Identifier, r.SequenceNumber), Title: r.Title,
 			Project: Ref{ID: r.ProjectID, Name: r.ProjectName}, StatusID: r.StatusID, TypeID: r.TypeID, Closed: r.IsClosed,
 			DueDate: workcore.FromTime(r.DueDate), Weight: r.Weight,
-			CanMove: p.CanWriteWorkItems(authz.ProjectRef{ID: r.ProjectID, TeamID: r.TeamID, OwnerID: r.OwnerID}),
+			project: authz.ProjectRef{ID: r.ProjectID, TeamID: r.TeamID, OwnerID: r.OwnerID},
 		}
+		// One's own work item moves also in a project seen only through it (spec 023, RF-15).
+		t.CanMove = p.CanWriteWorkItems(t.project) || p.ReadsByAssignment(t.project)
 		// Without a project, the assignee moves it, and it counts for no
 		// project (spec 022, RF-29 to RF-32).
 		if r.IsInbox {
@@ -318,7 +363,7 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 				t.Loose.Team, t.Loose.Mode = &Ref{ID: *r.ForTeamID, Name: r.ForTeamName}, *r.TeamMode
 			}
 		}
-		names[r.ProjectID] = r.ProjectName
+		names[r.ProjectID], refs[r.ProjectID] = r.ProjectName, t.project
 		if !r.IsClosed {
 			c := byProject[r.ProjectID]
 			if c == nil {
@@ -376,7 +421,7 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 	for i, id := range ids {
 		c := byProject[id]
 		if i < maxLoad {
-			out.Load = append(out.Load, Load{Project: &Ref{ID: id, Name: names[id]}, Open: c.open, Late: c.late})
+			out.Load = append(out.Load, Load{Project: &Ref{ID: id, Name: names[id]}, Open: c.open, Late: c.late, ref: refs[id]})
 			continue
 		}
 		if i == maxLoad {
@@ -409,7 +454,7 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 			case role == "":
 				role = "tasks"
 			}
-			pr := Project{ID: r.ID, Identifier: r.Identifier, Name: r.Name, Role: role, Figures: tree.Nodes[r.ID].Own(set)}
+			pr := Project{ID: r.ID, Identifier: r.Identifier, Name: r.Name, Role: role, Figures: tree.Nodes[r.ID].Own(set), ref: ref}
 			if c := byProject[r.ID]; c != nil {
 				pr.Open, pr.Late = c.open, c.late
 			}

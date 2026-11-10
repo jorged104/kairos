@@ -23,9 +23,10 @@ func NewHandler(svc *Service, logger *slog.Logger) *Handler {
 	return &Handler{svc: svc, logger: logger}
 }
 
-// Routes: whoever reads work follows any project (RF-1).
+// Routes: administrators, Dirección and leads follow the projects they see
+// (spec 023, RF-17a).
 func (h *Handler) Routes(r chi.Router) {
-	r.With(auth.RequirePermission(authz.WorkRead, h.logger)).Get("/tracking", h.get)
+	r.With(auth.RequirePermission(authz.OversightView, h.logger)).Get("/tracking", h.get)
 }
 
 // get reads ?program_id=&project_id=…&owner_id=…&today=YYYY-MM-DD; ids that

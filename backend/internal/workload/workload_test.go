@@ -25,7 +25,7 @@ func TestBuild(t *testing.T) {
 		{UserID: bea.ID, Identifier: "P", SequenceNumber: 3, StartDate: date("2026-02-01"), DueDate: date("2026-02-10"), Weight: 1},
 		{UserID: uuid.New(), Identifier: "P", SequenceNumber: 4, DueDate: date("2026-05-01")},
 	}
-	rows := Build([]workcore.Ref{ana, bea, eva}, items, time.Date(2026, 3, 10, 15, 0, 0, 0, time.UTC))
+	rows := Build([]workcore.Ref{ana, bea, eva}, items, time.Date(2026, 3, 10, 15, 0, 0, 0, time.UTC), nil)
 	if rows[0].User != eva || rows[0].FreeFrom != nil || len(rows[0].Bars) != 0 {
 		t.Fatalf("libre primero = %+v", rows[0])
 	}

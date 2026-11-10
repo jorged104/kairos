@@ -5,7 +5,7 @@
 -- one project only (RF-1, RF-18, RF-24).
 SELECT a.user_id, w.id, w.project_id, p.identifier, p.name AS project_name, w.sequence_number, w.title,
        w.start_date, w.due_date, w.weight, coalesce(w.weighted_done_ratio, w.done_ratio)::smallint AS done_ratio,
-       p.is_inbox
+       p.is_inbox, p.team_id, p.owner_id
 FROM work_item_assignees a
 JOIN work_items w ON w.id = a.work_item_id
 JOIN statuses s ON s.id = w.status_id

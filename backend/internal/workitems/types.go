@@ -24,6 +24,8 @@ type Ref struct {
 	ID    uuid.UUID `json:"id"`
 	Key   string    `json:"key"`
 	Title string    `json:"title"`
+	// Hidden: of a project the user does not see, without key nor title (spec 023).
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 type Derived struct {

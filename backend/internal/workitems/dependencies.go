@@ -17,7 +17,7 @@ import (
 )
 
 // dependencies lists the dependencies of a work item from its point of view.
-func dependencies(ctx context.Context, q *sqlc.Queries, row sqlc.WorkItem) ([]Dependency, error) {
+func dependencies(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem) ([]Dependency, error) {
 	deps, err := q.ListDependencies(ctx, row.ID)
 	if err != nil {
 		return nil, fmt.Errorf("leer dependencias: %w", err)
@@ -47,6 +47,9 @@ func dependencies(ctx context.Context, q *sqlc.Queries, row sqlc.WorkItem) ([]De
 		}
 		o := byID[other]
 		dep.Other = Ref{ID: o.ID, Key: Key(o.Identifier, o.SequenceNumber), Title: o.Title}
+		if o.ProjectID != row.ProjectID && !p.SeesProject(authz.ProjectRef{ID: o.ProjectID, TeamID: o.TeamID, OwnerID: o.OwnerID}) {
+			dep.Other = Ref{Hidden: true} // spec 023, RF-27
+		}
 		if d.Type == "precedes" {
 			// The successor must not start before the predecessor ends plus the lag (RF-96).
 			pred, succ := byID[d.FromID], byID[d.ToID]
@@ -128,7 +131,7 @@ func (s *Service) AddDependency(ctx context.Context, p *authz.Principal, fromID 
 			TargetID: from.ID.String(), After: map[string]any{"id": dep.ID, "to_id": to.ID, "type": dep.Type, "lag_days": dep.LagDays}}); err != nil {
 			return err
 		}
-		out, err = dependencies(ctx, q, from)
+		out, err = dependencies(ctx, q, p, from)
 		return err
 	})
 	return out, err

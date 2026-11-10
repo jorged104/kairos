@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"openscum/internal/authz"
 	"openscum/internal/schedule"
 )
 
@@ -28,6 +29,13 @@ type Node struct {
 	Plan         float64
 	HasPlan      bool
 	Real         float64
+	TeamID       uuid.UUID // who sees it (spec 023)
+	OwnerID      uuid.UUID
+}
+
+// Ref is what the visibility rule needs from the node.
+func (n Node) Ref() authz.ProjectRef {
+	return authz.ProjectRef{ID: n.ID, TeamID: n.TeamID, OwnerID: n.OwnerID}
 }
 
 // Weight in a program: the one set by hand, else its effort (Conceptos).
@@ -151,6 +159,8 @@ type Card struct {
 	Projects  int   `json:"projects"`
 	BelowPlan int   `json:"below_plan"`
 	Rows      []Row `json:"rows"`
+	// Hidden counts the projects of the program the user does not see (spec 023, RF-19).
+	Hidden int `json:"hidden"`
 }
 
 func (t Tree) row(n Node, s schedule.Settings) Row {

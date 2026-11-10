@@ -33,6 +33,8 @@ type Link struct {
 	ID    uuid.UUID `json:"id"`
 	Label string    `json:"label"` // KAI-42, or the project identifier for milestones
 	Name  string    `json:"name"`
+	// Hidden: of a project the user does not see, without label nor name (spec 023).
+	Hidden bool `json:"hidden"`
 }
 
 type KeyResult struct {
@@ -83,8 +85,10 @@ type Objective struct {
 	CreatedAt    time.Time       `json:"created_at"`
 	KeyResults   []KeyResult     `json:"key_results"`
 	Projects     []ProjectLink   `json:"projects"`
-	Milestones   []MilestoneLink `json:"milestones"`
-	Can          struct {
+	// HiddenProjects counts the linked projects the user does not see (spec 023, RF-29).
+	HiddenProjects int             `json:"hidden_projects"`
+	Milestones     []MilestoneLink `json:"milestones"`
+	Can            struct {
 		// Manage covers edits and links, only while draft or active; Status
 		// covers the status actions, reopening included.
 		Manage bool `json:"manage"`

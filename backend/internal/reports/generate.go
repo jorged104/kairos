@@ -196,7 +196,7 @@ func (g *Generator) prepare(ctx context.Context, p *authz.Principal, projectID u
 	}
 	names := map[string]string{project.ID.String(): project.Name}
 	for _, r := range rows {
-		if r.IsTemplate && !p.Has(authz.TemplatesUse) {
+		if !projects.SeesSubtreeRow(p, r) {
 			continue
 		}
 		names[r.ID.String()] = r.Name

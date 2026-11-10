@@ -95,7 +95,7 @@ WHERE c.meeting_id = $1
 ORDER BY c.created_at, c.id;
 
 -- name: MentionedMeetings :many
-SELECT m.id, m.title, p.is_template
+SELECT m.id, m.title, p.is_template, p.id AS project_id, p.team_id, p.owner_id
 FROM meetings m JOIN projects p ON p.id = m.project_id
 WHERE m.id = ANY(@ids::uuid[]);
 
@@ -103,5 +103,6 @@ WHERE m.id = ANY(@ids::uuid[]);
 SELECT m.id, m.title, p.identifier
 FROM meetings m JOIN projects p ON p.id = m.project_id
 WHERE (NOT p.is_template OR @templates::bool) AND m.title ILIKE @contains::text
+  AND (p.is_template OR @see_all::bool OR p.id = ANY(@seen::uuid[]) OR p.owner_id = @me::uuid OR p.team_id = ANY(@seen_teams::uuid[]))
 ORDER BY m.starts_at DESC
 LIMIT 10;

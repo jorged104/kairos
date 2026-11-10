@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	sq "github.com/Masterminds/squirrel"
 	"slices"
 
 	"github.com/google/uuid"
@@ -70,6 +71,32 @@ func Visible(p *authz.Principal, row sqlc.Project) bool {
 		return p.Has(authz.TemplatesUse)
 	}
 	return p.SeesProject(Ref(row))
+}
+
+// SeesSubtreeRow applies Visible to a row of ProjectSubtree.
+func SeesSubtreeRow(p *authz.Principal, r sqlc.ProjectSubtreeRow) bool {
+	if r.IsTemplate {
+		return p.Has(authz.TemplatesUse)
+	}
+	return p.SeesProject(authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID})
+}
+
+// VisibleFilter limits a listing of "projects p" to those the user sees
+// (spec 023, RF-1); nil when they see all. Their own count at once, before
+// the principal is loaded again.
+func VisibleFilter(p *authz.Principal) sq.Sqlizer {
+	if p.SeesAll() {
+		return nil
+	}
+	strs := func(ids []uuid.UUID) []string {
+		out := make([]string, len(ids))
+		for i, id := range ids {
+			out[i] = id.String()
+		}
+		return out
+	}
+	return sq.Or{sq.Expr("p.id = ANY(?::uuid[])", strs(p.VisibleProjectIDs())), sq.Eq{"p.owner_id": p.UserID},
+		sq.Expr("p.team_id = ANY(?::uuid[])", strs(p.VisibleTeamIDs()))}
 }
 
 // visibleNow is Visible with the assigned work items read live, so being
@@ -557,7 +584,7 @@ func (s *Service) Subtree(ctx context.Context, p *authz.Principal, id uuid.UUID)
 	}
 	out := make([]SubtreeNode, 0, len(rows))
 	for _, r := range rows {
-		if r.IsTemplate && !p.Has(authz.TemplatesUse) {
+		if !SeesSubtreeRow(p, r) {
 			continue
 		}
 		out = append(out, SubtreeNode{ID: r.ID, ParentID: r.ParentID, Identifier: r.Identifier, Name: r.Name,
@@ -615,7 +642,14 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Pro
 			out.Methodology = &workcore.Ref{ID: *row.MethodologyID, Name: *n.MethodologyName}
 		}
 		if row.ParentID != nil && n.ParentIdentifier != nil {
-			out.Parent = &ParentRef{ID: *row.ParentID, Identifier: *n.ParentIdentifier, Name: *n.ParentName}
+			// A parent the user does not see stays out (spec 023).
+			parent, err := q.GetProject(ctx, *row.ParentID)
+			if err != nil {
+				return out, fmt.Errorf("leer proyecto padre: %w", err)
+			}
+			if Visible(p, parent) {
+				out.Parent = &ParentRef{ID: *row.ParentID, Identifier: *n.ParentIdentifier, Name: *n.ParentName}
+			}
 		}
 	}
 	if out.TypeIDs, err = q.ListProjectTypeIDs(ctx, row.ID); err != nil {

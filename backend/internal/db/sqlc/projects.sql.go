@@ -859,7 +859,7 @@ WITH RECURSIVE tree AS (
     UNION ALL
     SELECT c.id FROM projects c JOIN tree ON c.parent_id = tree.id
 )
-SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.health, p.depth, p.is_template
+SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.health, p.depth, p.is_template, p.team_id, p.owner_id
 FROM projects p JOIN tree ON tree.id = p.id
 ORDER BY p.depth, p.name
 `
@@ -873,6 +873,8 @@ type ProjectSubtreeRow struct {
 	Health     string
 	Depth      int16
 	IsTemplate bool
+	TeamID     uuid.UUID
+	OwnerID    uuid.UUID
 }
 
 // Every descendant of a project, in one query (RF-28).
@@ -894,6 +896,8 @@ func (q *Queries) ProjectSubtree(ctx context.Context, parentID *uuid.UUID) ([]Pr
 			&i.Health,
 			&i.Depth,
 			&i.IsTemplate,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}

@@ -43,8 +43,9 @@ func Refs(ctx context.Context, q *sqlc.Queries, p *authz.Principal, doc json.Raw
 		}
 	}
 	templates := p.Has(authz.TemplatesUse)
-	visible := func(isTemplate bool, label string) Ref {
-		if isTemplate && !templates {
+	// A template for who may use it; any other project only if seen (spec 023, RF-28).
+	visible := func(isTemplate bool, pr authz.ProjectRef, label string) Ref {
+		if isTemplate && !templates || !isTemplate && !p.SeesProject(pr) {
 			return Ref{State: StateNoAccess}
 		}
 		return Ref{Label: label, State: StateOK}
@@ -66,7 +67,7 @@ func Refs(ctx context.Context, q *sqlc.Queries, p *authz.Principal, doc json.Raw
 			return nil, fmt.Errorf("work items mencionados: %w", err)
 		}
 		for _, w := range rows {
-			out[w.ID.String()] = visible(w.IsTemplate, key(w.Identifier, w.SequenceNumber)+" "+w.Title)
+			out[w.ID.String()] = visible(w.IsTemplate, authz.ProjectRef{ID: w.ProjectID, TeamID: w.TeamID, OwnerID: w.OwnerID}, key(w.Identifier, w.SequenceNumber)+" "+w.Title)
 		}
 	}
 	if len(ids["milestone"]) > 0 {
@@ -75,7 +76,7 @@ func Refs(ctx context.Context, q *sqlc.Queries, p *authz.Principal, doc json.Raw
 			return nil, fmt.Errorf("hitos mencionados: %w", err)
 		}
 		for _, m := range rows {
-			out[m.ID.String()] = visible(m.IsTemplate, m.Name)
+			out[m.ID.String()] = visible(m.IsTemplate, authz.ProjectRef{ID: m.ProjectID, TeamID: m.TeamID, OwnerID: m.OwnerID}, m.Name)
 		}
 	}
 	if len(ids["meeting"]) > 0 {
@@ -84,7 +85,7 @@ func Refs(ctx context.Context, q *sqlc.Queries, p *authz.Principal, doc json.Raw
 			return nil, fmt.Errorf("reuniones mencionadas: %w", err)
 		}
 		for _, m := range rows {
-			out[m.ID.String()] = visible(m.IsTemplate, m.Title)
+			out[m.ID.String()] = visible(m.IsTemplate, authz.ProjectRef{ID: m.ProjectID, TeamID: m.TeamID, OwnerID: m.OwnerID}, m.Title)
 		}
 	}
 	if len(ids["project"]) > 0 {
@@ -93,7 +94,7 @@ func Refs(ctx context.Context, q *sqlc.Queries, p *authz.Principal, doc json.Raw
 			return nil, fmt.Errorf("proyectos mencionados: %w", err)
 		}
 		for _, pr := range rows {
-			out[pr.ID.String()] = visible(pr.IsTemplate, pr.Identifier+" "+pr.Name)
+			out[pr.ID.String()] = visible(pr.IsTemplate, authz.ProjectRef{ID: pr.ID, TeamID: pr.TeamID, OwnerID: pr.OwnerID}, pr.Identifier+" "+pr.Name)
 		}
 	}
 	return out, nil
@@ -128,30 +129,30 @@ func Search(ctx context.Context, q *sqlc.Queries, p *authz.Principal, text strin
 	}
 	escaped := likeEscaper.Replace(text)
 	prefix, contains := escaped+"%", "%"+escaped+"%"
-	templates := p.Has(authz.TemplatesUse)
+	templates, all, seen, me, teams := p.Has(authz.TemplatesUse), p.SeesAll(), p.VisibleProjectIDs(), p.UserID, p.VisibleTeamIDs()
 
-	items, err := q.SearchMentionWorkItems(ctx, sqlc.SearchMentionWorkItemsParams{Templates: templates, Prefix: prefix, Contains: contains})
+	items, err := q.SearchMentionWorkItems(ctx, sqlc.SearchMentionWorkItemsParams{Templates: templates, Prefix: prefix, Contains: contains, SeeAll: all, Seen: seen, Me: me, SeenTeams: teams})
 	if err != nil {
 		return out, fmt.Errorf("buscar work items: %w", err)
 	}
 	for _, w := range items {
 		out.WorkItems = append(out.WorkItems, Result{Kind: "work_item", ID: w.ID, Label: key(w.Identifier, w.SequenceNumber) + " " + w.Title})
 	}
-	ms, err := q.SearchMentionMilestones(ctx, sqlc.SearchMentionMilestonesParams{Templates: templates, Contains: contains})
+	ms, err := q.SearchMentionMilestones(ctx, sqlc.SearchMentionMilestonesParams{Templates: templates, Contains: contains, SeeAll: all, Seen: seen, Me: me, SeenTeams: teams})
 	if err != nil {
 		return out, fmt.Errorf("buscar hitos: %w", err)
 	}
 	for _, m := range ms {
 		out.Milestones = append(out.Milestones, Result{Kind: "milestone", ID: m.ID, Label: m.Name + " · " + m.Identifier})
 	}
-	ps, err := q.SearchMentionProjects(ctx, sqlc.SearchMentionProjectsParams{Templates: templates, Prefix: prefix, Contains: contains})
+	ps, err := q.SearchMentionProjects(ctx, sqlc.SearchMentionProjectsParams{Templates: templates, Prefix: prefix, Contains: contains, SeeAll: all, Seen: seen, Me: me, SeenTeams: teams})
 	if err != nil {
 		return out, fmt.Errorf("buscar proyectos: %w", err)
 	}
 	for _, pr := range ps {
 		out.Projects = append(out.Projects, Result{Kind: "project", ID: pr.ID, Label: pr.Identifier + " " + pr.Name})
 	}
-	mt, err := q.SearchMentionMeetings(ctx, sqlc.SearchMentionMeetingsParams{Templates: templates, Contains: contains})
+	mt, err := q.SearchMentionMeetings(ctx, sqlc.SearchMentionMeetingsParams{Templates: templates, Contains: contains, SeeAll: all, Seen: seen, Me: me, SeenTeams: teams})
 	if err != nil {
 		return out, fmt.Errorf("buscar reuniones: %w", err)
 	}

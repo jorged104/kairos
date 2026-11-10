@@ -501,7 +501,7 @@ func (q *Queries) MeetingTasks(ctx context.Context, meetingID *uuid.UUID) ([]Mee
 }
 
 const mentionedMeetings = `-- name: MentionedMeetings :many
-SELECT m.id, m.title, p.is_template
+SELECT m.id, m.title, p.is_template, p.id AS project_id, p.team_id, p.owner_id
 FROM meetings m JOIN projects p ON p.id = m.project_id
 WHERE m.id = ANY($1::uuid[])
 `
@@ -510,6 +510,9 @@ type MentionedMeetingsRow struct {
 	ID         uuid.UUID
 	Title      string
 	IsTemplate bool
+	ProjectID  uuid.UUID
+	TeamID     uuid.UUID
+	OwnerID    uuid.UUID
 }
 
 func (q *Queries) MentionedMeetings(ctx context.Context, ids []uuid.UUID) ([]MentionedMeetingsRow, error) {
@@ -521,7 +524,14 @@ func (q *Queries) MentionedMeetings(ctx context.Context, ids []uuid.UUID) ([]Men
 	var items []MentionedMeetingsRow
 	for rows.Next() {
 		var i MentionedMeetingsRow
-		if err := rows.Scan(&i.ID, &i.Title, &i.IsTemplate); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.IsTemplate,
+			&i.ProjectID,
+			&i.TeamID,
+			&i.OwnerID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -536,6 +546,7 @@ const searchMentionMeetings = `-- name: SearchMentionMeetings :many
 SELECT m.id, m.title, p.identifier
 FROM meetings m JOIN projects p ON p.id = m.project_id
 WHERE (NOT p.is_template OR $1::bool) AND m.title ILIKE $2::text
+  AND (p.is_template OR $3::bool OR p.id = ANY($4::uuid[]) OR p.owner_id = $5::uuid OR p.team_id = ANY($6::uuid[]))
 ORDER BY m.starts_at DESC
 LIMIT 10
 `
@@ -543,6 +554,10 @@ LIMIT 10
 type SearchMentionMeetingsParams struct {
 	Templates bool
 	Contains  string
+	SeeAll    bool
+	Seen      []uuid.UUID
+	Me        uuid.UUID
+	SeenTeams []uuid.UUID
 }
 
 type SearchMentionMeetingsRow struct {
@@ -552,7 +567,14 @@ type SearchMentionMeetingsRow struct {
 }
 
 func (q *Queries) SearchMentionMeetings(ctx context.Context, arg SearchMentionMeetingsParams) ([]SearchMentionMeetingsRow, error) {
-	rows, err := q.db.Query(ctx, searchMentionMeetings, arg.Templates, arg.Contains)
+	rows, err := q.db.Query(ctx, searchMentionMeetings,
+		arg.Templates,
+		arg.Contains,
+		arg.SeeAll,
+		arg.Seen,
+		arg.Me,
+		arg.SeenTeams,
+	)
 	if err != nil {
 		return nil, err
 	}

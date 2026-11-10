@@ -157,6 +157,11 @@ func writers(status int) map[string]int {
 	return map[string]int{"admin": status, "lead:in": status, "owner": status, "participant": status}
 }
 
+// oversight: Portafolio and Seguimiento (spec 023, RF-17a).
+func oversight(status int) map[string]int {
+	return map[string]int{"admin": status, "director": status, "lead:in": status, "lead:out": status}
+}
+
 // commenters: every role but viewer, in any project they can read (spec 006, RF-23).
 func commenters(status int) map[string]int {
 	out := workAll(status)
@@ -201,8 +206,9 @@ var workOps = []workOp{
 		return c.Post("/api/projects/"+m.project(a).String()+"/baseline", map[string]any{})
 	}, managers(201)},
 	// Spec 010: everyone sees the portfolio; only the administrator marks programs.
-	{"ver seguimiento", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/tracking") }, workAll(200)}, // spec 011
-	{"ver portafolio", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/portfolio") }, workAll(200)},
+	// Specs 010 and 011: administrators, Dirección and leads (spec 023, RF-17a).
+	{"ver seguimiento", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/tracking") }, oversight(200)},
+	{"ver portafolio", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/portfolio") }, oversight(200)},
 	{"gestionar programa", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Do(http.MethodPut, "/api/projects/"+m.project(a).String()+"/portfolio", map[string]any{"version": 1, "is_program": true, "weight": nil})
 	}, map[string]int{"admin": 200}},

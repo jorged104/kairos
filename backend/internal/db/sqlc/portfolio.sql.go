@@ -74,7 +74,7 @@ func (q *Queries) PortfolioPlanItems(ctx context.Context) ([]PortfolioPlanItemsR
 
 const portfolioProjects = `-- name: PortfolioProjects :many
 SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.is_program, p.portfolio_weight,
-       p.start_date, p.end_date,
+       p.start_date, p.end_date, p.team_id, p.owner_id,
        coalesce((SELECT sum(w.weight) FROM work_items w WHERE w.project_id = p.id), 0)::int AS effort
 FROM projects p
 WHERE NOT p.is_template AND NOT p.is_inbox
@@ -91,6 +91,8 @@ type PortfolioProjectsRow struct {
 	PortfolioWeight *int32
 	StartDate       *time.Time
 	EndDate         *time.Time
+	TeamID          uuid.UUID
+	OwnerID         uuid.UUID
 	Effort          int32
 }
 
@@ -115,6 +117,8 @@ func (q *Queries) PortfolioProjects(ctx context.Context) ([]PortfolioProjectsRow
 			&i.PortfolioWeight,
 			&i.StartDate,
 			&i.EndDate,
+			&i.TeamID,
+			&i.OwnerID,
 			&i.Effort,
 		); err != nil {
 			return nil, err

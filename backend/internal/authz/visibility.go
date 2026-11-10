@@ -87,6 +87,24 @@ func (p *Principal) VisibleProjectIDs() []uuid.UUID {
 	return out
 }
 
+// VisibleTeamIDs are the teams whose projects the user sees: their own,
+// ancestors and descendants, and their lead scope. Listings use them so a
+// project just created in one of them shows at once.
+func (p *Principal) VisibleTeamIDs() []uuid.UUID {
+	out := make([]uuid.UUID, 0, len(p.SeenTeams)+len(p.ScopeTeams))
+	for id := range p.SeenTeams {
+		out = append(out, id)
+	}
+	if p.Has(ProjectsReadTeam) {
+		for id := range p.ScopeTeams {
+			if !p.SeenTeams[id] {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
+}
+
 // ReadsByAssignment reports whether a user who sees the project sees it only
 // because they have work items in it: read only, but for their own (RF-15).
 func (p *Principal) ReadsByAssignment(pr ProjectRef) bool {

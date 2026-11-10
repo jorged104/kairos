@@ -79,13 +79,14 @@ INSERT INTO key_result_milestones (key_result_id, objective_id, milestone_id) VA
 DELETE FROM key_result_milestones WHERE key_result_id = $1 AND milestone_id = $2;
 
 -- name: ObjectiveProjects :many
-SELECT p.id, p.identifier, p.name, p.lifecycle
+SELECT p.id, p.identifier, p.name, p.lifecycle, p.team_id, p.owner_id
 FROM objective_projects op JOIN projects p ON p.id = op.project_id
 WHERE op.objective_id = $1 ORDER BY p.name;
 
 -- name: ObjectiveMilestones :many
 -- Contributing milestones with their project (RF-115).
-SELECT m.id, m.name, m.status, m.due_date, m.completed_on, p.id AS project_id, p.identifier, p.name AS project_name
+SELECT m.id, m.name, m.status, m.due_date, m.completed_on, p.id AS project_id, p.identifier, p.name AS project_name,
+       p.team_id, p.owner_id
 FROM objective_milestones om
 JOIN milestones m ON m.id = om.milestone_id
 JOIN projects p ON p.id = m.project_id
@@ -94,14 +95,15 @@ ORDER BY m.due_date NULLS LAST, m.name;
 
 -- name: KeyResultLinks :many
 -- Work items and milestones linked to the key results of an objective.
-SELECT x.key_result_id, 'work_item'::text AS kind, w.id, (p.identifier || '-' || w.sequence_number)::text AS label, w.title AS name
+SELECT x.key_result_id, 'work_item'::text AS kind, w.id, (p.identifier || '-' || w.sequence_number)::text AS label, w.title AS name,
+       p.id AS project_id, p.team_id, p.owner_id
 FROM key_result_work_items x
 JOIN key_results kr ON kr.id = x.key_result_id
 JOIN work_items w ON w.id = x.work_item_id
 JOIN projects p ON p.id = w.project_id
 WHERE kr.objective_id = $1
 UNION ALL
-SELECT x.key_result_id, 'milestone'::text, m.id, p.identifier::text, m.name
+SELECT x.key_result_id, 'milestone'::text, m.id, p.identifier::text, m.name, p.id, p.team_id, p.owner_id
 FROM key_result_milestones x
 JOIN milestones m ON m.id = x.milestone_id
 JOIN projects p ON p.id = m.project_id

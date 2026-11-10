@@ -277,7 +277,7 @@ func TestProjectListFilters(t *testing.T) {
 		var list struct {
 			Total int `json:"total"`
 		}
-		s.viewer.Get("/api/projects"+query).Expect(t, http.StatusOK).JSON(t, &list)
+		s.admin.Get("/api/projects"+query).Expect(t, http.StatusOK).JSON(t, &list)
 		return list.Total
 	}
 	cases := map[string]int{
@@ -293,6 +293,13 @@ func TestProjectListFilters(t *testing.T) {
 		if got := count(q); got != want {
 			t.Errorf("%q: total = %d, want %d", q, got, want)
 		}
+	}
+	// The viewer of BI does not see the project of another team (spec 023, RF-24).
+	var seen struct {
+		Total int64 `json:"total"`
+	}
+	if s.viewer.Get("/api/projects").Expect(t, http.StatusOK).JSON(t, &seen); seen.Total != 2 {
+		t.Errorf("viewer total = %d, want 2", seen.Total)
 	}
 	for _, bad := range []string{"?team_id=x", "?lifecycle=raro", "?health=bien", "?page_size=101", "?owner_id=1"} {
 		s.viewer.Get("/api/projects"+bad).Expect(t, http.StatusBadRequest, "invalid_filter")
@@ -321,10 +328,11 @@ func TestProjectListAbilities(t *testing.T) {
 		c    *Client
 		want map[string]bool
 	}{
+		// Each one sees only their projects (spec 023, RF-24).
 		"admin":  {s.admin, map[string]bool{"KAI": true, "EXT": true}},
-		"lead":   {s.lead, map[string]bool{"KAI": true, "EXT": false}},
-		"owner":  {s.outsider, map[string]bool{"KAI": false, "EXT": true}},
-		"viewer": {s.viewer, map[string]bool{"KAI": false, "EXT": false}},
+		"lead":   {s.lead, map[string]bool{"KAI": true}},
+		"owner":  {s.outsider, map[string]bool{"EXT": true}},
+		"viewer": {s.viewer, map[string]bool{"KAI": false}},
 	}
 	for name, tc := range cases {
 		if got := manage(tc.c); fmt.Sprint(got) != fmt.Sprint(tc.want) {

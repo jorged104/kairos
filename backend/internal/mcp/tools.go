@@ -34,7 +34,12 @@ type tool struct {
 	params      map[string]any // the properties of the input schema
 	required    []string
 	run         func(c *call, a args) (any, error)
+	// perm, when set, hides the tool from whoever lacks it (spec 023, RF-17a).
+	perm authz.Permission
 }
+
+// offered reports whether the connection's owner gets the tool.
+func (t tool) offered(p *authz.Principal) bool { return t.perm == "" || p.Has(t.perm) }
 
 func (t tool) definition() map[string]any {
 	schema := map[string]any{"type": "object", "properties": t.params, "additionalProperties": false}
@@ -497,7 +502,7 @@ func tools() []tool {
 			},
 		},
 		{
-			name: "portfolio", title: "Portafolio", readOnly: true,
+			name: "portfolio", title: "Portafolio", readOnly: true, perm: authz.OversightView,
 			description: "Los programas y sus proyectos con plan, real, brecha y estado en una fecha de corte.",
 			params:      map[string]any{"date": pDate},
 			run: func(c *call, a args) (any, error) {
@@ -505,7 +510,7 @@ func tools() []tool {
 			},
 		},
 		{
-			name: "tracking", title: "Seguimiento", readOnly: true,
+			name: "tracking", title: "Seguimiento", readOnly: true, perm: authz.OversightView,
 			description: "Seguimiento de varios proyectos: indicadores, hitos y tareas atrasadas, en proceso, terminadas y próximas.",
 			params: map[string]any{
 				"program_id":  prop("string", "Id del programa."),

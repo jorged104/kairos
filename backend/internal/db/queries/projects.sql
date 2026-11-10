@@ -70,7 +70,7 @@ WITH RECURSIVE tree AS (
     UNION ALL
     SELECT c.id FROM projects c JOIN tree ON c.parent_id = tree.id
 )
-SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.health, p.depth, p.is_template
+SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.health, p.depth, p.is_template, p.team_id, p.owner_id
 FROM projects p JOIN tree ON tree.id = p.id
 ORDER BY p.depth, p.name;
 

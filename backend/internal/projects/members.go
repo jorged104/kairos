@@ -96,7 +96,7 @@ func (s *Service) TeamSchedule(ctx context.Context, p *authz.Principal, id uuid.
 	if err != nil {
 		return nil, fmt.Errorf("cronograma por persona: %w", err)
 	}
-	return workload.Build(people, items, today), nil
+	return workload.Build(people, items, today, nil), nil
 }
 
 // members builds the team: owner, participants and people added on purpose.
