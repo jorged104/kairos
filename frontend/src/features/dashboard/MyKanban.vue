@@ -182,8 +182,8 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
 
               <TransitionGroup tag="div" name="card" class="relative flex flex-col gap-2">
                 <article
-                  v-for="task in c.tasks.slice(0, MAX)"
-                  :key="task.id"
+                  v-for="(task, i) in c.tasks.slice(0, MAX)"
+                  :key="task.hidden ? `hidden-${i}` : task.id"
                   class="relative flex flex-col gap-1.5 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                   :class="[(moving === task.id && 'opacity-60') || (dragging?.task.id === task.id && 'scale-95 opacity-50'), menu?.id === task.id && 'z-30']"
                   :draggable="task.can_move"
@@ -194,7 +194,8 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
                   <TypeStripe :type="typeOf(task)" />
                   <div class="flex items-center gap-1.5">
                     <span class="font-mono text-[11px] text-muted-foreground">{{ task.key }}</span>
-                    <span v-if="!task.loose" class="truncate text-[11px] text-muted-foreground">· {{ from(task) }}</span>
+                    <span v-if="task.hidden" class="truncate text-[11px] text-muted-foreground" data-testid="my-task-hidden">{{ t('dashboard.tasks.hidden') }}</span>
+                    <span v-else-if="!task.loose" class="truncate text-[11px] text-muted-foreground">· {{ from(task) }}</span>
                     <span
                       v-else
                       class="truncate rounded-full px-1.5 text-[11px]"
@@ -213,7 +214,7 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
                       <MoreHorizontal class="size-4" aria-hidden="true" />
                     </button>
                   </div>
-                  <RouterLink :to="openIn(task)" class="text-sm leading-snug font-medium hover:underline" data-testid="my-task-link">{{ task.title }}</RouterLink>
+                  <RouterLink v-if="!task.hidden" :to="openIn(task)" class="text-sm leading-snug font-medium hover:underline" data-testid="my-task-link">{{ task.title }}</RouterLink>
                   <p class="text-xs">
                     <span v-if="task.closed && task.closed_on" class="text-muted-foreground">{{ t('dashboard.tasks.closedOn', { date: date(task.closed_on) }) }}</span>
                     <span v-else-if="task.late_days" class="font-semibold text-destructive" data-testid="my-task-late">

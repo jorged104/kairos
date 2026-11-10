@@ -172,7 +172,8 @@ const unlinkKr = mutation((x: { kr: string; kind: 'work_item' | 'milestone'; id:
           </form>
           <ul v-if="k.links.length" class="flex flex-wrap gap-2 text-xs">
             <li v-for="l in k.links" :key="l.id" class="flex items-center gap-1 rounded border px-2 py-0.5">
-              <RouterLink :to="l.kind === 'work_item' ? `/work-items/${l.label}` : `/milestones/${l.id}`" class="hover:underline">
+              <span v-if="l.hidden" class="text-muted-foreground">{{ t('objectives.hiddenLink') }}</span>
+              <RouterLink v-else :to="l.kind === 'work_item' ? `/work-items/${l.label}` : `/milestones/${l.id}`" class="hover:underline">
                 {{ l.kind === 'work_item' ? l.label : `◆ ${l.label}` }} {{ l.name }}
               </RouterLink>
               <button v-if="manage" type="button" :aria-label="t('common.remove')" @click="unlinkKr.mutate({ kr: k.id, kind: l.kind, id: l.id })">×</button>
@@ -237,6 +238,9 @@ const unlinkKr = mutation((x: { kr: string; kind: 'work_item' | 'milestone'; id:
             <li v-for="p in objective.projects" :key="p.id" class="flex items-center gap-2" data-testid="objective-project">
               <RouterLink :to="`/projects/${p.id}`" class="hover:underline">{{ p.identifier }} · {{ p.name }}</RouterLink>
               <Button v-if="manage" size="sm" variant="ghost" @click="unlink.mutate({ kind: 'projects', id: p.id })">{{ t('common.remove') }}</Button>
+            </li>
+            <li v-if="objective.hidden_projects" class="text-muted-foreground" data-testid="objective-hidden">
+              {{ t('objectives.hiddenProjects', { count: objective.hidden_projects }, objective.hidden_projects) }}
             </li>
           </ul>
           <form v-if="manage" class="mt-2 flex items-center gap-2 text-sm" @submit.prevent="linkProject.mutate()">

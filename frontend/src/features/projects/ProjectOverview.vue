@@ -85,6 +85,7 @@ const riskStyle = (r: { reason: 'overdue' | 'blocked' | 'behind'; level?: 'ahead
           <h2 id="ov-program" class="text-base font-semibold">{{ t('portfolio.aggregate') }}</h2>
           <span class="text-xs text-muted-foreground">
             {{ t('portfolio.projects', { count: o.program.projects }, o.program.projects) }} · {{ t('portfolio.belowPlan', { count: o.program.below_plan }, o.program.below_plan) }}
+            <template v-if="o.program.hidden"> · {{ t('portfolio.hidden', { count: o.program.hidden }, o.program.hidden) }}</template>
           </span>
           <span class="ml-auto text-2xl font-bold tabular-nums">{{ o.program.program.figures.real.toLocaleString('es', { maximumFractionDigits: 1 }) }} %</span>
         </div>

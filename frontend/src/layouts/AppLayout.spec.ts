@@ -29,9 +29,14 @@ const labels = (w: Awaited<ReturnType<typeof render>>['w'], sel: string) => w.fi
 
 describe('navegación lateral', () => {
   it('separa el trabajo de la configuración, y esta muestra la administración según permisos', async () => {
-    const { w } = await render(['work:read'])
+    const { w } = await render(['work:read', 'oversight:view'])
     const all = w.findAll('[data-testid=nav-link]').map((l) => l.text())
     expect(all.slice(0, 4)).toEqual(['Mi panel', 'Proyectos', 'Portafolio', 'Seguimiento'])
+    // Without it, neither Portafolio nor Seguimiento (spec 023, RF-17a).
+    const member = await render(['work:read'])
+    const theirs = member.w.findAll('[data-testid=nav-link]').map((l) => l.text())
+    expect(theirs).not.toContain('Portafolio')
+    expect(theirs).not.toContain('Seguimiento')
     expect(labels(w, '[data-testid=nav-settings]')).toEqual(['Mi cuenta', 'Usuarios', 'Equipos', 'Estado'])
 
     const admin = await render(['work:read', 'attributes:manage', 'idp_mappings:manage', 'catalog:manage', 'audit:read'])
