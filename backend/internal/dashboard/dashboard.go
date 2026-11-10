@@ -53,6 +53,13 @@ type Task struct {
 	LateDays int            `json:"late_days"`
 	Weight   int16          `json:"weight"`
 	CanMove  bool           `json:"can_move"`
+	// Without a project: its team and mode, if any (spec 022, RF-30).
+	Loose *TaskLoose `json:"loose,omitempty"`
+}
+
+type TaskLoose struct {
+	Team *Ref   `json:"team"`
+	Mode string `json:"mode"`
 }
 
 type Profile struct {
@@ -303,12 +310,22 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 			DueDate: workcore.FromTime(r.DueDate), Weight: r.Weight,
 			CanMove: p.CanWriteWorkItems(authz.ProjectRef{ID: r.ProjectID, TeamID: r.TeamID, OwnerID: r.OwnerID}),
 		}
+		// Without a project, the assignee moves it, and it counts for no
+		// project (spec 022, RF-29 to RF-32).
+		if r.IsInbox {
+			t.Loose, t.CanMove = &TaskLoose{}, true
+			if r.ForTeamID != nil {
+				t.Loose.Team, t.Loose.Mode = &Ref{ID: *r.ForTeamID, Name: r.ForTeamName}, *r.TeamMode
+			}
+		}
 		names[r.ProjectID] = r.ProjectName
 		if !r.IsClosed {
 			c := byProject[r.ProjectID]
 			if c == nil {
 				c = &count{}
-				byProject[r.ProjectID] = c
+				if !r.IsInbox {
+					byProject[r.ProjectID] = c
+				}
 			}
 			c.open++
 			out.Profile.Open++

@@ -16,6 +16,7 @@ import (
 	"openscum/internal/authz"
 	"openscum/internal/config"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/loose"
 )
 
 // LoginOIDC resolves the user behind a validated id_token, creates it if
@@ -295,6 +296,9 @@ func (s *Service) syncTeams(ctx context.Context, q *sqlc.Queries, userID uuid.UU
 		}
 		if _, err := q.AddIdpTeamMember(ctx, sqlc.AddIdpTeamMemberParams{TeamID: id, UserID: userID}); err != nil {
 			return fmt.Errorf("añadir al equipo: %w", err)
+		}
+		if err := loose.Join(ctx, q, audit.IdP, id, userID); err != nil { // spec 022, RF-25
+			return err
 		}
 		if err := audit.Record(ctx, q, audit.Entry{
 			Actor: audit.IdP, Action: "user.team_added", TargetType: "user", TargetID: userID.String(),

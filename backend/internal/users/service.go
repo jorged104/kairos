@@ -20,6 +20,7 @@ import (
 	"openscum/internal/config"
 	"openscum/internal/db"
 	"openscum/internal/db/sqlc"
+	"openscum/internal/loose"
 )
 
 // Invalidator drops a user's cached principal after a change.
@@ -562,6 +563,10 @@ func addTeam(ctx context.Context, q *sqlc.Queries, actor audit.Actor, userID, te
 	}
 	if err := q.AddManualTeamMember(ctx, sqlc.AddManualTeamMemberParams{TeamID: teamID, UserID: userID}); err != nil {
 		return fmt.Errorf("añadir al equipo: %w", err)
+	}
+	// Their task of the team's «each person» tasks (spec 022, RF-25).
+	if err := loose.Join(ctx, q, actor, teamID, userID); err != nil {
+		return err
 	}
 	return audit.Record(ctx, q, audit.Entry{
 		Actor: actor, Action: "user.team_added", TargetType: "user", TargetID: userID.String(),

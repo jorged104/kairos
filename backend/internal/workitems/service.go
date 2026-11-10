@@ -22,6 +22,7 @@ import (
 	"openscum/internal/db/sqlc"
 	"openscum/internal/events"
 	"openscum/internal/files"
+	"openscum/internal/loose"
 	"openscum/internal/mentions"
 	"openscum/internal/projects"
 	"openscum/internal/richtext"
@@ -37,7 +38,8 @@ func NewService(store *db.Store) *Service { return &Service{store: store} }
 // Key is the readable identifier of a work item, e.g. KAI-42 (RF-62).
 func Key(identifier string, n int32) string { return identifier + "-" + strconv.Itoa(int(n)) }
 
-// Load returns a work item and its project if the caller can see them.
+// Load returns a work item and its project if the caller can see them. One
+// without a project is seen by who the task says (spec 022, RF-14, RF-17).
 func Load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID, forUpdate bool) (sqlc.WorkItem, sqlc.Project, error) {
 	get := q.GetWorkItem
 	if forUpdate {
@@ -50,8 +52,53 @@ func Load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID
 	if err != nil {
 		return row, sqlc.Project{}, fmt.Errorf("leer work item: %w", err)
 	}
-	project, err := projects.Get(ctx, q, p, row.ProjectID, false)
+	project, err := q.GetProject(ctx, row.ProjectID)
+	if err != nil {
+		return row, project, fmt.Errorf("leer proyecto: %w", err)
+	}
+	if !project.IsInbox {
+		project, err = projects.Get(ctx, q, p, row.ProjectID, false)
+		return row, project, err
+	}
+	a, err := Access(ctx, q, p, row, project)
+	if err == nil && !a.Read {
+		err = apperr.ErrNotFound
+	}
 	return row, project, err
+}
+
+// forbidden is err, or forbidden when there is none.
+func forbidden(err error) error {
+	if err != nil {
+		return err
+	}
+	return apperr.ErrForbidden
+}
+
+// Access is what the caller may do with a work item: by its project, or by
+// the task when it has none (spec 022, RF-14 to RF-16).
+func Access(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem, project sqlc.Project) (loose.Access, error) {
+	if !project.IsInbox {
+		ref := projects.Ref(project)
+		return loose.Access{Read: true, Write: p.CanWriteWorkItems(ref), Delete: p.CanDeleteWorkItem(ref, row.AuthorID)}, nil
+	}
+	ids, err := assigneeIDs(ctx, q, row.ID)
+	if err != nil {
+		return loose.Access{}, err
+	}
+	a := loose.Of(p, row, ids)
+	// A lead also reaches the tasks of the people they lead (RF-4).
+	for _, id := range ids {
+		if a.Write || !p.Has(authz.LooseAssignTeam) {
+			break
+		}
+		ok, err := loose.CanAssign(ctx, q, p, id)
+		if err != nil {
+			return a, err
+		}
+		a.Read, a.Write = a.Read || ok, ok
+	}
+	return a, nil
 }
 
 func (s *Service) Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (WorkItem, error) {
@@ -517,11 +564,15 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if err != nil {
 			return err
 		}
-		if !p.CanWriteWorkItems(projects.Ref(project)) {
-			return apperr.ErrForbidden
+		if a, err := Access(ctx, q, p, row, project); err != nil || !a.Write {
+			return forbidden(err)
 		}
 		if err := projects.Writable(project); err != nil {
 			return err
+		}
+		// Without a project there are no children of one's own (spec 022).
+		if project.IsInbox && !sameID(req.ParentID, row.ParentID) {
+			return apperr.ErrValidation.WithDetail("field", "parent_id")
 		}
 		if req.Version != row.Version {
 			return apperr.VersionConflict(row.Version)
@@ -554,6 +605,11 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		assignees, err := checkAssignees(ctx, q, wanted, current)
 		if err != nil {
 			return err
+		}
+		if project.IsInbox {
+			if err := loose.CheckAssignees(ctx, q, p, diff(assignees, current)); err != nil {
+				return err
+			}
 		}
 		// A client that doesn't send the labels keeps them (spec 007, RF-40).
 		currentLabels, err := labelIDs(ctx, q, id)
@@ -661,6 +717,12 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if parentChanged && row.ParentID != nil {
 			if err := q.RefreshWorkItemUp(ctx, *row.ParentID); err != nil {
 				return fmt.Errorf("recalcular derivados: %w", err)
+			}
+		}
+		// The group of «each person» follows its children (spec 022, RF-27).
+		if project.IsInbox && row.ParentID != nil && (change == closing || change == reopening) {
+			if err := loose.SyncGroup(ctx, q, *row.ParentID); err != nil {
+				return err
 			}
 		}
 		if change != unchanged && !project.IsTemplate {
@@ -802,8 +864,8 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 		if err != nil {
 			return err
 		}
-		if !p.CanDeleteWorkItem(projects.Ref(project), row.AuthorID) {
-			return apperr.ErrForbidden
+		if a, err := Access(ctx, q, p, row, project); err != nil || !a.Delete {
+			return forbidden(err)
 		}
 		if err := projects.Writable(project); err != nil {
 			return err
@@ -811,6 +873,22 @@ func (s *Service) Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) 
 		// The tree lock keeps a concurrent child from appearing meanwhile.
 		if err := q.LockWorkItemTree(ctx, project.ID); err != nil {
 			return fmt.Errorf("bloquear árbol: %w", err)
+		}
+		// An «each person» group takes its open children with it and leaves
+		// the closed ones, with their points, as tasks of their own (spec 022, RF-28).
+		if project.IsInbox && row.ParentID == nil && row.TeamMode != nil && *row.TeamMode == loose.ModeEach {
+			gone, err := q.DeleteOpenChildren(ctx, &id)
+			if err != nil {
+				return fmt.Errorf("borrar tareas de los miembros: %w", err)
+			}
+			for _, c := range gone {
+				if err := q.MarkOwnerPageFilesDeleted(ctx, sqlc.MarkOwnerPageFilesDeletedParams{OwnerKind: "work_item", OwnerID: c}); err != nil {
+					return fmt.Errorf("marcar archivos: %w", err)
+				}
+			}
+			if err := q.DetachClosedChildren(ctx, &id); err != nil {
+				return fmt.Errorf("separar tareas cerradas: %w", err)
+			}
 		}
 		children, err := q.CountWorkItemChildren(ctx, &id)
 		if err != nil {
@@ -890,6 +968,16 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 		Position: row.Position, Depth: row.Depth, Version: row.Version, ClosedAt: row.ClosedAt,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, AllowedStatusIDs: []uuid.UUID{},
 		Can: Can{Write: p.CanWriteWorkItems(ref), Delete: p.CanDeleteWorkItem(ref, row.AuthorID)},
+	}
+	if project.IsInbox {
+		a, err := Access(ctx, q, p, row, project)
+		if err != nil {
+			return out, err
+		}
+		out.Can = Can{Write: a.Write, Delete: a.Delete}
+		if out.Loose, err = looseView(ctx, q, p, row, a); err != nil {
+			return out, err
+		}
 	}
 	// Weighted by weight (RF-153); derived_done_ratio is the previous formula.
 	if row.WeightedDoneRatio != nil {

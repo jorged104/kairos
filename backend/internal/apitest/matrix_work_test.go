@@ -159,6 +159,14 @@ var workOps = []workOp{
 	{"ver panel de alguien de otro equipo", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/users/" + m.actors["stranger"].String() + "/dashboard")
 	}, map[string]int{"admin": 200, "lead:in": 404, "lead:out": 404, "participant": 404, "owner": 404, "stranger": 200, "viewer": 404}},
+	// Spec 022: a task without a project for oneself, but a viewer; the team
+	// tasks for leads and the administrator; anybody sees what to take.
+	{"crear tarea sin proyecto para sí", func(m *workMatrix, c *Client, a string) *Response {
+		return c.Post("/api/loose-tasks", map[string]any{"title": "Suelta", "user_id": m.actors[a]})
+	}, map[string]int{"admin": 201, "lead:in": 201, "lead:out": 201, "participant": 201, "owner": 201, "stranger": 201}},
+	{"ver tareas para tomar", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/claimable-tasks") }, workAll(200)},
+	{"ver tareas del equipo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/team-tasks") },
+		map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200}},
 	// Spec 021: Mi equipo, for whoever sees other people's panels.
 	{"ver mi equipo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/team") },
 		map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200}},

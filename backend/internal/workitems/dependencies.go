@@ -77,12 +77,16 @@ func (s *Service) AddDependency(ctx context.Context, p *authz.Principal, fromID 
 		if err := projects.Writable(project); err != nil {
 			return err
 		}
-		to, _, err := Load(ctx, q, p, req.ToID, false)
+		to, toProject, err := Load(ctx, q, p, req.ToID, false)
 		if errors.Is(err, apperr.ErrNotFound) {
 			return apperr.ErrValidation.WithDetail("field", "to_id")
 		}
 		if err != nil {
 			return err
+		}
+		// Without a project there are no dependencies (spec 022).
+		if project.IsInbox || toProject.IsInbox {
+			return apperr.ErrForbidden
 		}
 		if from.ID == to.ID {
 			return errDepHierarchy
