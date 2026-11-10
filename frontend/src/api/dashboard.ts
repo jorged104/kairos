@@ -26,6 +26,8 @@ export interface DashboardTask {
   can_move: boolean
   /** Without a project: its team and mode, if any (spec 022, RF-30). */
   loose?: { team: DashboardRef | null; mode: '' | 'claim' | 'each' }
+  /** In another person's panel, of a project the viewer does not see: no key, title nor project (spec 023, RF-26). */
+  hidden?: boolean
 }
 
 export type DashboardRole = 'owner' | 'pm' | 'tech_lead' | 'member' | 'observer' | 'tasks'

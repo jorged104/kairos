@@ -126,6 +126,7 @@
   },
   "roles": {
     "admin": "Administrador",
+    "director": "Dirección",
     "lead": "Líder",
     "member": "Miembro",
     "viewer": "Observador"
@@ -838,6 +839,7 @@
     "undated": "{n} sin fecha | {n} sin fecha",
     "overdue": "vencida",
     "bar": "{key} {title} · {project} · {start} → {end} · {ratio} %",
+    "hiddenBar": "Tarea de otro proyecto · {start} → {end} · {ratio} %",
     "legend": "Proyectos",
     "others": "Otros",
     "empty": "No hay personas que mostrar."
@@ -1024,6 +1026,8 @@
     "done": "Listo"
   },
   "objectives": {
+    "hiddenProjects": "{count} proyecto que no ves | {count} proyectos que no ves",
+    "hiddenLink": "De otro proyecto",
     "title": "Objetivos",
     "new": "Nuevo objetivo",
     "titlePlaceholder": "¿Qué queremos lograr?",
@@ -1237,6 +1241,7 @@
     "project": "Proyecto",
     "projects": "{count} proyecto | {count} proyectos",
     "belowPlan": "{count} bajo plan | {count} bajo plan",
+    "hidden": "{count} proyecto que no ves | {count} proyectos que no ves",
     "columns": {
       "plan": "Plan",
       "real": "Real",
@@ -1415,6 +1420,7 @@
       "noTeams": "Sin equipos"
     },
     "tasks": {
+      "hidden": "Tarea de otro proyecto",
       "title": "Mis tareas",
       "empty": "No tienes tareas abiertas ni cerradas en los últimos 14 días.",
       "late": "{count} día de atraso | {count} días de atraso",

@@ -66,8 +66,9 @@ export const routes = [
         meta: { permissions: ['work:read'] as Permission[] },
       },
       { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
-      { path: 'portfolio', name: 'portfolio', component: () => import('@/pages/PortfolioPage.vue') },
-      { path: 'tracking', name: 'tracking', component: () => import('@/pages/TrackingPage.vue') },
+      // Spec 023, RF-17b.
+      { path: 'portfolio', name: 'portfolio', component: () => import('@/pages/PortfolioPage.vue'), meta: { permissions: ['oversight:view'] as Permission[] } },
+      { path: 'tracking', name: 'tracking', component: () => import('@/pages/TrackingPage.vue'), meta: { permissions: ['oversight:view'] as Permission[] } },
       { path: 'my-team', name: 'my-team', component: () => import('@/pages/MyTeamPage.vue') },
       { path: 'ranking', name: 'ranking', component: () => import('@/pages/RankingPage.vue') },
       {

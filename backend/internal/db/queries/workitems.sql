@@ -82,7 +82,8 @@ SELECT id, name FROM users WHERE id = ANY (sqlc.arg(ids)::uuid[]);
 
 -- name: WorkItemRefs :many
 -- Key and title of some work items, for parents and dependencies.
-SELECT w.id, w.title, w.status_id, w.project_id, w.start_date, w.due_date, p.identifier, w.sequence_number
+SELECT w.id, w.title, w.status_id, w.project_id, w.start_date, w.due_date, p.identifier, w.sequence_number,
+       p.team_id, p.owner_id
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE w.id = ANY (sqlc.arg(ids)::uuid[]);
 

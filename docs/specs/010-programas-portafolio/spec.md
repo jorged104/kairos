@@ -12,7 +12,7 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 
 ## Usuarios / actores
 - **Administrador del sistema:** marca o desmarca un proyecto como programa y fija el peso de los proyectos.
-- **Cualquier usuario con lectura de trabajo:** consulta el portafolio. Hoy esa lectura da acceso a todos los proyectos que no son plantillas (spec 004), así que todos ven el portafolio completo.
+- **Administrador, Dirección y líder** (cambio de la spec 023, RF-17a): consultan el portafolio con los programas y proyectos que ven; el avance de un programa cuenta todos sus proyectos, y su tarjeta dice cuántos no ven (spec 023, RF-17 a RF-20).
 
 ## Conceptos
 - **Programa:** un proyecto marcado como tal. Agrupa a todos sus descendientes. Un programa puede estar dentro de otro programa.
@@ -56,7 +56,7 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 - RF-20: MIENTRAS el programa esté cerrado, EL SISTEMA no mostrará su plan, su brecha ni su semáforo (spec 009, RF-34).
 
 ### Pantalla Portafolio
-- RF-21: EL SISTEMA ofrecerá una pantalla «Portafolio» en la navegación principal a todo usuario con lectura de trabajo.
+- RF-21 (sustituido por la spec 023, RF-17a): EL SISTEMA ofrecerá una pantalla «Portafolio» en la navegación principal al administrador, a Dirección y a los líderes.
 - RF-22: EL SISTEMA mostrará en el portafolio una tarjeta por cada programa activo o cerrado, ordenadas por nombre.
 - RF-23: EL SISTEMA mostrará en cada tarjeta el nombre del programa, su real, su plan, su brecha y su semáforo.
 - RF-24: EL SISTEMA mostrará en cada tarjeta el número de proyectos descendientes y cuántos están bajo plan.
@@ -112,7 +112,6 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 - Cortes guardados y consultar el portafolio a otra fecha.
 - Pesos distintos para un mismo proyecto según el programa.
 - Crear desde el portafolio proyectos que no sean programas, o programas a partir de una plantilla.
-- Restringir el portafolio a una parte de la organización.
 - Exportar a PDF o Excel.
 - Seguimiento de varios proyectos con Gantt de hitos (spec 011) y mapa estratégico (spec 012).
 
@@ -130,7 +129,7 @@ calcula en tiempo real, a la fecha de hoy. Los conceptos sirven a cualquier indu
 ## Decisiones tomadas con el usuario (2026-11-03)
 - **Peso por defecto:** el esfuerzo del proyecto; el peso fijado a mano manda.
 - **Anidamiento:** cuenta todo el subárbol, las tareas propias del programa incluidas; un programa puede contener otros programas.
-- **Acceso:** según el acceso de cada usuario, que hoy es todo el portafolio para quien tiene lectura de trabajo; no hace falta un permiso nuevo para verlo.
+- **Acceso** (cambio de la spec 023): administrador, Dirección y líder, sobre los proyectos que ve cada uno.
 - **Cerrados y archivados:** los cerrados cuentan con su avance; los archivados no.
 - **Permiso:** solo el administrador del sistema marca programas y fija pesos.
 - **Pantalla:** filtrar por semáforo, ordenar, ver los proyectos sin programa e ir al Resumen de cada uno.

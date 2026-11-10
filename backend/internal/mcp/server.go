@@ -195,7 +195,9 @@ func (s *Server) handle(ctx context.Context, p *authz.Principal, req rpcRequest)
 	case "tools/list":
 		list := make([]map[string]any, 0, len(s.tools))
 		for _, t := range s.tools {
-			list = append(list, t.definition())
+			if t.offered(p) {
+				list = append(list, t.definition())
+			}
 		}
 		return map[string]any{"tools": list}, nil
 	case "tools/call":
@@ -207,7 +209,7 @@ func (s *Server) handle(ctx context.Context, p *authz.Principal, req rpcRequest)
 			return nil, &rpcError{Code: codeInvalidParams, Message: "Parámetros no válidos."}
 		}
 		for _, t := range s.tools {
-			if t.name == params.Name {
+			if t.name == params.Name && t.offered(p) {
 				return s.call(ctx, p, t, params.Arguments), nil
 			}
 		}

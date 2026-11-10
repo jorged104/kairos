@@ -403,7 +403,7 @@ Tomadas por el agente a petición del responsable de producto, priorizando rendi
 - **D5 — jerarquía de proyectos:** mismo patrón que los work items (D3).
 - **D6 — pesos en resultados clave:** sin pesos en esta iteración; se deja fuera de alcance en lugar de crear una columna sin uso.
 - **Valores derivados:** fórmula explícita (RF-80 a RF-82). Las horas de un hito usan horas propias para no contar dos veces padre e hijos (RF-55).
-- **Visibilidad:** todo lo que no es plantilla lo ven todos los usuarios activos (equipo interno de 20–50 personas). Los permisos de escritura usan los roles y el ámbito de equipo de 003, más los papeles de responsable y participante. No hay roles por proyecto.
+- **Visibilidad** (sustituida por la spec 023): ~~todo lo que no es plantilla lo ven todos los usuarios activos (equipo interno de 20–50 personas).~~ Desde la spec 023, cada proyecto lo ven sus equipos (de encima y de debajo), quien tiene un papel en él, quien lidera ese ámbito, quien tiene tareas asignadas en él, el administrador y Dirección. Los permisos de escritura usan los roles y el ámbito de equipo de 003, más los papeles de responsable y participante. No hay roles por proyecto.
 - **Flujos:** un tipo sin transiciones definidas las permite todas; con alguna, solo las definidas. El administrador puede forzar cualquier transición (auditada).
 - **Dependencias:** `blocks` impide cerrar mientras el bloqueante esté abierto; `precedes` es informativa. Se prohíben ciclos en `blocks` y `precedes`.
 - **Eventos:** también los de reapertura, y registro en la misma transacción con entrega al menos una vez (patrón outbox), para que la gamificación no pierda ni invente puntos.

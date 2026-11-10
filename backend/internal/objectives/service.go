@@ -552,6 +552,9 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, o sqlc.Objec
 			return out, fmt.Errorf("leer proyecto: %w", err)
 		}
 		out.ScopeProject = &workcore.Ref{ID: pr.ID, Name: pr.Name}
+		if !projects.Visible(p, pr) { // no name of a project the user does not see (spec 023)
+			out.ScopeProject.Name = ""
+		}
 	}
 
 	rows, err := q.KeyResultsWithCounts(ctx, []uuid.UUID{o.ID})
@@ -566,7 +569,11 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, o sqlc.Objec
 		kr := keyResultView(row)
 		for _, l := range links {
 			if l.KeyResultID == kr.ID {
-				kr.Links = append(kr.Links, Link{Kind: l.Kind, ID: l.ID, Label: l.Label, Name: l.Name})
+				link := Link{Kind: l.Kind, ID: l.ID, Label: l.Label, Name: l.Name}
+				if !p.SeesProject(authz.ProjectRef{ID: l.ProjectID, TeamID: l.TeamID, OwnerID: l.OwnerID}) {
+					link = Link{Kind: l.Kind, ID: l.ID, Hidden: true}
+				}
+				kr.Links = append(kr.Links, link)
 			}
 		}
 		out.KeyResults = append(out.KeyResults, kr)
@@ -578,6 +585,10 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, o sqlc.Objec
 		return out, fmt.Errorf("leer proyectos: %w", err)
 	}
 	for _, pr := range prs {
+		if !p.SeesProject(authz.ProjectRef{ID: pr.ID, TeamID: pr.TeamID, OwnerID: pr.OwnerID}) {
+			out.HiddenProjects++ // RF-29
+			continue
+		}
 		out.Projects = append(out.Projects, ProjectLink{ID: pr.ID, Identifier: pr.Identifier, Name: pr.Name, Lifecycle: pr.Lifecycle})
 	}
 	ms, err := q.ObjectiveMilestones(ctx, o.ID)
@@ -585,6 +596,9 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, o sqlc.Objec
 		return out, fmt.Errorf("leer hitos: %w", err)
 	}
 	for _, m := range ms {
+		if !p.SeesProject(authz.ProjectRef{ID: m.ProjectID, TeamID: m.TeamID, OwnerID: m.OwnerID}) {
+			continue
+		}
 		out.Milestones = append(out.Milestones, MilestoneLink{
 			ID: m.ID, Name: m.Name, Status: m.Status, DueDate: workcore.FromTime(m.DueDate), CompletedOn: workcore.FromTime(m.CompletedOn),
 			Project: ProjectLink{ID: m.ProjectID, Identifier: m.Identifier, Name: m.ProjectName},

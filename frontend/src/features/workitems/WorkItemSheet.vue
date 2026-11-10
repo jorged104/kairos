@@ -60,6 +60,8 @@ const { data: tree } = useQuery({ queryKey: computed(() => ['tree', projectId.va
 const { data: ancestors } = useQuery({ queryKey: computed(() => ['ancestors', id.value]), queryFn: () => workItemAncestors(id.value), enabled })
 
 const writable = computed(() => !!wi.value?.can.write && (!!loose.value || project.value?.lifecycle === 'activo'))
+// One's own work item in a project seen only through it: status, progress and hours (spec 023, RF-15).
+const progressable = computed(() => writable.value || (!!wi.value?.can.progress && project.value?.lifecycle === 'activo'))
 const itemFields = computed(() =>
   fields.value.filter(
     (f) =>
@@ -308,7 +310,7 @@ defineExpose({ close })
 
       <LooseBar v-if="wi.loose" :item="wi" @changed="onLooseChanged" @error="error = $event" />
 
-      <div v-if="writable && wi.allowed_status_ids.length" class="flex flex-wrap items-center gap-2 text-sm">
+      <div v-if="progressable && wi.allowed_status_ids.length" class="flex flex-wrap items-center gap-2 text-sm">
         <span class="text-muted-foreground">{{ t('workItems.moveTo') }}</span>
         <Button v-for="s in wi.allowed_status_ids" :key="s" size="sm" variant="outline" data-testid="status-button" @click="changeStatus(s)">
           {{ statuses.get(s)?.name }}
@@ -320,7 +322,7 @@ defineExpose({ close })
           <div class="flex flex-col">
             <dt><label for="w-status" class="text-muted-foreground">{{ t('workItems.status') }}</label></dt>
             <dd>
-              <InlineField id="w-status" kind="select" :value="wi.status_id" :label="t('workItems.status')" :options="statusOptions" :editable="writable" required :save="(v) => saveField({ status_id: v })" />
+              <InlineField id="w-status" kind="select" :value="wi.status_id" :label="t('workItems.status')" :options="statusOptions" :editable="progressable" required :save="(v) => saveField({ status_id: v })" />
             </dd>
           </div>
           <div class="flex flex-col">
@@ -438,7 +440,7 @@ defineExpose({ close })
                   :step="0.25"
                   :value="fieldText(wi.estimated_hours)"
                   :label="t('workItems.estimated')"
-                  :editable="writable"
+                  :editable="progressable"
                   :save="(v) => saveField({ estimated_hours: hours(v) })"
                 />
               </dd>
@@ -454,7 +456,7 @@ defineExpose({ close })
                   :step="0.25"
                   :value="fieldText(wi.remaining_hours)"
                   :label="t('workItems.remaining')"
-                  :editable="writable"
+                  :editable="progressable"
                   :save="(v) => saveField({ remaining_hours: hours(v) })"
                 />
               </dd>
@@ -469,7 +471,7 @@ defineExpose({ close })
                   :max="100"
                   :value="String(wi.done_ratio)"
                   :label="t('workItems.doneRatio')"
-                  :editable="writable"
+                  :editable="progressable"
                   required
                   :save="(v) => saveField({ done_ratio: Number(v) })"
                 />

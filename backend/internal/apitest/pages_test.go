@@ -84,7 +84,7 @@ func TestSavePageAndConflicts(t *testing.T) {
 
 	// Who may save: the work item's writers (spec 004).
 	s.savePage(t, s.viewer, owner, 4, paragraph("x"), http.StatusForbidden)
-	s.savePage(t, s.outsider, owner, 4, paragraph("x"), http.StatusForbidden)
+	s.savePage(t, s.outsider, owner, 4, paragraph("x"), http.StatusNotFound) // does not see the project (spec 023)
 	s.savePage(t, s.member, "work-items/"+uuid.NewString(), 1, paragraph("x"), http.StatusNotFound)
 	s.savePage(t, s.member, owner, 4, `{"type":"doc","content":[{"type":"iframe"}]}`, http.StatusBadRequest, "invalid_rich_text")
 

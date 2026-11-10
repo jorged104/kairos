@@ -72,25 +72,34 @@ func TestTracking(t *testing.T) {
 	s.link(t, s.lead, m.ID, parent.ID).Expect(t, http.StatusNoContent)
 	s.milestone(t, beta.ID, map[string]any{"name": "Vacío"})
 
-	// Without filters: the caller's projects (RF-6), or all for someone without any (RF-7).
-	if v := s.tracking(t, s.member, url.Values{"today": {today}}); !v.Mine || v.Matched != 2 || v.Projects[0].Name != "Alfa" {
-		t.Fatalf("member default = %+v", v)
+	// Only administrators, Dirección and leads follow projects (spec 023, RF-17a, RF-17b).
+	s.member.Get("/api/tracking").Expect(t, http.StatusForbidden, "forbidden")
+	s.viewer.Get("/api/tracking").Expect(t, http.StatusForbidden, "forbidden")
+
+	// Without filters: the caller's own projects (RF-21: Alfa is the lead's, Beta
+	// only in their scope), or every one they see for someone without any (RF-22).
+	if v := s.tracking(t, s.lead, url.Values{"today": {today}}); !v.Mine || v.Matched != 1 || v.Projects[0].Name != "Alfa" {
+		t.Fatalf("lead default = %+v", v)
 	}
-	nobody := s.env.As(s.env.CreateUser(UserSpec{Email: "nadie@x.com", Roles: []string{"viewer"}}))
+	nobody := s.env.As(s.env.CreateUser(UserSpec{Email: "nadie@x.com", Roles: []string{"director"}}))
 	if v := s.tracking(t, nobody, url.Values{"today": {today}}); v.Mine || v.Matched != 3 {
-		t.Fatalf("viewer default = matched %d, mine %v", v.Matched, v.Mine)
+		t.Fatalf("director default = matched %d, mine %v", v.Matched, v.Mine)
+	}
+	// A project the lead does not see is not followed, even asked for (RF-23).
+	if v := s.tracking(t, s.lead, url.Values{"today": {today}, "project_id": {otro.ID.String()}}); v.Matched != 0 {
+		t.Fatalf("unseen = %+v", v.Projects)
 	}
 
 	// By owner and by project, both at once (RF-3 to RF-5).
-	if v := s.tracking(t, s.viewer, url.Values{"today": {today}, "owner_id": {s.memberID.String()}}); v.Matched != 1 || v.Projects[0].Name != "Beta" {
+	if v := s.tracking(t, s.lead, url.Values{"today": {today}, "owner_id": {s.memberID.String()}}); v.Matched != 1 || v.Projects[0].Name != "Beta" {
 		t.Fatalf("by owner = %+v", v.Projects)
 	}
-	if v := s.tracking(t, s.viewer, url.Values{"today": {today}, "owner_id": {s.memberID.String()}, "project_id": {alfa.ID.String()}}); v.Matched != 0 {
+	if v := s.tracking(t, s.lead, url.Values{"today": {today}, "owner_id": {s.memberID.String()}, "project_id": {alfa.ID.String()}}); v.Matched != 0 {
 		t.Fatalf("both = %+v", v.Projects)
 	}
-	s.viewer.Get("/api/tracking?project_id=x").Expect(t, http.StatusBadRequest, "invalid_filter")
+	s.lead.Get("/api/tracking?project_id=x").Expect(t, http.StatusBadRequest, "invalid_filter")
 
-	v := s.tracking(t, s.viewer, url.Values{"today": {today}, "project_id": {alfa.ID.String(), beta.ID.String(), uuid.NewString()}})
+	v := s.tracking(t, s.lead, url.Values{"today": {today}, "project_id": {alfa.ID.String(), beta.ID.String(), uuid.NewString()}})
 	if v.Summary.Projects != 2 || v.Summary.Milestones != 2 || v.Summary.Met != 0 || !v.Summary.Figures.HasPlan { // RF-11 to RF-13
 		t.Fatalf("summary = %+v", v.Summary)
 	}
@@ -114,10 +123,9 @@ func TestTracking(t *testing.T) {
 	// A program follows its projects (RF-2).
 	s.setPortfolio(s.admin, alfa.ID, s.portfolioOf(t, alfa.ID).Version, true, nil).Expect(t, http.StatusOK)
 	s.patchProject(s.lead, s.getProject(t, beta.ID), map[string]any{"parent_id": alfa.ID}).Expect(t, http.StatusOK)
-	if v := s.tracking(t, s.viewer, url.Values{"today": {today}, "program_id": {alfa.ID.String()}}); v.Matched != 2 {
+	if v := s.tracking(t, s.lead, url.Values{"today": {today}, "program_id": {alfa.ID.String()}}); v.Matched != 2 {
 		t.Fatalf("by program = %+v", v.Projects)
 	}
-	_ = otro
 }
 
 func TestTrackingLimit(t *testing.T) {
@@ -125,7 +133,7 @@ func TestTrackingLimit(t *testing.T) {
 	for i := range 51 {
 		s.project(t, s.admin, map[string]any{"identifier": fmt.Sprintf("L%02d", i), "name": fmt.Sprintf("P%02d", i)})
 	}
-	v := s.tracking(t, s.env.As(s.env.CreateUser(UserSpec{Email: "nadie@x.com", Roles: []string{"viewer"}})), url.Values{})
+	v := s.tracking(t, s.env.As(s.env.CreateUser(UserSpec{Email: "nadie@x.com", Roles: []string{"director"}})), url.Values{})
 	if v.Matched != 51 || len(v.Projects) != 50 || v.Projects[0].Name != "P00" { // RF-9
 		t.Fatalf("matched %d, shown %d", v.Matched, len(v.Projects))
 	}

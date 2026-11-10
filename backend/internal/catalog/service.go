@@ -496,9 +496,10 @@ func (s *Service) SetTransitions(ctx context.Context, p *authz.Principal, typeID
 }
 
 // AllowedTargets lists the statuses a work item of typeID in status from can
-// move to for these roles (RF-86 to RF-89). Admins can force any change.
+// move to for these roles (RF-86 to RF-89). Who may skip the workflow can
+// force any change (spec 023, RF-30).
 func AllowedTargets(ctx context.Context, q *sqlc.Queries, p *authz.Principal, typeID, from uuid.UUID) ([]uuid.UUID, error) {
-	if p.HasRole(authz.RoleAdmin) {
+	if p.Has(authz.WorkflowOverride) {
 		rows, err := q.ListStatuses(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("listar estados: %w", err)
@@ -513,6 +514,11 @@ func AllowedTargets(ctx context.Context, q *sqlc.Queries, p *authz.Principal, ty
 	}
 	roles := make([]string, 0, len(p.Roles))
 	for _, r := range p.Roles {
+		// The workflows have no transitions of their own for Dirección: it
+		// works on its tasks as a member (spec 023, RF-8).
+		if r == authz.RoleDirector {
+			r = authz.RoleMember
+		}
 		roles = append(roles, string(r))
 	}
 	ids, err := q.AllowedTargetStatuses(ctx, sqlc.AllowedTargetStatusesParams{FromStatusID: from, TypeID: typeID, Roles: roles})

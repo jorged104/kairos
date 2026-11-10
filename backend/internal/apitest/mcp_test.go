@@ -278,8 +278,8 @@ func TestMCPTools(t *testing.T) {
 	if len(catalog["work_item_types"].([]any)) == 0 || len(catalog["members"].([]any)) == 0 {
 		t.Fatalf("catalog = %v", catalog)
 	}
-	// Who does not manage the project gets it too, without the members.
-	if c := env.toolOK(t, viewer, "project_catalog", map[string]any{"project": "MCP"}); len(c["statuses"].([]any)) == 0 || len(c["members"].([]any)) != 0 {
+	// Who does not manage the project gets it too, members included (spec 023, RF-12, RF-14).
+	if c := env.toolOK(t, viewer, "project_catalog", map[string]any{"project": "MCP"}); len(c["statuses"].([]any)) == 0 || len(c["members"].([]any)) == 0 {
 		t.Fatalf("viewer catalog = %v", c)
 	}
 	act := env.CatalogID("work_item_types", "Actividad")

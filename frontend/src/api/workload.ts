@@ -14,6 +14,8 @@ export interface WorkloadBar {
   overdue: boolean
   /** Without a project (spec 022, RF-36). */
   loose: boolean
+  /** Of a project the viewer does not see: dates only (spec 023, RF-26). */
+  hidden?: boolean
 }
 
 export interface WorkloadRow {

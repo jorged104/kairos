@@ -176,7 +176,7 @@ func (s *Service) Overview(ctx context.Context, p *authz.Principal, id uuid.UUID
 		if err != nil {
 			return out, err
 		}
-		card := tree.ProgramCard(row.ID, set)
+		card := tree.AsSeen(tree.ProgramCard(row.ID, set), p)
 		out.Program = &card
 	}
 	return out, nil

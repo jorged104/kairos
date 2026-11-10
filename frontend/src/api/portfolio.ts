@@ -24,6 +24,8 @@ export interface PortfolioCard {
   projects: number
   below_plan: number
   rows: PortfolioRow[]
+  /** Projects of the program the user does not see (spec 023, RF-19). */
+  hidden?: number
 }
 
 export interface Portfolio {

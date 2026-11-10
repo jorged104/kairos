@@ -13,7 +13,7 @@ SELECT coalesce(sum(weight), 0)::int FROM work_items WHERE project_id = $1;
 -- Every project but templates, archived ones too to walk the tree, with its
 -- effort.
 SELECT p.id, p.parent_id, p.identifier, p.name, p.lifecycle, p.is_program, p.portfolio_weight,
-       p.start_date, p.end_date,
+       p.start_date, p.end_date, p.team_id, p.owner_id,
        coalesce((SELECT sum(w.weight) FROM work_items w WHERE w.project_id = p.id), 0)::int AS effort
 FROM projects p
 WHERE NOT p.is_template AND NOT p.is_inbox

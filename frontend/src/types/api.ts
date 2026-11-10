@@ -2,13 +2,13 @@ import type { Delivery } from '@/api/accounts'
 import type { Theme, ThemeMode } from '@/lib/theme'
 // Types shared with the API (spec 003). JSON is snake_case, as the API sends it.
 
-export type Role = 'admin' | 'lead' | 'member' | 'viewer'
+export type Role = 'admin' | 'director' | 'lead' | 'member' | 'viewer'
 export type Source = 'manual' | 'idp'
 export type UserStatus = 'active' | 'inactive' | 'offboarded'
 export type AttributeType = 'text' | 'number' | 'date' | 'boolean' | 'select'
 export type AttributeValue = string | number | boolean | null
 
-export const ROLES: Role[] = ['admin', 'lead', 'member', 'viewer']
+export const ROLES: Role[] = ['admin', 'director', 'lead', 'member', 'viewer']
 
 export type Permission =
   | 'directory:read'
@@ -42,6 +42,11 @@ export type Permission =
   | 'loose:create:own'
   | 'loose:assign:team'
   | 'loose:assign:all'
+  // Spec 023: which projects one sees, Portafolio and Seguimiento, and skipping a workflow.
+  | 'projects:read:all'
+  | 'projects:read:team'
+  | 'oversight:view'
+  | 'workflow:override'
   // Spec 004.
   | 'work:read'
   | 'templates:use'

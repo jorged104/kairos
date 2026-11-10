@@ -13,14 +13,17 @@ import (
 type Role string
 
 const (
-	RoleAdmin  Role = "admin"
-	RoleLead   Role = "lead"
-	RoleMember Role = "member"
-	RoleViewer Role = "viewer"
+	RoleAdmin Role = "admin"
+	// RoleDirector sees the whole organization and does not administer it
+	// (spec 023, RF-6 to RF-9).
+	RoleDirector Role = "director"
+	RoleLead     Role = "lead"
+	RoleMember   Role = "member"
+	RoleViewer   Role = "viewer"
 )
 
 // Roles lists every role in descending priority (RF-57).
-var Roles = []Role{RoleAdmin, RoleLead, RoleMember, RoleViewer}
+var Roles = []Role{RoleAdmin, RoleDirector, RoleLead, RoleMember, RoleViewer}
 
 // ParseRole validates a role name.
 func ParseRole(s string) (Role, bool) {
@@ -99,6 +102,12 @@ const (
 	LooseCreateOwn  Permission = "loose:create:own"
 	LooseAssignTeam Permission = "loose:assign:team"
 	LooseAssignAll  Permission = "loose:assign:all"
+	// Spec 023: which projects one sees (see Principal.SeesProject), Portafolio
+	// and Seguimiento, and skipping the workflow of a type.
+	ProjectsReadAll  Permission = "projects:read:all"
+	ProjectsReadTeam Permission = "projects:read:team"
+	OversightView    Permission = "oversight:view"
+	WorkflowOverride Permission = "workflow:override"
 )
 
 // rolePermissions is the permission matrix of specs 003 and 004.
@@ -110,6 +119,12 @@ var rolePermissions = map[Role][]Permission{
 		WorkRead, WorkComment, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
 		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage, ProjectViewsShare,
 		GamificationManage, SystemManage, DashboardOthersAll, LooseCreateOwn, LooseAssignAll,
+		ProjectsReadAll, OversightView, WorkflowOverride,
+	},
+	RoleDirector: {
+		DirectoryRead, SelfPassword,
+		WorkRead, WorkComment, TemplatesUse, ProjectsManageOwner, ProjectViewsShare, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
+		ObjectivesManageOwner, DashboardOthersAll, LooseCreateOwn, ProjectsReadAll, OversightView,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,
@@ -117,7 +132,7 @@ var rolePermissions = map[Role][]Permission{
 		WorkRead, WorkComment, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner, ProjectViewsShare,
 		WorkItemsWriteTeam, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
 		ObjectivesCreateTeam, ObjectivesManageTeam, ObjectivesManageOwner,
-		DashboardOthersTeam, LooseCreateOwn, LooseAssignTeam,
+		DashboardOthersTeam, LooseCreateOwn, LooseAssignTeam, ProjectsReadTeam, OversightView,
 	},
 	RoleMember: {
 		DirectoryRead, SelfPassword,
@@ -154,12 +169,21 @@ type Principal struct {
 	ParticipantTeams map[uuid.UUID]bool
 	// ProjectRoles are the roles given on purpose in projects (spec 008).
 	ProjectRoles map[uuid.UUID]ProjectRole
+	// Spec 023: the teams the user belongs to, those plus their ancestors and
+	// descendants, the projects where they have work items, and every project
+	// they see, worked out once when the principal is loaded.
+	Teams            map[uuid.UUID]bool
+	SeenTeams        map[uuid.UUID]bool
+	AssignedProjects map[uuid.UUID]bool
+	visible          map[uuid.UUID]bool
+	viaChild         map[uuid.UUID]bool // programs seen through a project under them
 }
 
 func NewPrincipal(id uuid.UUID, status string, roles []Role, scope []uuid.UUID) *Principal {
 	p := &Principal{
 		UserID: id, Status: status, Roles: roles, Permissions: PermissionsFor(roles),
 		ScopeTeams: map[uuid.UUID]bool{}, ParticipantTeams: map[uuid.UUID]bool{}, ProjectRoles: map[uuid.UUID]ProjectRole{},
+		Teams: map[uuid.UUID]bool{}, SeenTeams: map[uuid.UUID]bool{}, AssignedProjects: map[uuid.UUID]bool{}, visible: map[uuid.UUID]bool{}, viaChild: map[uuid.UUID]bool{},
 	}
 	for _, t := range scope {
 		p.ScopeTeams[t] = true
@@ -184,7 +208,7 @@ func (p *Principal) InTeamScope(t Target) bool {
 	if t.UserID == p.UserID {
 		return false
 	}
-	if top := TopRole(t.Roles); top == RoleAdmin || top == RoleLead {
+	if top := TopRole(t.Roles); top == RoleAdmin || top == RoleDirector || top == RoleLead {
 		return false
 	}
 	for _, id := range t.TeamIDs {

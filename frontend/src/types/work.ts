@@ -290,6 +290,8 @@ export interface WorkRef {
   id: string
   key: string
   title: string
+  /** Of a project the user does not see, without key nor title (spec 023). */
+  hidden?: boolean
 }
 
 export interface Dependency {
@@ -341,7 +343,8 @@ export interface WorkItem {
   dependencies: Dependency[]
   /** The meeting it came from (spec 018, RF-28). */
   meeting?: Ref | null
-  can: { write: boolean; delete: boolean }
+  /** progress: one's own in a project seen only through it (spec 023, RF-15). */
+  can: { write: boolean; delete: boolean; progress?: boolean }
   /** Only without a project (spec 022). */
   loose?: WorkItemLoose
 }
@@ -374,7 +377,8 @@ export interface KeyResult {
   progress: number
   linked_total: number
   linked_done: number
-  links: { kind: 'work_item' | 'milestone'; id: string; label: string; name: string }[]
+  /** hidden: of a project the user does not see (spec 023). */
+  links: { kind: 'work_item' | 'milestone'; id: string; label: string; name: string; hidden?: boolean }[]
 }
 
 export interface Objective {
@@ -392,6 +396,8 @@ export interface Objective {
   progress: number
   key_results: KeyResult[]
   projects: { id: string; identifier: string; name: string; lifecycle: Lifecycle }[]
+  /** Linked projects the user does not see (spec 023, RF-29). */
+  hidden_projects?: number
   milestones: {
     id: string
     name: string

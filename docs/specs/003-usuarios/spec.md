@@ -151,7 +151,7 @@ como restricciones de entrada para el plan y **no se reabren**:
 - RF-56: SI ya existe un administrador activo, ENTONCES EL SISTEMA no aplicará `BOOTSTRAP_ADMIN_EMAIL` a nuevos usuarios.
 
 ### Roles y permisos
-- RF-57: EL SISTEMA tendrá exactamente cuatro roles, en orden de prioridad descendente: `admin`, `lead`, `member` y `viewer`.
+- RF-57 (sustituido por la spec 023, RF-6): EL SISTEMA tendrá exactamente cuatro roles, en orden de prioridad descendente: `admin`, `lead`, `member` y `viewer`. Desde la spec 023 son cinco, con `director` («Dirección») entre `admin` y `lead`; sus permisos están en la spec 023 (RF-7 a RF-11), y un `lead` no actúa sobre él (RF-63).
 - RF-58: EL SISTEMA concederá a cada usuario la unión de los permisos de todos sus roles.
 - RF-59: EL SISTEMA definirá la correspondencia entre roles y permisos en un único lugar, según la matriz de permisos de esta spec.
 - RF-60: EL SISTEMA decidirá el acceso a cada operación protegida comprobando un permiso, nunca el nombre de un rol.

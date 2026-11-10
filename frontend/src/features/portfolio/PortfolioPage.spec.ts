@@ -19,7 +19,7 @@ const row = (id: string, name: string, plan: number, real: number, level?: Portf
 const portfolio: Portfolio = {
   today: '2026-03-06',
   programs: [{
-    program: row('r', 'Raíz', 80, 60, 'late', { is_program: true }), projects: 3, below_plan: 2,
+    program: row('r', 'Raíz', 80, 60, 'late', { is_program: true }), projects: 3, below_plan: 2, hidden: 1,
     rows: [row('a', 'Alfa', 50, 52, 'on_track'), row('b', 'Beta', 90, 60, 'late'), row('c', 'Gamma', 50, 42, 'at_risk')],
   }],
   loose: { program: null, projects: 1, below_plan: 0, rows: [row('s', 'Suelto', 0, 10)] },
@@ -59,6 +59,8 @@ describe('portafolio (spec 010)', () => {
     const cards = wrapper.findAll('[data-testid=portfolio-card]')
     expect(cards).toHaveLength(2)
     expect(cards[0]!.text()).toContain('3 proyectos · 2 bajo plan')
+    // What the user does not see, counted (spec 023, RF-19).
+    expect(cards[0]!.find('[data-testid=portfolio-hidden]').text()).toBe('1 proyecto que no ves')
     expect(cards[0]!.text()).toContain('Atrasado')
     expect(cards[1]!.text()).toContain('Sin programa')
     // By gap ascending; without a plan, last.

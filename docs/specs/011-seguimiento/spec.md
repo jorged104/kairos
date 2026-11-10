@@ -11,7 +11,7 @@ en una sola pantalla, sin abrirlos uno a uno. La vista es de consulta, todo se c
 real a la fecha de hoy y los conceptos sirven a cualquier industria.
 
 ## Usuarios / actores
-- **Cualquier usuario con lectura de trabajo:** abre la vista, filtra y sigue los enlaces.
+- **Administrador, Dirección y líder** (cambio de la spec 023, RF-17a): abren la vista, filtran y siguen los enlaces, sobre los proyectos que ven.
 
 ## Conceptos
 - **Proyectos seguidos:** los proyectos activos que cumplen los filtros, hasta un máximo de 50.
@@ -30,13 +30,13 @@ real a la fecha de hoy y los conceptos sirven a cualquier industria.
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### Acceso y filtros
-- RF-1: EL SISTEMA ofrecerá una pantalla «Seguimiento» en la navegación principal a todo usuario con lectura de trabajo.
+- RF-1 (sustituido por la spec 023, RF-17a): EL SISTEMA ofrecerá una pantalla «Seguimiento» en la navegación principal al administrador, a Dirección y a los líderes.
 - RF-2: EL SISTEMA permitirá filtrar por un programa (spec 010), con lo que se siguen sus proyectos descendientes activos y el propio programa.
 - RF-3: EL SISTEMA permitirá filtrar por uno o varios proyectos, elegidos de una lista con búsqueda por nombre o identificador.
 - RF-4: EL SISTEMA permitirá filtrar por uno o varios responsables de proyecto.
 - RF-5: EL SISTEMA combinará los filtros, de modo que un proyecto se sigue si cumple todos los elegidos.
-- RF-6: MIENTRAS no haya ningún filtro elegido, EL SISTEMA seguirá los proyectos del usuario.
-- RF-7: SI no hay filtros y el usuario no tiene proyectos, ENTONCES EL SISTEMA seguirá todos los proyectos activos.
+- RF-6 (concretado por la spec 023, RF-21): MIENTRAS no haya ningún filtro elegido, EL SISTEMA seguirá los proyectos del usuario: de los que es responsable, en los que tiene un papel, de sus equipos (no de los de encima) o en los que tiene tareas.
+- RF-7 (sustituido por la spec 023, RF-22): SI no hay filtros y el usuario no tiene proyectos, ENTONCES EL SISTEMA seguirá todos los proyectos activos que ve.
 - RF-8: EL SISTEMA reflejará los filtros en la dirección de la página, para que un enlace copiado abra la misma selección.
 - RF-9: SI los filtros eligen más de 50 proyectos, ENTONCES EL SISTEMA seguirá los 50 primeros por nombre y avisará de cuántos han quedado fuera.
 - RF-10: SI los filtros no eligen ningún proyecto, ENTONCES EL SISTEMA mostrará un mensaje que lo indique y un botón para quitar los filtros.

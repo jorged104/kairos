@@ -9,8 +9,8 @@ import (
 
 func TestWorkPermissionsByRole(t *testing.T) {
 	adminOnly := []Permission{CatalogManage, TemplatesManage, ProjectsCreateAll, ProjectsManageAll,
-		WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll}
-	for _, r := range []Role{RoleLead, RoleMember, RoleViewer} {
+		WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage, GamificationManage, SystemManage, WorkflowOverride}
+	for _, r := range []Role{RoleDirector, RoleLead, RoleMember, RoleViewer} {
 		for _, p := range adminOnly {
 			if slices.Contains(PermissionsFor([]Role{r}), p) {
 				t.Errorf("%s has admin-only permission %s", r, p)

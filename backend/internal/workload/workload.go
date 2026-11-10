@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"openscum/internal/authz"
 	"openscum/internal/db/sqlc"
 	"openscum/internal/workcore"
 )
@@ -31,6 +32,8 @@ type Bar struct {
 	DoneRatio int16         `json:"done_ratio"`
 	Overdue   bool          `json:"overdue"` // RF-5
 	Loose     bool          `json:"loose"`   // without a project (spec 022, RF-36)
+	// Hidden: of a project the viewer does not see, with its dates only (spec 023, RF-26).
+	Hidden bool `json:"hidden"`
 }
 
 // Row is one person: their bars, the open work items without a due date and
@@ -47,7 +50,8 @@ type Row struct {
 func day(t time.Time) time.Time { return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC) }
 
 // Build makes a row for each person, whoever is free sooner first (RF-7).
-func Build(people []workcore.Ref, items []sqlc.PersonScheduleItemsRow, today time.Time) []Row {
+// sees tells whether the viewer sees a project; nil when they see them all.
+func Build(people []workcore.Ref, items []sqlc.PersonScheduleItemsRow, today time.Time, sees func(authz.ProjectRef) bool) []Row {
 	today = day(today)
 	at := map[uuid.UUID]int{}
 	out := make([]Row, len(people))
@@ -78,6 +82,9 @@ func Build(people []workcore.Ref, items []sqlc.PersonScheduleItemsRow, today tim
 			Project: Project{ID: it.ProjectID, Identifier: it.Identifier, Name: it.ProjectName},
 			Start:   workcore.Date{Time: start}, End: workcore.Date{Time: end}, DoneRatio: it.DoneRatio,
 			Overdue: end.Before(today), Loose: it.IsInbox,
+		}
+		if sees != nil && !it.IsInbox && !sees(authz.ProjectRef{ID: it.ProjectID, TeamID: it.TeamID, OwnerID: it.OwnerID}) {
+			b = Bar{Start: b.Start, End: b.End, DoneRatio: b.DoneRatio, Overdue: b.Overdue, Hidden: true}
 		}
 		r.Bars = append(r.Bars, b)
 		// An overdue item keeps the person busy until today.

@@ -141,6 +141,7 @@ const today = computed(() => (data.value ? new Intl.DateTimeFormat(locale.value,
             </h2>
             <p class="text-xs text-muted-foreground" data-testid="portfolio-counts">
               {{ t('portfolio.projects', { count: c.projects }, c.projects) }} · {{ t('portfolio.belowPlan', { count: c.below_plan }, c.below_plan) }}
+              <template v-if="c.hidden"> · <span data-testid="portfolio-hidden">{{ t('portfolio.hidden', { count: c.hidden }, c.hidden) }}</span></template>
             </p>
           </div>
           <div v-if="c.program" class="ml-auto flex flex-col items-end gap-1">

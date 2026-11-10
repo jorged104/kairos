@@ -1367,7 +1367,8 @@ func (q *Queries) WorkItemPeople(ctx context.Context, ids []uuid.UUID) ([]WorkIt
 }
 
 const workItemRefs = `-- name: WorkItemRefs :many
-SELECT w.id, w.title, w.status_id, w.project_id, w.start_date, w.due_date, p.identifier, w.sequence_number
+SELECT w.id, w.title, w.status_id, w.project_id, w.start_date, w.due_date, p.identifier, w.sequence_number,
+       p.team_id, p.owner_id
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE w.id = ANY ($1::uuid[])
 `
@@ -1381,6 +1382,8 @@ type WorkItemRefsRow struct {
 	DueDate        *time.Time
 	Identifier     string
 	SequenceNumber int32
+	TeamID         uuid.UUID
+	OwnerID        uuid.UUID
 }
 
 // Key and title of some work items, for parents and dependencies.
@@ -1402,6 +1405,8 @@ func (q *Queries) WorkItemRefs(ctx context.Context, ids []uuid.UUID) ([]WorkItem
 			&i.DueDate,
 			&i.Identifier,
 			&i.SequenceNumber,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}

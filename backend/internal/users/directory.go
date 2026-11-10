@@ -141,7 +141,7 @@ func (s *Service) visibleFull(p *authz.Principal) sq.Sqlizer {
 	}
 	return sq.Expr(`(u.id = ? OR (
 		EXISTS (SELECT 1 FROM team_members tm WHERE tm.user_id = u.id AND tm.team_id = ANY(?::uuid[]))
-		AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id AND r.role IN ('admin', 'lead'))))`,
+		AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = u.id AND r.role IN ('admin', 'director', 'lead'))))`,
 		p.UserID.String(), scope)
 }
 

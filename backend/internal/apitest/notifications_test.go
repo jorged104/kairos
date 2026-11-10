@@ -109,6 +109,7 @@ func TestNotificationsOfComments(t *testing.T) {
 	}
 
 	// A reply joins the unread one (RF-21), and reaches the thread's participants (RF-9).
+	s.addMember(s.lead, project.ID, s.outsiderID, "observer").Expect(t, http.StatusOK)
 	s.comment(t, s.outsider, wi.ID, map[string]any{"body": json.RawMessage(paragraph("Las añado")), "thread_id": root.ID}, http.StatusCreated)
 	poll()
 	n = notificationsOf(t, s.member, false)

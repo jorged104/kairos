@@ -12,7 +12,7 @@ import (
 )
 
 const mentionedMilestones = `-- name: MentionedMilestones :many
-SELECT m.id, m.name, p.is_template
+SELECT m.id, m.name, p.is_template, p.id AS project_id, p.team_id, p.owner_id
 FROM milestones m JOIN projects p ON p.id = m.project_id
 WHERE m.id = ANY($1::uuid[])
 `
@@ -21,6 +21,9 @@ type MentionedMilestonesRow struct {
 	ID         uuid.UUID
 	Name       string
 	IsTemplate bool
+	ProjectID  uuid.UUID
+	TeamID     uuid.UUID
+	OwnerID    uuid.UUID
 }
 
 func (q *Queries) MentionedMilestones(ctx context.Context, ids []uuid.UUID) ([]MentionedMilestonesRow, error) {
@@ -32,7 +35,14 @@ func (q *Queries) MentionedMilestones(ctx context.Context, ids []uuid.UUID) ([]M
 	var items []MentionedMilestonesRow
 	for rows.Next() {
 		var i MentionedMilestonesRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.IsTemplate); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IsTemplate,
+			&i.ProjectID,
+			&i.TeamID,
+			&i.OwnerID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -44,7 +54,7 @@ func (q *Queries) MentionedMilestones(ctx context.Context, ids []uuid.UUID) ([]M
 }
 
 const mentionedProjects = `-- name: MentionedProjects :many
-SELECT id, identifier, name, (is_template OR is_inbox)::bool AS is_template FROM projects WHERE id = ANY($1::uuid[])
+SELECT id, identifier, name, (is_template OR is_inbox)::bool AS is_template, team_id, owner_id FROM projects WHERE id = ANY($1::uuid[])
 `
 
 type MentionedProjectsRow struct {
@@ -52,6 +62,8 @@ type MentionedProjectsRow struct {
 	Identifier string
 	Name       string
 	IsTemplate bool
+	TeamID     uuid.UUID
+	OwnerID    uuid.UUID
 }
 
 func (q *Queries) MentionedProjects(ctx context.Context, ids []uuid.UUID) ([]MentionedProjectsRow, error) {
@@ -68,6 +80,8 @@ func (q *Queries) MentionedProjects(ctx context.Context, ids []uuid.UUID) ([]Men
 			&i.Identifier,
 			&i.Name,
 			&i.IsTemplate,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}
@@ -112,7 +126,8 @@ func (q *Queries) MentionedUsers(ctx context.Context, ids []uuid.UUID) ([]Mentio
 }
 
 const mentionedWorkItems = `-- name: MentionedWorkItems :many
-SELECT w.id, p.identifier, w.sequence_number, w.title, (p.is_template OR p.is_inbox)::bool AS is_template
+SELECT w.id, p.identifier, w.sequence_number, w.title, (p.is_template OR p.is_inbox)::bool AS is_template,
+       p.id AS project_id, p.team_id, p.owner_id
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE w.id = ANY($1::uuid[])
 `
@@ -123,6 +138,9 @@ type MentionedWorkItemsRow struct {
 	SequenceNumber int32
 	Title          string
 	IsTemplate     bool
+	ProjectID      uuid.UUID
+	TeamID         uuid.UUID
+	OwnerID        uuid.UUID
 }
 
 func (q *Queries) MentionedWorkItems(ctx context.Context, ids []uuid.UUID) ([]MentionedWorkItemsRow, error) {
@@ -140,6 +158,9 @@ func (q *Queries) MentionedWorkItems(ctx context.Context, ids []uuid.UUID) ([]Me
 			&i.SequenceNumber,
 			&i.Title,
 			&i.IsTemplate,
+			&i.ProjectID,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}
@@ -155,6 +176,7 @@ const searchMentionMilestones = `-- name: SearchMentionMilestones :many
 SELECT m.id, m.name, p.identifier
 FROM milestones m JOIN projects p ON p.id = m.project_id
 WHERE (NOT p.is_template OR $1::bool) AND m.name ILIKE $2::text
+  AND (p.is_template OR $3::bool OR p.id = ANY($4::uuid[]) OR p.owner_id = $5::uuid OR p.team_id = ANY($6::uuid[]))
 ORDER BY m.name
 LIMIT 10
 `
@@ -162,6 +184,10 @@ LIMIT 10
 type SearchMentionMilestonesParams struct {
 	Templates bool
 	Contains  string
+	SeeAll    bool
+	Seen      []uuid.UUID
+	Me        uuid.UUID
+	SeenTeams []uuid.UUID
 }
 
 type SearchMentionMilestonesRow struct {
@@ -171,7 +197,14 @@ type SearchMentionMilestonesRow struct {
 }
 
 func (q *Queries) SearchMentionMilestones(ctx context.Context, arg SearchMentionMilestonesParams) ([]SearchMentionMilestonesRow, error) {
-	rows, err := q.db.Query(ctx, searchMentionMilestones, arg.Templates, arg.Contains)
+	rows, err := q.db.Query(ctx, searchMentionMilestones,
+		arg.Templates,
+		arg.Contains,
+		arg.SeeAll,
+		arg.Seen,
+		arg.Me,
+		arg.SeenTeams,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -191,10 +224,11 @@ func (q *Queries) SearchMentionMilestones(ctx context.Context, arg SearchMention
 }
 
 const searchMentionProjects = `-- name: SearchMentionProjects :many
-SELECT id, identifier, name
-FROM projects
-WHERE (NOT is_template OR $1::bool) AND NOT is_inbox AND (identifier ILIKE $2::text OR name ILIKE $3::text)
-ORDER BY name
+SELECT p.id, p.identifier, p.name
+FROM projects p
+WHERE (NOT p.is_template OR $1::bool) AND NOT p.is_inbox AND (p.identifier ILIKE $2::text OR p.name ILIKE $3::text)
+  AND (p.is_template OR $4::bool OR p.id = ANY($5::uuid[]) OR p.owner_id = $6::uuid OR p.team_id = ANY($7::uuid[]))
+ORDER BY p.name
 LIMIT 10
 `
 
@@ -202,6 +236,10 @@ type SearchMentionProjectsParams struct {
 	Templates bool
 	Prefix    string
 	Contains  string
+	SeeAll    bool
+	Seen      []uuid.UUID
+	Me        uuid.UUID
+	SeenTeams []uuid.UUID
 }
 
 type SearchMentionProjectsRow struct {
@@ -211,7 +249,15 @@ type SearchMentionProjectsRow struct {
 }
 
 func (q *Queries) SearchMentionProjects(ctx context.Context, arg SearchMentionProjectsParams) ([]SearchMentionProjectsRow, error) {
-	rows, err := q.db.Query(ctx, searchMentionProjects, arg.Templates, arg.Prefix, arg.Contains)
+	rows, err := q.db.Query(ctx, searchMentionProjects,
+		arg.Templates,
+		arg.Prefix,
+		arg.Contains,
+		arg.SeeAll,
+		arg.Seen,
+		arg.Me,
+		arg.SeenTeams,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -234,13 +280,18 @@ const searchMentionWorkItems = `-- name: SearchMentionWorkItems :many
 SELECT w.id, p.identifier, w.sequence_number, w.title
 FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE (NOT p.is_template OR $1::bool) AND NOT p.is_inbox
-  AND ((p.identifier || '-' || w.sequence_number) ILIKE $2::text OR w.title ILIKE $3::text)
+  AND (p.is_template OR $2::bool OR p.id = ANY($3::uuid[]) OR p.owner_id = $4::uuid OR p.team_id = ANY($5::uuid[]))
+  AND ((p.identifier || '-' || w.sequence_number) ILIKE $6::text OR w.title ILIKE $7::text)
 ORDER BY p.identifier, w.sequence_number
 LIMIT 10
 `
 
 type SearchMentionWorkItemsParams struct {
 	Templates bool
+	SeeAll    bool
+	Seen      []uuid.UUID
+	Me        uuid.UUID
+	SeenTeams []uuid.UUID
 	Prefix    string
 	Contains  string
 }
@@ -252,9 +303,18 @@ type SearchMentionWorkItemsRow struct {
 	Title          string
 }
 
-// By key (KAI-12 or its start) or by title; templates only for who may use them.
+// By key (KAI-12 or its start) or by title; templates only for who may use
+// them, and only projects the user sees (spec 023: all, or seen, or own).
 func (q *Queries) SearchMentionWorkItems(ctx context.Context, arg SearchMentionWorkItemsParams) ([]SearchMentionWorkItemsRow, error) {
-	rows, err := q.db.Query(ctx, searchMentionWorkItems, arg.Templates, arg.Prefix, arg.Contains)
+	rows, err := q.db.Query(ctx, searchMentionWorkItems,
+		arg.Templates,
+		arg.SeeAll,
+		arg.Seen,
+		arg.Me,
+		arg.SeenTeams,
+		arg.Prefix,
+		arg.Contains,
+	)
 	if err != nil {
 		return nil, err
 	}

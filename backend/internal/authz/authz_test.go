@@ -8,7 +8,7 @@ import (
 )
 
 func TestRolesInPriorityOrder(t *testing.T) {
-	want := []Role{"admin", "lead", "member", "viewer"}
+	want := []Role{"admin", "director", "lead", "member", "viewer"}
 	if !slices.Equal(Roles, want) {
 		t.Fatalf("Roles = %v, want %v", Roles, want)
 	}
@@ -37,7 +37,7 @@ func TestPermissionsAreTheUnionOfRoles(t *testing.T) {
 
 func TestMatrixRowsForAdminOnlyPermissions(t *testing.T) {
 	adminOnly := []Permission{UsersOffboard, TeamsManage, AttributesManage, IdpMappingsManage, PasswordsSet, AuditRead}
-	for _, r := range []Role{RoleLead, RoleMember, RoleViewer} {
+	for _, r := range []Role{RoleDirector, RoleLead, RoleMember, RoleViewer} {
 		perms := PermissionsFor([]Role{r})
 		for _, p := range adminOnly {
 			if slices.Contains(perms, p) {
@@ -68,6 +68,7 @@ func TestTeamScope(t *testing.T) {
 		{"member outside scope", Target{UserID: uuid.New(), Roles: []Role{RoleMember}, TeamIDs: []uuid.UUID{other}}, false},
 		{"lead in team", Target{UserID: uuid.New(), Roles: []Role{RoleLead}, TeamIDs: []uuid.UUID{team}}, false},
 		{"admin+member in team", Target{UserID: uuid.New(), Roles: []Role{RoleMember, RoleAdmin}, TeamIDs: []uuid.UUID{team}}, false},
+		{"director in team (spec 023, RF-10)", Target{UserID: uuid.New(), Roles: []Role{RoleMember, RoleDirector}, TeamIDs: []uuid.UUID{team}}, false},
 		{"self", Target{UserID: lead.UserID, Roles: []Role{RoleMember}, TeamIDs: []uuid.UUID{team}}, false},
 	}
 	for _, c := range cases {

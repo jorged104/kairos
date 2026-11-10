@@ -204,14 +204,15 @@ func (q *Queries) GetObjectiveForUpdate(ctx context.Context, id uuid.UUID) (Obje
 }
 
 const keyResultLinks = `-- name: KeyResultLinks :many
-SELECT x.key_result_id, 'work_item'::text AS kind, w.id, (p.identifier || '-' || w.sequence_number)::text AS label, w.title AS name
+SELECT x.key_result_id, 'work_item'::text AS kind, w.id, (p.identifier || '-' || w.sequence_number)::text AS label, w.title AS name,
+       p.id AS project_id, p.team_id, p.owner_id
 FROM key_result_work_items x
 JOIN key_results kr ON kr.id = x.key_result_id
 JOIN work_items w ON w.id = x.work_item_id
 JOIN projects p ON p.id = w.project_id
 WHERE kr.objective_id = $1
 UNION ALL
-SELECT x.key_result_id, 'milestone'::text, m.id, p.identifier::text, m.name
+SELECT x.key_result_id, 'milestone'::text, m.id, p.identifier::text, m.name, p.id, p.team_id, p.owner_id
 FROM key_result_milestones x
 JOIN milestones m ON m.id = x.milestone_id
 JOIN projects p ON p.id = m.project_id
@@ -224,6 +225,9 @@ type KeyResultLinksRow struct {
 	ID          uuid.UUID
 	Label       string
 	Name        string
+	ProjectID   uuid.UUID
+	TeamID      uuid.UUID
+	OwnerID     uuid.UUID
 }
 
 // Work items and milestones linked to the key results of an objective.
@@ -242,6 +246,9 @@ func (q *Queries) KeyResultLinks(ctx context.Context, objectiveID uuid.UUID) ([]
 			&i.ID,
 			&i.Label,
 			&i.Name,
+			&i.ProjectID,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}
@@ -398,7 +405,8 @@ func (q *Queries) ObjectiveHasMilestone(ctx context.Context, arg ObjectiveHasMil
 }
 
 const objectiveMilestones = `-- name: ObjectiveMilestones :many
-SELECT m.id, m.name, m.status, m.due_date, m.completed_on, p.id AS project_id, p.identifier, p.name AS project_name
+SELECT m.id, m.name, m.status, m.due_date, m.completed_on, p.id AS project_id, p.identifier, p.name AS project_name,
+       p.team_id, p.owner_id
 FROM objective_milestones om
 JOIN milestones m ON m.id = om.milestone_id
 JOIN projects p ON p.id = m.project_id
@@ -415,6 +423,8 @@ type ObjectiveMilestonesRow struct {
 	ProjectID   uuid.UUID
 	Identifier  string
 	ProjectName string
+	TeamID      uuid.UUID
+	OwnerID     uuid.UUID
 }
 
 // Contributing milestones with their project (RF-115).
@@ -436,6 +446,8 @@ func (q *Queries) ObjectiveMilestones(ctx context.Context, objectiveID uuid.UUID
 			&i.ProjectID,
 			&i.Identifier,
 			&i.ProjectName,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}
@@ -448,7 +460,7 @@ func (q *Queries) ObjectiveMilestones(ctx context.Context, objectiveID uuid.UUID
 }
 
 const objectiveProjects = `-- name: ObjectiveProjects :many
-SELECT p.id, p.identifier, p.name, p.lifecycle
+SELECT p.id, p.identifier, p.name, p.lifecycle, p.team_id, p.owner_id
 FROM objective_projects op JOIN projects p ON p.id = op.project_id
 WHERE op.objective_id = $1 ORDER BY p.name
 `
@@ -458,6 +470,8 @@ type ObjectiveProjectsRow struct {
 	Identifier string
 	Name       string
 	Lifecycle  string
+	TeamID     uuid.UUID
+	OwnerID    uuid.UUID
 }
 
 func (q *Queries) ObjectiveProjects(ctx context.Context, objectiveID uuid.UUID) ([]ObjectiveProjectsRow, error) {
@@ -474,6 +488,8 @@ func (q *Queries) ObjectiveProjects(ctx context.Context, objectiveID uuid.UUID) 
 			&i.Identifier,
 			&i.Name,
 			&i.Lifecycle,
+			&i.TeamID,
+			&i.OwnerID,
 		); err != nil {
 			return nil, err
 		}

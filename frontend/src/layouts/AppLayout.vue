@@ -54,8 +54,9 @@ const work = computed(() =>
     [
       { to: '/', label: t('nav.home'), icon: LayoutDashboard, perm: 'work:read' },
       { to: '/projects', label: t('nav.projects'), icon: FolderKanban, perm: 'work:read', also: ['/milestones', '/work-items'] },
-      { to: '/portfolio', label: t('nav.portfolio'), icon: BriefcaseBusiness, perm: 'work:read' },
-      { to: '/tracking', label: t('nav.tracking'), icon: ChartGantt, perm: 'work:read' },
+      // Spec 023, RF-17a: administrators, Dirección and leads.
+      { to: '/portfolio', label: t('nav.portfolio'), icon: BriefcaseBusiness, perm: 'oversight:view' },
+      { to: '/tracking', label: t('nav.tracking'), icon: ChartGantt, perm: 'oversight:view' },
       // Spec 021, RF-19.
       { to: '/my-team', label: t('nav.myTeam'), icon: UsersRound, perm: ['dashboard:others:all', 'dashboard:others:team'] },
       { to: '/ranking', label: t('nav.ranking'), icon: Trophy },

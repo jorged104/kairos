@@ -70,8 +70,15 @@ type Service struct{ q *sqlc.Queries }
 func NewService(q *sqlc.Queries) *Service { return &Service{q: q} }
 
 // choose applies the filters, all at once, or the caller's projects without
-// them (RF-2 to RF-7).
-func choose(rows []sqlc.TrackingProjectsRow, tree portfolio.Tree, p *authz.Principal, f Filters) ([]sqlc.TrackingProjectsRow, bool) {
+// them (RF-2 to RF-7), always among the projects the caller sees (spec 023,
+// RF-21 to RF-23).
+func choose(all []sqlc.TrackingProjectsRow, tree portfolio.Tree, p *authz.Principal, f Filters) ([]sqlc.TrackingProjectsRow, bool) {
+	var rows []sqlc.TrackingProjectsRow
+	for _, r := range all {
+		if p.SeesProject(authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID}) {
+			rows = append(rows, r)
+		}
+	}
 	var inProgram map[uuid.UUID]bool
 	if f.ProgramID != nil {
 		inProgram = map[uuid.UUID]bool{}
@@ -92,7 +99,7 @@ func choose(rows []sqlc.TrackingProjectsRow, tree portfolio.Tree, p *authz.Princ
 	var out []sqlc.TrackingProjectsRow
 	if f.empty() {
 		for _, r := range rows {
-			if p.ProjectRoleOf(authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID}) != "" {
+			if p.OwnsTracking(authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID}) {
 				out = append(out, r)
 			}
 		}

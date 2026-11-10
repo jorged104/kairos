@@ -24,6 +24,8 @@ type Ref struct {
 	ID    uuid.UUID `json:"id"`
 	Key   string    `json:"key"`
 	Title string    `json:"title"`
+	// Hidden: of a project the user does not see, without key nor title (spec 023).
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 type Derived struct {
@@ -35,6 +37,9 @@ type Derived struct {
 type Can struct {
 	Write  bool `json:"write"`
 	Delete bool `json:"delete"`
+	// Progress: without write, the status, progress and hours of one's own
+	// work item in a project seen only through it (spec 023, RF-15).
+	Progress bool `json:"progress"`
 }
 
 type WorkItem struct {

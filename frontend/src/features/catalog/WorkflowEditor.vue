@@ -66,7 +66,7 @@ const roleLabel = (r: Role) => t(`roles.${r}`)
               >
                 <option value="">—</option>
                 <option value="all">{{ t('catalog.everyRole') }}</option>
-                <option v-for="r in ROLES" :key="r" :value="r">{{ roleLabel(r) }}</option>
+                <option v-for="r in ROLES.filter((x) => x !== 'director')" :key="r" :value="r">{{ roleLabel(r) }}</option>
               </NativeSelect>
             </td>
           </tr>

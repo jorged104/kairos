@@ -20,6 +20,7 @@ type portfolioCardDTO struct {
 	Projects  int               `json:"projects"`
 	BelowPlan int               `json:"below_plan"`
 	Rows      []portfolioRowDTO `json:"rows"`
+	Hidden    int               `json:"hidden"`
 }
 
 type portfolioDTO struct {
@@ -99,7 +100,7 @@ func TestPortfolio(t *testing.T) {
 	}
 
 	var pf portfolioDTO
-	s.viewer.Get("/api/portfolio?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &pf)
+	s.lead.Get("/api/portfolio?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &pf)
 	if len(pf.Programs) != 2 || pf.Programs[0].Program.Name != "Interno" || pf.Programs[1].Program.Name != "Raíz" { // RF-22, by name
 		t.Fatalf("programs = %+v", pf.Programs)
 	}
@@ -117,7 +118,7 @@ func TestPortfolio(t *testing.T) {
 
 	// Archived: it no longer counts (RF-16).
 	s.lead.Post("/api/projects/"+a.ID.String()+"/archive", map[string]any{"version": s.getProject(t, a.ID).Version}).Expect(t, http.StatusOK)
-	s.viewer.Get("/api/portfolio?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &pf)
+	s.lead.Get("/api/portfolio?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &pf)
 	if r := pf.Programs[1]; r.Program.Figures.Real != 100 || len(r.Rows) != 1 || r.Projects != 2 {
 		t.Fatalf("after archiving = %+v", r)
 	}
@@ -135,5 +136,25 @@ func TestPortfolio(t *testing.T) {
 	if ov.Program != nil {
 		t.Fatal("a project that is not a program has no card")
 	}
-	s.viewer.Get("/api/portfolio?today=mañana").Expect(t, http.StatusBadRequest, "invalid_filter")
+	s.lead.Get("/api/portfolio?today=mañana").Expect(t, http.StatusBadRequest, "invalid_filter")
+
+	// Only administrators, Dirección and leads (spec 023, RF-17a, RF-17b).
+	s.member.Get("/api/portfolio").Expect(t, http.StatusForbidden, "forbidden")
+	s.viewer.Get("/api/portfolio").Expect(t, http.StatusForbidden, "forbidden")
+
+	// A project of another team under the program: the lead does not see it,
+	// but the program counts it (RF-17 to RF-19).
+	s.project(t, s.admin, map[string]any{"identifier": "AJE", "name": "Ajeno", "team_id": s.other, "parent_id": root.ID})
+	s.lead.Get("/api/portfolio?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &pf)
+	if r := pf.Programs[1]; r.Hidden != 1 || r.Projects != 3 || len(r.Rows) != 1 {
+		t.Fatalf("lead sees = %+v", r)
+	}
+	s.admin.Get("/api/portfolio?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &pf)
+	if r := pf.Programs[1]; r.Hidden != 0 || len(r.Rows) != 2 {
+		t.Fatalf("admin sees = %+v", r)
+	}
+	s.viewer.Get("/api/projects/"+root.ID.String()+"/overview?today=2026-03-06").Expect(t, http.StatusOK).JSON(t, &ov)
+	if ov.Program == nil || ov.Program.Hidden != 1 || len(ov.Program.Rows) != 1 {
+		t.Fatalf("overview hides = %+v", ov.Program)
+	}
 }

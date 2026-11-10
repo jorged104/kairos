@@ -49,7 +49,11 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
     if (url.startsWith('/api/me/dashboard/people')) return json([{ id: 'u2', name: 'Mario Paz' }])
     if (url.startsWith('/api/users/u2/dashboard'))
-      return json({ ...dashboard, user: { id: 'u2', name: 'Mario Paz', roles: ['member'], teams: [{ id: 't2', name: 'Campo' }] }, tasks: dashboard.tasks.map((x) => ({ ...x, can_move: false })) })
+      return json({
+        ...dashboard, user: { id: 'u2', name: 'Mario Paz', roles: ['member'], teams: [{ id: 't2', name: 'Campo' }] },
+        // One of a project the lead does not see (spec 023, RF-26).
+        tasks: [...dashboard.tasks.map((x) => ({ ...x, can_move: false })), task('0', { id: '', key: '', title: '', project: { id: '', name: '' }, hidden: true, can_move: false })],
+      })
     if (url.startsWith('/api/users/')) return json({ error: { code: 'not_found', message: 'x' } }, 404)
     if (url.startsWith('/api/me/dashboard')) return json(dashboard)
     if (url.startsWith('/api/me/points'))
@@ -224,6 +228,9 @@ describe('panel de otra persona (spec 013, cambio de 2026-11-06)', () => {
     expect(w.find('#my-projects').text()).toBe('Proyectos de Mario Paz')
     expect(w.findAll('[data-testid=my-task]').every((x) => x.attributes('draggable') === 'false')).toBe(true)
     expect(w.find('[data-testid=my-task-move]').exists()).toBe(false)
+    const hidden = w.find('[data-testid=my-task-hidden]').element.closest('article')!
+    expect(hidden.textContent).toContain('Tarea de otro proyecto')
+    expect(hidden.querySelector('a')).toBeNull()
     expect(w.text()).not.toContain('Arrastra una tarea')
   })
 

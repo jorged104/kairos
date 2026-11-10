@@ -121,6 +121,11 @@ func (s *Service) Get(ctx context.Context, p *authz.Principal, today time.Time) 
 		return n.Own(set)
 	}
 	for _, r := range rows {
+		// Only the projects the user sees (spec 023, RF-24); a program's
+		// figures still count all of its projects (RF-18).
+		if !p.SeesProject(authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID}) {
+			continue
+		}
 		c := Card{
 			ID: r.ID, Identifier: r.Identifier, Name: r.Name, StatusID: r.StatusID, Lifecycle: r.Lifecycle, Health: r.Health,
 			Team: Ref{ID: r.TeamID, Name: r.TeamName}, Owner: Ref{ID: r.OwnerID, Name: r.OwnerName}, IsProgram: r.IsProgram,

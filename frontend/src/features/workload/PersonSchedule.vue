@@ -59,7 +59,8 @@ const projects = computed(() => {
   const seen = new Map<string, { id: string; name: string; identifier: string }>()
   // Without a project, its own entry (spec 022, RF-36).
   for (const r of props.rows)
-    for (const b of r.bars) if (!seen.has(b.project.id)) seen.set(b.project.id, b.loose ? { ...b.project, identifier: '', name: t('loose.noProject') } : b.project)
+    for (const b of r.bars)
+      if (!b.hidden && !seen.has(b.project.id)) seen.set(b.project.id, b.loose ? { ...b.project, identifier: '', name: t('loose.noProject') } : b.project)
   return [...seen.values()].sort((a, b) => a.identifier.localeCompare(b.identifier))
 })
 const colorOf = computed(() => new Map(projects.value.map((p, i) => [p.id, i < COLORS ? i + 1 : 0])))
@@ -76,6 +77,8 @@ const date = (iso: string) => dateFmt.value.format(new Date(iso + 'T00:00:00Z'))
 const free = (r: WorkloadRow) => (r.free_from ? t('workload.freeFrom', { date: date(r.free_from) }) : t('workload.free'))
 const open = (b: WorkloadBar) => ({ query: { ...route.query, item: b.key } })
 const describe = (b: WorkloadBar) =>
+  // Of a project the viewer does not see: its dates only (spec 023, RF-26).
+  b.hidden ? t('workload.hiddenBar', { start: date(b.start), end: date(b.end), ratio: b.done_ratio }) + (b.overdue ? ` · ${t('workload.overdue')}` : '') :
   t('workload.bar', { key: b.key, title: b.title, project: b.loose ? t('loose.noProject') : b.project.name, start: date(b.start), end: date(b.end), ratio: b.done_ratio }) +
   (b.overdue ? ` · ${t('workload.overdue')}` : '')
 
@@ -160,13 +163,15 @@ watch(scale, () => nextTick(centre))
               </span>
             </div>
             <div class="relative shrink-0" :style="{ width: `${width}px`, height: `${l.lanes * LANE + 12}px` }">
-              <RouterLink
-                v-for="b in l.bars"
-                :key="b.bar.id"
-                :to="open(b.bar)"
+              <component
+                :is="b.bar.hidden ? 'span' : RouterLink"
+                v-for="(b, i) in l.bars"
+                :key="b.bar.hidden ? `hidden-${i}` : b.bar.id"
+                :to="b.bar.hidden ? undefined : open(b.bar)"
+                :tabindex="b.bar.hidden ? 0 : undefined"
                 class="absolute flex h-5 overflow-hidden rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 :class="[
-                  byProject ? [`ws-c${colorOf.get(b.bar.project.id) ?? 0}`, 'ws-track', b.bar.overdue && 'ring-2 ring-destructive'] : b.bar.overdue ? 'bg-destructive/25' : 'bg-primary/25',
+                  byProject ? [`ws-c${b.bar.hidden ? 0 : (colorOf.get(b.bar.project.id) ?? 0)}`, 'ws-track', b.bar.overdue && 'ring-2 ring-destructive'] : b.bar.overdue ? 'bg-destructive/25' : 'bg-primary/25',
                 ]"
                 :style="{ left: `${x(toDay(b.bar.start))}px`, width: `${Math.max((toDay(b.bar.end) - toDay(b.bar.start) + 1) * px, 6)}px`, top: `${6 + b.lane * LANE}px` }"
                 :aria-label="describe(b.bar)"
@@ -178,7 +183,7 @@ watch(scale, () => nextTick(centre))
                 @blur="tip = null"
               >
                 <span class="h-full" :class="byProject ? 'ws-fill' : b.bar.overdue ? 'bg-destructive' : 'bg-primary'" :style="{ width: `${b.bar.done_ratio}%` }" />
-              </RouterLink>
+              </component>
             </div>
           </div>
           <p v-if="!rows.length" class="p-6 text-sm text-muted-foreground">{{ t('workload.empty') }}</p>
