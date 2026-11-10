@@ -625,7 +625,7 @@ func tools() []tool {
 		},
 		{
 			name: "project_catalog", title: "Valores del proyecto", readOnly: true,
-			description: "Lo que hace falta para crear o editar tareas en un proyecto: tipos, estados, prioridades, tallas, etiquetas y miembros.",
+			description: "Lo que hace falta para crear o editar tareas en un proyecto: tipos, estados, prioridades, tallas, etiquetas y, si lo gestionas, miembros.",
 			params:      map[string]any{"project": pProject}, required: []string{"project"},
 			run: func(c *call, a args) (any, error) {
 				pid, err := c.projectID(a.str("project"))
@@ -640,7 +640,13 @@ func tools() []tool {
 				if err != nil {
 					return nil, err
 				}
+				// Only who manages the project sees its members; the rest still
+				// needs the types and statuses to move its work items.
 				members, err := c.get("/projects/"+pid+"/members", nil)
+				var denied *apiError
+				if errors.As(err, &denied) && denied.Status == http.StatusForbidden {
+					members, err = map[string]any{"items": []any{}}, nil
+				}
 				if err != nil {
 					return nil, err
 				}
