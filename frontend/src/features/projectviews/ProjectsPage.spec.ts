@@ -88,6 +88,8 @@ describe('vistas de proyectos (spec 012)', () => {
     const { wrapper } = await render()
     const card = wrapper.find('[data-testid=project-card]')
     await card.find('[data-testid=project-card-move]').trigger('click')
+    // The card with the open menu goes above the cards under it.
+    expect(card.classes()).toContain('z-30')
     const items = card.findAll('[role=menuitem]')
     expect(items.map((i) => i.text())).toEqual(['En ejecución', 'Cerrado'])
     await items[1]!.trigger('click')

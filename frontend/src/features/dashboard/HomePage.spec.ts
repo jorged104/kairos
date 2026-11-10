@@ -134,6 +134,8 @@ describe('mi panel (spec 013)', () => {
     const card = w.findAll('[data-testid=my-column]')[0]!.find('[data-testid=my-task]')
     await card.find('[data-testid=my-task-move]').trigger('click')
     await flushPromises()
+    // The card with the open menu goes above the cards under it.
+    expect(card.classes()).toContain('z-30')
     const items = card.findAll('[role=menuitem]')
     expect(items.map((i) => i.text())).toEqual(['En progreso', 'Cerrado'])
     await items[0]!.trigger('click')

@@ -139,7 +139,7 @@ const initials = (name: string) =>
               v-for="p in col.rows.slice(0, MAX)"
               :key="p.id"
               class="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-              :class="(moving === p.id && 'opacity-60') || (dragging?.id === p.id && 'scale-95 opacity-50')"
+              :class="[(moving === p.id && 'opacity-60') || (dragging?.id === p.id && 'scale-95 opacity-50'), menu === p.id && 'z-30']"
               :draggable="movable(p)"
               data-testid="project-card"
               @dragstart="onDragStart($event, p)"
