@@ -185,7 +185,7 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
                   v-for="task in c.tasks.slice(0, MAX)"
                   :key="task.id"
                   class="relative flex flex-col gap-1.5 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-                  :class="(moving === task.id && 'opacity-60') || (dragging?.task.id === task.id && 'scale-95 opacity-50')"
+                  :class="[(moving === task.id && 'opacity-60') || (dragging?.task.id === task.id && 'scale-95 opacity-50'), menu?.id === task.id && 'z-30']"
                   :draggable="task.can_move"
                   data-testid="my-task"
                   @dragstart="onDragStart($event, task)"

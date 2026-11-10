@@ -225,7 +225,7 @@ const sizeName = (n: WorkNode) => (n.size_id ? (sizes.value.get(n.size_id)?.name
                   v-for="n in ln.nodes.filter((x) => x.status_id === st.id)"
                   :key="n.id"
                   class="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-xs transition-[translate,box-shadow,opacity,scale] duration-150 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-                  :class="dragging?.node.id === n.id && 'scale-95 opacity-50'"
+                  :class="[dragging?.node.id === n.id && 'scale-95 opacity-50', menu?.id === n.id && 'z-30']"
                   :draggable="writable"
                   data-testid="kanban-card"
                   @dragstart="onDragStart($event, n)"
