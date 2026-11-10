@@ -38,6 +38,7 @@ export type Permission =
   // Spec 013, change of 2026-11-06.
   | 'dashboard:others:all'
   | 'dashboard:others:team'
+  // Spec 022.
   | 'loose:create:own'
   | 'loose:assign:team'
   | 'loose:assign:all'

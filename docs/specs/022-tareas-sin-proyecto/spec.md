@@ -2,6 +2,8 @@
 
 **Estado:** Aprobada (2026-11-09) («si dale»).
 
+**Ajustes al implementar (2026-11-09):** la descripción se escribe en la ficha que se abre al crear la tarea (RF-2), y el líder de una persona también ve y edita sus tareas sin proyecto, como ya pedían el cronograma y el panel de esa persona (RF-14, RF-15).
+
 **Diseño de referencia:** lienzo «Kairos — Tareas sin proyecto y tareas de equipo» (tres pantallas: Nueva tarea, Mi panel y Mi equipo).
 
 ## Contexto y objetivo
@@ -44,7 +46,7 @@ Son tareas como las demás: tienen estados, comentarios, panel lateral y puntos 
 
 ### Crear
 - RF-1: EL SISTEMA ofrecerá «Nueva tarea» en Mi panel y en Mi equipo para crear una tarea sin proyecto.
-- RF-2: EL SISTEMA pedirá al crear una tarea sin proyecto: título obligatorio y, opcionales, descripción, fecha de fin, peso y prioridad.
+- RF-2: EL SISTEMA pedirá al crear una tarea sin proyecto: título obligatorio y, opcionales, fecha de fin, peso y prioridad; la descripción se escribe en la ficha de la tarea, que se abre al crearla.
 - RF-3: EL SISTEMA pedirá elegir el destino de la tarea: «Una persona» o «Un equipo».
 - RF-4: EL SISTEMA ofrecerá como persona destino al propio usuario y a las personas activas cuyo panel puede ver (spec 013).
 - RF-5: EL SISTEMA ofrecerá como equipo destino, al líder, los equipos que lidera y sus subequipos, y al administrador, todos los equipos no archivados.
@@ -58,8 +60,8 @@ Son tareas como las demás: tienen estados, comentarios, panel lateral y puntos 
 ### Trabajar en ellas
 - RF-12: EL SISTEMA aplicará a las tareas sin proyecto los mismos estados, flujo, comentarios, panel lateral y menciones que a las tareas de proyecto.
 - RF-13: CUANDO se cierre una tarea sin proyecto asignada, EL SISTEMA dará a la persona asignada los puntos que da cerrar una tarea (spec 014).
-- RF-14: EL SISTEMA permitirá ver y comentar una tarea sin proyecto a su creador, a sus asignados, a los miembros del equipo destino, a los líderes de ese equipo y al administrador.
-- RF-15: EL SISTEMA permitirá editar y cambiar de estado una tarea sin proyecto a su creador, a sus asignados, a los líderes del equipo destino y al administrador.
+- RF-14: EL SISTEMA permitirá ver y comentar una tarea sin proyecto a su creador, a sus asignados, a los líderes de sus asignados, a los miembros del equipo destino, a los líderes de ese equipo y al administrador.
+- RF-15: EL SISTEMA permitirá editar y cambiar de estado una tarea sin proyecto a su creador, a sus asignados, a los líderes de sus asignados, a los líderes del equipo destino y al administrador.
 - RF-16: EL SISTEMA permitirá borrar una tarea sin proyecto a su creador y al administrador.
 - RF-17: SI alguien sin permiso pide una tarea sin proyecto, ENTONCES EL SISTEMA responderá como si no existiera.
 

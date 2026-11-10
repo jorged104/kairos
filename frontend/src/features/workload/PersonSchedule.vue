@@ -57,14 +57,16 @@ const lines = computed(() =>
 const COLORS = 7
 const projects = computed(() => {
   const seen = new Map<string, { id: string; name: string; identifier: string }>()
-  for (const r of props.rows) for (const b of r.bars) if (!seen.has(b.project.id)) seen.set(b.project.id, b.project)
+  // Without a project, its own entry (spec 022, RF-36).
+  for (const r of props.rows)
+    for (const b of r.bars) if (!seen.has(b.project.id)) seen.set(b.project.id, b.loose ? { ...b.project, identifier: '', name: t('loose.noProject') } : b.project)
   return [...seen.values()].sort((a, b) => a.identifier.localeCompare(b.identifier))
 })
 const colorOf = computed(() => new Map(projects.value.map((p, i) => [p.id, i < COLORS ? i + 1 : 0])))
 const legend = computed(() => {
   const out: { key: string; label: string; color: number }[] = projects.value
     .slice(0, COLORS)
-    .map((p) => ({ key: p.id, label: `${p.identifier} · ${p.name}`, color: colorOf.value.get(p.id)! }))
+    .map((p) => ({ key: p.id, label: p.identifier ? `${p.identifier} · ${p.name}` : p.name, color: colorOf.value.get(p.id)! }))
   if (projects.value.length > COLORS) out.push({ key: 'others', label: t('workload.others'), color: 0 })
   return out
 })
@@ -74,7 +76,7 @@ const date = (iso: string) => dateFmt.value.format(new Date(iso + 'T00:00:00Z'))
 const free = (r: WorkloadRow) => (r.free_from ? t('workload.freeFrom', { date: date(r.free_from) }) : t('workload.free'))
 const open = (b: WorkloadBar) => ({ query: { ...route.query, item: b.key } })
 const describe = (b: WorkloadBar) =>
-  t('workload.bar', { key: b.key, title: b.title, project: b.project.name, start: date(b.start), end: date(b.end), ratio: b.done_ratio }) +
+  t('workload.bar', { key: b.key, title: b.title, project: b.loose ? t('loose.noProject') : b.project.name, start: date(b.start), end: date(b.end), ratio: b.done_ratio }) +
   (b.overdue ? ` · ${t('workload.overdue')}` : '')
 
 // The detail of the bar under the pointer or the focus (RF-8).

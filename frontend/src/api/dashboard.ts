@@ -24,6 +24,8 @@ export interface DashboardTask {
   late_days: number
   weight: number
   can_move: boolean
+  /** Without a project: its team and mode, if any (spec 022, RF-30). */
+  loose?: { team: DashboardRef | null; mode: '' | 'claim' | 'each' }
 }
 
 export type DashboardRole = 'owner' | 'pm' | 'tech_lead' | 'member' | 'observer' | 'tasks'
