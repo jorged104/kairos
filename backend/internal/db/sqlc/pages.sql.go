@@ -335,7 +335,7 @@ func (q *Queries) UpdateMilestonePage(ctx context.Context, arg UpdateMilestonePa
 const updateProjectPage = `-- name: UpdateProjectPage :one
 UPDATE projects SET description = $3, description_text = $4, version = version + 1, updated_at = now()
 WHERE id = $1 AND page_version = $2
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id, is_inbox
 `
 
 type UpdateProjectPageParams struct {
@@ -379,6 +379,7 @@ func (q *Queries) UpdateProjectPage(ctx context.Context, arg UpdateProjectPagePa
 		&i.IsProgram,
 		&i.PortfolioWeight,
 		&i.StatusID,
+		&i.IsInbox,
 	)
 	return i, err
 }
@@ -387,7 +388,7 @@ const updateWorkItemPage = `-- name: UpdateWorkItemPage :one
 
 UPDATE work_items SET description = $3, description_text = $4, version = version + 1, updated_at = now()
 WHERE id = $1 AND page_version = $2
-RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id
+RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id, team_id, team_mode
 `
 
 type UpdateWorkItemPageParams struct {
@@ -444,6 +445,8 @@ func (q *Queries) UpdateWorkItemPage(ctx context.Context, arg UpdateWorkItemPage
 		&i.PageVersion,
 		&i.SizeID,
 		&i.MeetingID,
+		&i.TeamID,
+		&i.TeamMode,
 	)
 	return i, err
 }

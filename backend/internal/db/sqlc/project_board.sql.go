@@ -50,7 +50,7 @@ func (q *Queries) BoardBaselineDates(ctx context.Context) ([]BoardBaselineDatesR
 const boardMilestones = `-- name: BoardMilestones :many
 SELECT m.id, m.project_id, m.name, m.due_date, m.status
 FROM milestones m
-JOIN projects p ON p.id = m.project_id AND NOT p.is_template AND p.lifecycle <> 'archivado'
+JOIN projects p ON p.id = m.project_id AND NOT p.is_template AND NOT p.is_inbox AND p.lifecycle <> 'archivado'
 WHERE m.status <> 'cancelado' AND m.due_date IS NOT NULL
 ORDER BY m.due_date, m.position, m.name
 `
@@ -97,7 +97,7 @@ SELECT p.id, p.identifier, p.name, p.parent_id, p.is_program, p.lifecycle, p.hea
 FROM projects p
 JOIN teams t ON t.id = p.team_id
 JOIN users u ON u.id = p.owner_id
-WHERE NOT p.is_template AND p.lifecycle <> 'archivado'
+WHERE NOT p.is_template AND NOT p.is_inbox AND p.lifecycle <> 'archivado'
 ORDER BY p.name, p.identifier
 `
 
@@ -297,7 +297,7 @@ const setProjectStatus = `-- name: SetProjectStatus :one
 
 UPDATE projects SET status_id = $3, lifecycle = $4, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
-RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id
+RETURNING id, parent_id, template_id, team_id, owner_id, methodology_id, identifier, name, description, description_text, is_template, lifecycle, health, health_explanation, start_date, end_date, depth, wi_counter, version, created_at, updated_at, page_version, is_program, portfolio_weight, status_id, is_inbox
 `
 
 type SetProjectStatusParams struct {
@@ -343,6 +343,7 @@ func (q *Queries) SetProjectStatus(ctx context.Context, arg SetProjectStatusPara
 		&i.IsProgram,
 		&i.PortfolioWeight,
 		&i.StatusID,
+		&i.IsInbox,
 	)
 	return i, err
 }

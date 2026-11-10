@@ -146,7 +146,7 @@ SELECT p.id, sqlc.arg(day)::date,
 FROM projects p
 LEFT JOIN work_items w ON w.project_id = p.id
 LEFT JOIN statuses s ON s.id = w.status_id
-WHERE p.lifecycle = 'activo' AND NOT p.is_template
+WHERE p.lifecycle = 'activo' AND NOT p.is_template AND NOT p.is_inbox
 GROUP BY p.id
 ON CONFLICT (project_id, day) DO UPDATE SET progress = EXCLUDED.progress, updated_at = now();
 

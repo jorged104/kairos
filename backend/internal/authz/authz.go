@@ -94,6 +94,11 @@ const (
 	// Spec 013, change of 2026-11-06: see another person's panel, read only.
 	DashboardOthersAll  Permission = "dashboard:others:all"
 	DashboardOthersTeam Permission = "dashboard:others:team"
+	// Spec 022: work items without a project, for oneself, for the people and
+	// teams one leads, or for anybody and any team.
+	LooseCreateOwn  Permission = "loose:create:own"
+	LooseAssignTeam Permission = "loose:assign:team"
+	LooseAssignAll  Permission = "loose:assign:all"
 )
 
 // rolePermissions is the permission matrix of specs 003 and 004.
@@ -104,7 +109,7 @@ var rolePermissions = map[Role][]Permission{
 		IdpMappingsManage, PasswordsSet, AuditRead, SelfPassword,
 		WorkRead, WorkComment, TemplatesUse, TemplatesManage, CatalogManage, ProjectsCreateAll,
 		ProjectsManageAll, WorkItemsWriteAll, ObjectivesCreateAll, ObjectivesManageAll, PortfolioManage, ProjectViewsShare,
-		GamificationManage, SystemManage, DashboardOthersAll,
+		GamificationManage, SystemManage, DashboardOthersAll, LooseCreateOwn, LooseAssignAll,
 	},
 	RoleLead: {
 		DirectoryRead, UsersReadFullTeam, UsersCreateTeam, UsersUpdateTeam, UsersStatusTeam,
@@ -112,12 +117,12 @@ var rolePermissions = map[Role][]Permission{
 		WorkRead, WorkComment, TemplatesUse, ProjectsCreateTeam, ProjectsManageTeam, ProjectsManageOwner, ProjectViewsShare,
 		WorkItemsWriteTeam, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
 		ObjectivesCreateTeam, ObjectivesManageTeam, ObjectivesManageOwner,
-		DashboardOthersTeam,
+		DashboardOthersTeam, LooseCreateOwn, LooseAssignTeam,
 	},
 	RoleMember: {
 		DirectoryRead, SelfPassword,
 		WorkRead, WorkComment, ProjectsManageOwner, WorkItemsWriteParticipant, WorkItemsDeleteOwn,
-		ObjectivesManageOwner,
+		ObjectivesManageOwner, LooseCreateOwn,
 	},
 	RoleViewer: {DirectoryRead, SelfPassword, WorkRead},
 }

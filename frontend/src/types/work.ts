@@ -342,6 +342,18 @@ export interface WorkItem {
   /** The meeting it came from (spec 018, RF-28). */
   meeting?: Ref | null
   can: { write: boolean; delete: boolean }
+  /** Only without a project (spec 022). */
+  loose?: WorkItemLoose
+}
+
+export interface WorkItemLoose {
+  team: Ref | null
+  mode: '' | 'claim' | 'each'
+  /** The «each person» group and its progress (RF-24). */
+  group: WorkRef | null
+  done: number
+  total: number
+  can: { claim: boolean; release: boolean; move: boolean }
 }
 
 export type ObjectiveScope = 'organizacion' | 'equipo' | 'proyecto'

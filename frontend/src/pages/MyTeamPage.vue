@@ -2,11 +2,16 @@
 import { useQuery } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { Plus } from '@lucide/vue'
 import { getMyTeam, type TeamMember } from '@/api/workload'
 import NativeSelect from '@/components/NativeSelect.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { useErrorMessage } from '@/composables/useErrorMessage'
+import NewTaskDialog from '@/features/loose/NewTaskDialog.vue'
+import TeamTasks from '@/features/loose/TeamTasks.vue'
+import ItemPanel from '@/features/workitems/ItemPanel.vue'
 import PersonSchedule from '@/features/workload/PersonSchedule.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -28,13 +33,28 @@ const dateFmt = computed(() => new Intl.DateTimeFormat(locale.value, { day: 'num
 const free = (p: TeamMember) => (p.free_from ? t('workload.freeFrom', { date: dateFmt.value.format(new Date(p.free_from + 'T00:00:00Z')) }) : t('workload.free'))
 // Everybody listed is somebody whose panel the viewer may open (RF-14).
 const linkable = () => true
+
+// The people, or the tasks without a project of the teams (spec 022, RF-33),
+// kept in the URL.
+const route = useRoute()
+const router = useRouter()
+const TABS = ['people', 'tasks'] as const
+const tab = computed(() => (route.query.tab === 'tasks' ? 'tasks' : 'people'))
+const goTo = (x: (typeof TABS)[number]) => router.replace({ query: { ...route.query, tab: x === 'people' ? undefined : x, item: undefined } })
+const canAssign = computed(() => auth.can('loose:assign:all', 'loose:assign:team'))
+const creating = ref(false)
 </script>
 
 <template>
   <div class="flex flex-col gap-4" data-testid="my-team">
-    <div class="flex flex-col gap-1">
-      <h1 class="font-heading text-xl font-semibold">{{ t('myTeam.title') }}</h1>
-      <p class="text-sm text-muted-foreground">{{ t('myTeam.subtitle') }}</p>
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex flex-col gap-1">
+        <h1 class="font-heading text-xl font-semibold">{{ t('myTeam.title') }}</h1>
+        <p class="text-sm text-muted-foreground">{{ t('myTeam.subtitle') }}</p>
+      </div>
+      <Button v-if="allowed && canAssign" size="sm" class="ml-auto" data-testid="new-team-task" @click="creating = true">
+        <Plus aria-hidden="true" />{{ t('loose.newTeamTask') }}
+      </Button>
     </div>
 
     <Alert v-if="!allowed" role="alert" data-testid="my-team-forbidden">
@@ -45,7 +65,33 @@ const linkable = () => true
     </Alert>
 
     <template v-else-if="data">
-      <p v-if="!data.people.length" class="rounded-lg bg-muted p-4 text-center text-sm" data-testid="my-team-empty">{{ t('myTeam.empty') }}</p>
+      <nav class="flex gap-1 border-b text-sm" role="tablist">
+        <button
+          v-for="x in TABS"
+          :key="x"
+          type="button"
+          role="tab"
+          :aria-selected="tab === x"
+          class="-mb-px border-b-2 px-3 py-2"
+          :class="tab === x ? 'border-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'"
+          :data-testid="`my-team-tab-${x}`"
+          @click="goTo(x)"
+        >
+          {{ t(`loose.tabs.${x}`) }}
+        </button>
+      </nav>
+      <template v-if="tab === 'tasks'">
+        <label v-if="data.teams.length > 1" class="flex max-w-xs items-center gap-2 text-sm">
+          <span class="shrink-0 text-muted-foreground">{{ t('myTeam.team') }}</span>
+          <NativeSelect v-model="team" data-testid="my-team-tasks-filter">
+            <option value="">{{ t('myTeam.allTeams') }}</option>
+            <option v-for="tm in data.teams" :key="tm.id" :value="tm.id">{{ tm.name }}</option>
+          </NativeSelect>
+        </label>
+        <TeamTasks :today="data.today" :team="team || undefined" />
+        <ItemPanel />
+      </template>
+      <p v-else-if="!data.people.length" class="rounded-lg bg-muted p-4 text-center text-sm" data-testid="my-team-empty">{{ t('myTeam.empty') }}</p>
       <template v-else>
         <label v-if="data.teams.length > 1" class="flex max-w-xs items-center gap-2 text-sm">
           <span class="shrink-0 text-muted-foreground">{{ t('myTeam.team') }}</span>
@@ -98,5 +144,6 @@ const linkable = () => true
         </section>
       </template>
     </template>
+    <NewTaskDialog v-model="creating" team />
   </div>
 </template>

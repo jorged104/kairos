@@ -75,6 +75,8 @@ type WorkItem struct {
 	// The meeting it came from, if any (spec 018, RF-28).
 	Meeting *workcore.Ref `json:"meeting"`
 	Can     Can           `json:"can"`
+	// Only without a project (spec 022).
+	Loose *Loose `json:"loose,omitempty"`
 }
 
 type ProjectRef struct {

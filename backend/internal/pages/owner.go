@@ -45,7 +45,11 @@ func writable(ctx context.Context, q *sqlc.Queries, p *authz.Principal, kind str
 		if err != nil {
 			return o, err
 		}
-		if !p.CanWriteWorkItems(projects.Ref(project)) {
+		// Without a project, by the task (spec 022).
+		if a, err := workitems.Access(ctx, q, p, w, project); err != nil || !a.Write {
+			if err != nil {
+				return o, err
+			}
 			return o, apperr.ErrForbidden
 		}
 		o = owner{project: project, pageVersion: w.PageVersion, description: w.Description}

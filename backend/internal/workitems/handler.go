@@ -41,7 +41,84 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/work-items/{id}/history", h.history)
 		r.Post("/work-items/{id}/dependencies", h.addDependency)
 		r.Delete("/dependencies/{id}", h.removeDependency)
+		// Spec 022: work items without a project.
+		r.With(auth.RequirePermission(authz.LooseCreateOwn, h.logger)).Post("/loose-tasks", h.createLoose)
+		r.Get("/me/claimable-tasks", h.claimable)
+		r.Get("/me/team-tasks", h.teamTasks)
+		r.Post("/work-items/{id}/claim", h.claim(true))
+		r.Post("/work-items/{id}/release", h.claim(false))
+		r.Post("/work-items/{id}/move", h.move)
 	})
+}
+
+func (h *Handler) createLoose(w http.ResponseWriter, r *http.Request) {
+	var req looseRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	out, err := h.svc.CreateLoose(r.Context(), authz.FromContext(r.Context()), req)
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, out)
+}
+
+func (h *Handler) claimable(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.Claimable(r.Context(), authz.FromContext(r.Context()))
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+func (h *Handler) teamTasks(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.TeamTasks(r.Context(), authz.FromContext(r.Context()))
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+func (h *Handler) claim(claim bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := h.id(w, r)
+		if !ok {
+			return
+		}
+		p := authz.FromContext(r.Context())
+		take := h.svc.Release
+		if claim {
+			take = h.svc.Claim
+		}
+		out, err := take(r.Context(), p, id)
+		if err != nil {
+			apperr.Write(w, h.logger, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, out)
+	}
+}
+
+func (h *Handler) move(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	var req moveRequest
+	if err := apperr.Decode(r, &req); err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	out, err := h.svc.Move(r.Context(), authz.FromContext(r.Context()), id, req)
+	if err != nil {
+		apperr.Write(w, h.logger, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
 func (h *Handler) id(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {

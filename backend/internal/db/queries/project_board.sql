@@ -21,7 +21,7 @@ SELECT p.id, p.identifier, p.name, p.parent_id, p.is_program, p.lifecycle, p.hea
 FROM projects p
 JOIN teams t ON t.id = p.team_id
 JOIN users u ON u.id = p.owner_id
-WHERE NOT p.is_template AND p.lifecycle <> 'archivado'
+WHERE NOT p.is_template AND NOT p.is_inbox AND p.lifecycle <> 'archivado'
 ORDER BY p.name, p.identifier;
 
 -- name: BoardBaselineDates :many
@@ -34,7 +34,7 @@ WHERE pb.version = (SELECT max(x.version) FROM project_baselines x WHERE x.proje
 -- name: BoardMilestones :many
 SELECT m.id, m.project_id, m.name, m.due_date, m.status
 FROM milestones m
-JOIN projects p ON p.id = m.project_id AND NOT p.is_template AND p.lifecycle <> 'archivado'
+JOIN projects p ON p.id = m.project_id AND NOT p.is_template AND NOT p.is_inbox AND p.lifecycle <> 'archivado'
 WHERE m.status <> 'cancelado' AND m.due_date IS NOT NULL
 ORDER BY m.due_date, m.position, m.name;
 

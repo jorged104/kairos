@@ -336,6 +336,11 @@
     "work_item_cycle": "Una tarea no puede colgar de sí misma ni de una de sus subtareas.",
     "work_item_too_deep": "La jerarquía de tareas admite como máximo 10 niveles.",
     "has_children": "La tarea tiene subtareas: muévelas o bórralas antes.",
+    "already_taken": "Ya la tomó otra persona.",
+    "not_taken": "Esta tarea no la tienes tomada tú.",
+    "team_without_members": "El equipo no tiene a nadie que pueda hacerla.",
+    "not_movable": "Esta tarea no se puede pasar a un proyecto.",
+    "loose_needs_team": "Crea antes un equipo para poder crear tareas sin proyecto.",
     "transition_not_allowed": "El flujo no permite ese cambio de estado.",
     "blocked_by_open_item": "No se puede cerrar: la bloquea una tarea abierta.",
     "dependency_conflict": "Esa dependencia ya existe.",
@@ -854,6 +859,83 @@
     "scheduleHint": "Tareas abiertas de todos los proyectos con fecha de fin. Pulsa una barra para abrir la tarea.",
     "empty": "Tu equipo no tiene personas.",
     "forbidden": "No tienes acceso a Mi equipo."
+  },
+  "loose": {
+    "newTask": "Nueva tarea",
+    "newTeamTask": "Tarea para el equipo",
+    "dialogHint": "Sin proyecto: para una persona o para todo un equipo.",
+    "title": "Título",
+    "to": "Para",
+    "toPerson": "Una persona",
+    "toTeam": "Un equipo",
+    "person": "Persona",
+    "me": "Yo",
+    "team": "Equipo",
+    "chooseTeam": "Elige un equipo",
+    "personHint": "Puedes asignarte a ti y, si lideras un equipo, a su gente. La tarea aparece en su Mi panel.",
+    "who": "¿Quién la hace?",
+    "modes": {
+      "claim": "Una persona la toma",
+      "each": "Cada persona la hace"
+    },
+    "modeHints": {
+      "claim": "Sale en el panel de todo el equipo hasta que alguien pulsa «La tomo». Desde ese momento es solo suya.",
+      "each": "Se crea una tarea para cada miembro y ves el avance del equipo."
+    },
+    "due": "Fecha de fin",
+    "weight": "Peso",
+    "priority": "Prioridad",
+    "defaultPriority": "Por defecto",
+    "pointsHint": "Da XP al cerrarla, como cualquier tarea. Puedes pasarla a un proyecto más adelante.",
+    "submit": {
+      "person": "Crear tarea",
+      "claim": "Publicar para el equipo",
+      "each": "Crear una por persona"
+    },
+    "noProject": "Sin proyecto",
+    "teamChip": "{team} · {mode}",
+    "claimable": {
+      "title": "Para tomar en tu equipo",
+      "count": "{n} tarea que aún no tiene nadie | {n} tareas que aún no tiene nadie",
+      "by": "Publicada por {name}"
+    },
+    "claim": "La tomo",
+    "claimOf": "Tomar {key}",
+    "release": "Devolver al equipo",
+    "noDue": "sin fecha",
+    "dueOn": "vence el {date}",
+    "weightOf": "peso {n}",
+    "origin": {
+      "label": "Origen",
+      "all": "Todas · {n}",
+      "projects": "De proyectos · {n}",
+      "loose": "Sin proyecto · {n}"
+    },
+    "progress": "{done} de {total}",
+    "progressLabel": "Avance del equipo",
+    "move": "Mover a un proyecto",
+    "moveChoose": "Elige un proyecto",
+    "moveDo": "Mover",
+    "tabs": {
+      "people": "Personas",
+      "tasks": "Tareas del equipo"
+    },
+    "teamTasks": {
+      "claimTitle": "Una persona la toma",
+      "claimHint": "Sin nadie aún, o tomadas por alguien",
+      "eachTitle": "Cada persona la hace",
+      "eachHint": "Una tarea por miembro; el avance es del equipo",
+      "task": "Tarea",
+      "team": "Equipo",
+      "due": "Fin",
+      "who": "Quién",
+      "untaken": "Sin tomar",
+      "untakenDays": "Sin tomar · {count} día | Sin tomar · {count} días",
+      "closed": "Cerrada",
+      "done": "Hecha",
+      "pending": "Pendiente",
+      "empty": "Tus equipos no tienen tareas sin proyecto."
+    }
   },
   "labels": {
     "title": "Etiquetas",

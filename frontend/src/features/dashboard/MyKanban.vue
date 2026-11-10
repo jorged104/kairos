@@ -41,12 +41,23 @@ function order(a: DashboardTask, b: DashboardTask) {
   if (a.due_date !== b.due_date) return !a.due_date ? 1 : !b.due_date ? -1 : a.due_date.localeCompare(b.due_date)
   return a.key.localeCompare(b.key, undefined, { numeric: true })
 }
+// By origin: of projects or without one (spec 022, RF-31).
+type Origin = 'all' | 'projects' | 'loose'
+const origin = ref<Origin>('all')
+const counts = computed(() => {
+  const loose = props.tasks.filter((x) => x.loose).length
+  return { all: props.tasks.length, projects: props.tasks.length - loose, loose }
+})
+const shown = computed(() => props.tasks.filter((x) => origin.value === 'all' || (origin.value === 'loose') === !!x.loose))
 const columns = computed(() => {
   const used = new Set(props.tasks.map((x) => x.status_id))
   return props.statuses
     .filter((s) => !s.retired || used.has(s.id))
-    .map((s) => ({ status: s, tasks: props.tasks.filter((x) => x.status_id === s.id).sort(order) }))
+    .map((s) => ({ status: s, tasks: shown.value.filter((x) => x.status_id === s.id).sort(order) }))
 })
+// Where it comes from: its project, or its team, or «Sin proyecto» (RF-30).
+const from = (task: DashboardTask) =>
+  !task.loose ? task.project.name : task.loose.team ? t('loose.teamChip', { team: task.loose.team.name, mode: t(`loose.modes.${task.loose.mode}`) }) : t('loose.noProject')
 
 const error = ref<unknown>(null)
 const moving = ref<string | null>(null)
@@ -104,7 +115,23 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
 
 <template>
   <section class="flex flex-col gap-3 rounded-xl border bg-background p-4" aria-labelledby="my-tasks" data-testid="my-kanban">
-    <h2 id="my-tasks" class="text-base font-semibold">{{ owner ? t('dashboard.others.tasks', { name: owner }) : t('dashboard.tasks.title') }}</h2>
+    <div class="flex flex-wrap items-center gap-2">
+      <h2 id="my-tasks" class="text-base font-semibold">{{ owner ? t('dashboard.others.tasks', { name: owner }) : t('dashboard.tasks.title') }}</h2>
+      <div v-if="counts.loose" role="group" :aria-label="t('loose.origin.label')" class="flex flex-wrap gap-1.5 sm:ml-2">
+        <button
+          v-for="o in ['all', 'projects', 'loose'] as const"
+          :key="o"
+          type="button"
+          :aria-pressed="origin === o"
+          class="h-8 rounded-full border px-3 text-xs"
+          :class="origin === o ? 'border-foreground bg-foreground text-background' : 'bg-background hover:bg-muted'"
+          :data-testid="`my-origin-${o}`"
+          @click="origin = o"
+        >
+          {{ t(`loose.origin.${o}`, { n: counts[o] }) }}
+        </button>
+      </div>
+    </div>
     <Alert v-if="error" variant="destructive" role="alert" data-testid="my-kanban-error">
       <AlertDescription>{{ errorMessage(error) }}</AlertDescription>
     </Alert>
@@ -167,7 +194,13 @@ const date = (d: string) => new Intl.DateTimeFormat(locale.value, { day: 'numeri
                   <TypeStripe :type="typeOf(task)" />
                   <div class="flex items-center gap-1.5">
                     <span class="font-mono text-[11px] text-muted-foreground">{{ task.key }}</span>
-                    <span class="truncate text-[11px] text-muted-foreground">· {{ task.project.name }}</span>
+                    <span v-if="!task.loose" class="truncate text-[11px] text-muted-foreground">· {{ from(task) }}</span>
+                    <span
+                      v-else
+                      class="truncate rounded-full px-1.5 text-[11px]"
+                      :class="task.loose.team ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200' : 'border border-dashed text-muted-foreground'"
+                      data-testid="my-task-loose"
+                    >{{ from(task) }}</span>
                     <button
                       v-if="task.can_move"
                       type="button"

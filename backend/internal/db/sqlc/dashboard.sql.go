@@ -58,7 +58,7 @@ func (q *Queries) DashboardPeople(ctx context.Context) ([]DashboardPeopleRow, er
 const dashboardProjects = `-- name: DashboardProjects :many
 SELECT p.id, p.identifier, p.name, p.team_id, p.owner_id
 FROM projects p
-WHERE p.lifecycle = 'activo' AND NOT p.is_template
+WHERE p.lifecycle = 'activo' AND NOT p.is_template AND NOT p.is_inbox
   AND (p.owner_id = $1::uuid
        OR p.team_id = ANY ($2::uuid[])
        OR EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = p.id AND m.user_id = $1::uuid)
@@ -111,11 +111,13 @@ func (q *Queries) DashboardProjects(ctx context.Context, arg DashboardProjectsPa
 const dashboardTasks = `-- name: DashboardTasks :many
 
 SELECT w.id, w.project_id, p.identifier, p.name AS project_name, p.team_id, p.owner_id,
-       w.sequence_number, w.title, w.status_id, s.is_closed, w.due_date, w.closed_at, w.weight, w.type_id
+       w.sequence_number, w.title, w.status_id, s.is_closed, w.due_date, w.closed_at, w.weight, w.type_id,
+       p.is_inbox, w.team_mode, w.team_id AS for_team_id, coalesce(t.name, '') AS for_team_name
 FROM work_item_assignees a
 JOIN work_items w ON w.id = a.work_item_id
 JOIN projects p ON p.id = w.project_id AND p.lifecycle = 'activo' AND NOT p.is_template
 JOIN statuses s ON s.id = w.status_id
+LEFT JOIN teams t ON t.id = w.team_id
 WHERE a.user_id = $1::uuid
   AND (NOT s.is_closed OR w.closed_at >= $2::timestamptz)
 ORDER BY p.name, w.sequence_number
@@ -141,6 +143,10 @@ type DashboardTasksRow struct {
 	ClosedAt       *time.Time
 	Weight         int16
 	TypeID         uuid.UUID
+	IsInbox        bool
+	TeamMode       *string
+	ForTeamID      *uuid.UUID
+	ForTeamName    string
 }
 
 // Spec 013: Mi panel.
@@ -170,6 +176,10 @@ func (q *Queries) DashboardTasks(ctx context.Context, arg DashboardTasksParams) 
 			&i.ClosedAt,
 			&i.Weight,
 			&i.TypeID,
+			&i.IsInbox,
+			&i.TeamMode,
+			&i.ForTeamID,
+			&i.ForTeamName,
 		); err != nil {
 			return nil, err
 		}

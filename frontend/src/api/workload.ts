@@ -12,6 +12,8 @@ export interface WorkloadBar {
   end: string
   done_ratio: number
   overdue: boolean
+  /** Without a project (spec 022, RF-36). */
+  loose: boolean
 }
 
 export interface WorkloadRow {

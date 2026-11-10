@@ -30,6 +30,7 @@ type Bar struct {
 	End       workcore.Date `json:"end"`
 	DoneRatio int16         `json:"done_ratio"`
 	Overdue   bool          `json:"overdue"` // RF-5
+	Loose     bool          `json:"loose"`   // without a project (spec 022, RF-36)
 }
 
 // Row is one person: their bars, the open work items without a due date and
@@ -76,7 +77,7 @@ func Build(people []workcore.Ref, items []sqlc.PersonScheduleItemsRow, today tim
 			ID: it.ID, Key: fmt.Sprintf("%s-%d", it.Identifier, it.SequenceNumber), Title: it.Title,
 			Project: Project{ID: it.ProjectID, Identifier: it.Identifier, Name: it.ProjectName},
 			Start:   workcore.Date{Time: start}, End: workcore.Date{Time: end}, DoneRatio: it.DoneRatio,
-			Overdue: end.Before(today),
+			Overdue: end.Before(today), Loose: it.IsInbox,
 		}
 		r.Bars = append(r.Bars, b)
 		// An overdue item keeps the person busy until today.

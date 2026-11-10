@@ -155,7 +155,7 @@ const trackingProjects = `-- name: TrackingProjects :many
 
 SELECT p.id, p.identifier, p.name, p.team_id, p.owner_id, u.name AS owner_name
 FROM projects p JOIN users u ON u.id = p.owner_id
-WHERE p.lifecycle = 'activo' AND NOT p.is_template
+WHERE p.lifecycle = 'activo' AND NOT p.is_template AND NOT p.is_inbox
 ORDER BY p.name, p.identifier
 `
 

@@ -40,7 +40,7 @@ func (s *Service) List(ctx context.Context, p *authz.Principal, query url.Values
 	if !ok {
 		return Page{}, apperr.ErrInvalidFilter.WithDetail("field", "page")
 	}
-	where := sq.And{sq.Eq{"p.is_template": false}}
+	where := sq.And{sq.Eq{"p.is_template": false, "p.is_inbox": false}}
 	if text := strings.TrimSpace(query.Get("q")); text != "" {
 		like := "%" + workcore.EscapeLike(text) + "%"
 		where = append(where, sq.Or{

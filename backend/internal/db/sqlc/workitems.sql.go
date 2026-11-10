@@ -228,7 +228,7 @@ INSERT INTO work_items (project_id, type_id, status_id, priority_id, parent_id, 
                         description, description_text, author_id, assignee_id, start_date, due_date,
                         estimated_hours, remaining_hours, done_ratio, position, depth, closed_at, weight, size_id, meeting_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id
+RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id, team_id, team_mode
 `
 
 type CreateWorkItemParams struct {
@@ -319,6 +319,8 @@ func (q *Queries) CreateWorkItem(ctx context.Context, arg CreateWorkItemParams) 
 		&i.PageVersion,
 		&i.SizeID,
 		&i.MeetingID,
+		&i.TeamID,
+		&i.TeamMode,
 	)
 	return i, err
 }
@@ -416,7 +418,7 @@ func (q *Queries) GetDependency(ctx context.Context, id uuid.UUID) (WorkItemDepe
 }
 
 const getWorkItem = `-- name: GetWorkItem :one
-SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id FROM work_items WHERE id = $1
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id, team_id, team_mode FROM work_items WHERE id = $1
 `
 
 func (q *Queries) GetWorkItem(ctx context.Context, id uuid.UUID) (WorkItem, error) {
@@ -459,12 +461,14 @@ func (q *Queries) GetWorkItem(ctx context.Context, id uuid.UUID) (WorkItem, erro
 		&i.PageVersion,
 		&i.SizeID,
 		&i.MeetingID,
+		&i.TeamID,
+		&i.TeamMode,
 	)
 	return i, err
 }
 
 const getWorkItemByKey = `-- name: GetWorkItemByKey :one
-SELECT w.id, w.project_id, w.type_id, w.status_id, w.priority_id, w.parent_id, w.sequence_number, w.title, w.description, w.description_text, w.author_id, w.assignee_id, w.start_date, w.due_date, w.estimated_hours, w.remaining_hours, w.done_ratio, w.position, w.depth, w.agg_estimated, w.agg_remaining, w.agg_count, w.agg_ratio_sum, w.agg_est_ratio_sum, w.derived_done_ratio, w.version, w.closed_at, w.created_at, w.updated_at, w.weight, w.agg_weight, w.agg_weight_ratio_sum, w.weighted_done_ratio, w.page_version, w.size_id, w.meeting_id FROM work_items w JOIN projects p ON p.id = w.project_id
+SELECT w.id, w.project_id, w.type_id, w.status_id, w.priority_id, w.parent_id, w.sequence_number, w.title, w.description, w.description_text, w.author_id, w.assignee_id, w.start_date, w.due_date, w.estimated_hours, w.remaining_hours, w.done_ratio, w.position, w.depth, w.agg_estimated, w.agg_remaining, w.agg_count, w.agg_ratio_sum, w.agg_est_ratio_sum, w.derived_done_ratio, w.version, w.closed_at, w.created_at, w.updated_at, w.weight, w.agg_weight, w.agg_weight_ratio_sum, w.weighted_done_ratio, w.page_version, w.size_id, w.meeting_id, w.team_id, w.team_mode FROM work_items w JOIN projects p ON p.id = w.project_id
 WHERE p.identifier = $1 AND w.sequence_number = $2
 `
 
@@ -513,12 +517,14 @@ func (q *Queries) GetWorkItemByKey(ctx context.Context, arg GetWorkItemByKeyPara
 		&i.PageVersion,
 		&i.SizeID,
 		&i.MeetingID,
+		&i.TeamID,
+		&i.TeamMode,
 	)
 	return i, err
 }
 
 const getWorkItemForUpdate = `-- name: GetWorkItemForUpdate :one
-SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id FROM work_items WHERE id = $1 FOR UPDATE
+SELECT id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id, team_id, team_mode FROM work_items WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetWorkItemForUpdate(ctx context.Context, id uuid.UUID) (WorkItem, error) {
@@ -561,6 +567,8 @@ func (q *Queries) GetWorkItemForUpdate(ctx context.Context, id uuid.UUID) (WorkI
 		&i.PageVersion,
 		&i.SizeID,
 		&i.MeetingID,
+		&i.TeamID,
+		&i.TeamMode,
 	)
 	return i, err
 }
@@ -1007,7 +1015,7 @@ SET type_id = $3, status_id = $4, priority_id = $5, parent_id = $6, title = $7, 
     remaining_hours = $14, done_ratio = $15, position = $16, depth = $17, closed_at = $18, weight = $19,
     size_id = $20, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
-RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id
+RETURNING id, project_id, type_id, status_id, priority_id, parent_id, sequence_number, title, description, description_text, author_id, assignee_id, start_date, due_date, estimated_hours, remaining_hours, done_ratio, position, depth, agg_estimated, agg_remaining, agg_count, agg_ratio_sum, agg_est_ratio_sum, derived_done_ratio, version, closed_at, created_at, updated_at, weight, agg_weight, agg_weight_ratio_sum, weighted_done_ratio, page_version, size_id, meeting_id, team_id, team_mode
 `
 
 type UpdateWorkItemParams struct {
@@ -1094,6 +1102,8 @@ func (q *Queries) UpdateWorkItem(ctx context.Context, arg UpdateWorkItemParams) 
 		&i.PageVersion,
 		&i.SizeID,
 		&i.MeetingID,
+		&i.TeamID,
+		&i.TeamMode,
 	)
 	return i, err
 }

@@ -60,7 +60,9 @@ func Writable(p sqlc.Project) error {
 
 // Visible hides templates from users that cannot use them (RF-35).
 func Visible(p *authz.Principal, row sqlc.Project) bool {
-	return !row.IsTemplate || p.Has(authz.TemplatesUse)
+	// The inbox of the work items without a project is never a project to
+	// anybody (spec 022): they are reached one by one.
+	return !row.IsInbox && (!row.IsTemplate || p.Has(authz.TemplatesUse))
 }
 
 // Get loads a project the caller can see, optionally locking it.

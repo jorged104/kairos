@@ -30,6 +30,7 @@ import { toUpdateInput } from '@/features/workitems/patch'
 import { childrenOf } from '@/features/workitems/tree'
 import type { AttributeValue } from '@/types/api'
 import type { CustomField, WorkItem } from '@/types/work'
+import LooseBar from '@/features/loose/LooseBar.vue'
 import InlineField from './InlineField.vue'
 
 // A work item as a page (spec 005): title and properties, edited where they
@@ -51,11 +52,14 @@ const { data: wi, error: loadError } = useQuery({ queryKey: key, queryFn: () => 
 const id = computed(() => wi.value?.id ?? '')
 const projectId = computed(() => wi.value?.project.id ?? '')
 const enabled = computed(() => !!wi.value)
-const { data: project } = useQuery({ queryKey: computed(() => ['project', projectId.value]), queryFn: () => getProject(projectId.value), enabled })
-const { data: tree } = useQuery({ queryKey: computed(() => ['tree', projectId.value]), queryFn: () => projectTree(projectId.value), enabled })
+// Without a project there is no project to read (spec 022).
+const loose = computed(() => wi.value?.loose)
+const inProject = computed(() => !!wi.value && !loose.value)
+const { data: project } = useQuery({ queryKey: computed(() => ['project', projectId.value]), queryFn: () => getProject(projectId.value), enabled: inProject })
+const { data: tree } = useQuery({ queryKey: computed(() => ['tree', projectId.value]), queryFn: () => projectTree(projectId.value), enabled: inProject })
 const { data: ancestors } = useQuery({ queryKey: computed(() => ['ancestors', id.value]), queryFn: () => workItemAncestors(id.value), enabled })
 
-const writable = computed(() => !!wi.value?.can.write && project.value?.lifecycle === 'activo')
+const writable = computed(() => !!wi.value?.can.write && (!!loose.value || project.value?.lifecycle === 'activo'))
 const itemFields = computed(() =>
   fields.value.filter(
     (f) =>
@@ -67,7 +71,7 @@ const itemFields = computed(() =>
 
 // The choices of each property.
 const typeOptions = computed<CellOption[]>(() =>
-  (project.value?.work_item_type_ids ?? []).flatMap((x) => {
+  (loose.value ? [wi.value!.type_id] : (project.value?.work_item_type_ids ?? [])).flatMap((x) => {
     const ty = types.value.get(x)
     return ty ? [{ value: ty.id, label: ty.name }] : []
   }),
@@ -144,7 +148,7 @@ const armed = ref(false)
 let disarm: ReturnType<typeof setTimeout> | undefined
 const remove = useMutation({
   mutationFn: () => deleteWorkItem(id.value),
-  onSuccess: () => router.push(`/projects/${projectId.value}?tab=work-items`),
+  onSuccess: () => router.push(loose.value ? '/' : `/projects/${projectId.value}?tab=work-items`),
   onError: (e) => (error.value = e),
 })
 function onDelete() {
@@ -172,6 +176,13 @@ async function reloadPage() {
 }
 
 const fullWidth = useFullWidth()
+
+// Taken, given back or moved to a project: a move changes its key (spec 022, RF-38).
+function onLooseChanged(w: WorkItem) {
+  if (w.key === wi.value?.key) return refresh(w)
+  qc.setQueryData(['work-item', w.key.toUpperCase()], w)
+  return props.panel ? router.replace({ query: { ...router.currentRoute.value.query, item: w.key } }) : router.replace(`/work-items/${w.key}`)
+}
 
 // Comments: the list below the properties (spec 006, RF-22) and the threads
 // of a highlight in the page, floating next to it (RF-47).
@@ -237,7 +248,8 @@ defineExpose({ close })
           <span v-if="armed">{{ t('workItems.confirmDelete') }}</span>
         </Button>
         <nav class="flex min-w-0 flex-wrap items-center gap-1 text-sm text-muted-foreground">
-          <RouterLink :to="`/projects/${wi.project.id}?tab=work-items`" class="hover:underline">{{ wi.project.name }}</RouterLink>
+          <span v-if="wi.loose" data-testid="no-project">{{ wi.loose.team?.name ?? t('loose.noProject') }}</span>
+          <RouterLink v-else :to="`/projects/${wi.project.id}?tab=work-items`" class="hover:underline">{{ wi.project.name }}</RouterLink>
           <template v-for="a in [...(ancestors ?? [])].reverse()" :key="a.id">
             <span>/</span>
             <RouterLink :to="`/work-items/${a.key}`" class="hover:underline">{{ a.key }}</RouterLink>
@@ -293,6 +305,8 @@ defineExpose({ close })
           <Button v-if="conflict" size="sm" variant="outline" @click="refresh()">{{ t('work.reload') }}</Button>
         </AlertDescription>
       </Alert>
+
+      <LooseBar v-if="wi.loose" :item="wi" @changed="onLooseChanged" @error="error = $event" />
 
       <div v-if="writable && wi.allowed_status_ids.length" class="flex flex-wrap items-center gap-2 text-sm">
         <span class="text-muted-foreground">{{ t('workItems.moveTo') }}</span>
@@ -394,7 +408,7 @@ defineExpose({ close })
                 <InlineField id="w-type" kind="select" :value="wi.type_id" :label="t('workItems.type')" :options="typeOptions" :editable="writable" required :save="(v) => saveField({ type_id: v })" />
               </dd>
             </div>
-            <div class="flex flex-col">
+            <div v-if="!wi.loose" class="flex flex-col">
               <dt><label for="w-parent" class="text-muted-foreground">{{ t('workItems.parent') }}</label></dt>
               <dd>
                 <InlineField
