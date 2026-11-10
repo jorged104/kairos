@@ -103,12 +103,12 @@ func TestUploadAndServeFiles(t *testing.T) {
 	s.upload(t, s.member, owner, "max.txt", bytes.Repeat([]byte("a"), 10<<20), http.StatusCreated)
 	s.upload(t, s.member, owner, "big.txt", bytes.Repeat([]byte("a"), 10<<20+1), http.StatusRequestEntityTooLarge, "file_too_large")
 
-	// Reading follows the page: every project is readable with work:read (spec 004).
+	// Reading follows the page: whoever sees the project (spec 023).
 	// Uploading needs the right to change the work item.
 	s.viewer.Get("/api/files/"+img.ID.String()).Expect(t, http.StatusOK)
-	s.outsider.Get("/api/files/"+img.ID.String()).Expect(t, http.StatusOK)
+	s.outsider.Get("/api/files/"+img.ID.String()).Expect(t, http.StatusNotFound)
 	s.upload(t, s.viewer, owner, "a.png", pngData, http.StatusForbidden)
-	s.upload(t, s.outsider, owner, "a.png", pngData, http.StatusForbidden)
+	s.upload(t, s.outsider, owner, "a.png", pngData, http.StatusNotFound)
 	s.member.Get("/api/files/"+uuid.NewString()).Expect(t, http.StatusNotFound)
 	if res := s.env.Client().Get("/api/files/" + img.ID.String()); res.Status != http.StatusUnauthorized {
 		t.Errorf("without a session = %d", res.Status)

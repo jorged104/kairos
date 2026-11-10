@@ -142,7 +142,7 @@ func TestCreateWorkItem(t *testing.T) {
 	s.member.Post(p, map[string]any{"type_id": s.env.CatalogID("work_item_types", "Bug"), "title": "x"}).Expect(t, http.StatusBadRequest, "type_not_enabled")
 
 	// Who writes: participants yes; outsiders and viewers no.
-	s.outsider.Post(p, map[string]any{"type_id": act, "title": "x"}).Expect(t, http.StatusForbidden, "forbidden")
+	s.outsider.Post(p, map[string]any{"type_id": act, "title": "x"}).Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 	s.viewer.Post(p, map[string]any{"type_id": act, "title": "x"}).Expect(t, http.StatusForbidden, "forbidden")
 }
 
@@ -279,7 +279,7 @@ func TestCompositionAndDerivedValues(t *testing.T) {
 
 	// Deleting: never with children; leaves yes, and the parent follows (RF-85).
 	s.member.Do(http.MethodDelete, "/api/work-items/"+a.ID.String(), nil).Expect(t, http.StatusConflict, "has_children")
-	s.outsider.Do(http.MethodDelete, "/api/work-items/"+b.ID.String(), nil).Expect(t, http.StatusForbidden)
+	s.outsider.Do(http.MethodDelete, "/api/work-items/"+b.ID.String(), nil).Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 	s.member.Do(http.MethodDelete, "/api/work-items/"+b.ID.String(), nil).Expect(t, http.StatusNoContent)
 	if got := s.get(t, epic.ID).Derived; got.EstimatedHours != 10 {
 		t.Fatalf("derived after delete = %+v", got)
@@ -426,7 +426,7 @@ func TestDependencies(t *testing.T) {
 	dep(s.member, a, b, "relates", 3).Expect(t, http.StatusBadRequest, "validation_failed")
 	dep(s.member, a, b, "precedes", 400).Expect(t, http.StatusBadRequest, "validation_failed")
 	dep(s.member, a, x, "duplicates", 0).Expect(t, http.StatusCreated) // across projects (RF-90)
-	dep(s.outsider, x, a, "relates", 0).Expect(t, http.StatusForbidden)
+	dep(s.outsider, x, a, "relates", 0).Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 
 	var res struct {
 		Items []struct {

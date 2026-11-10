@@ -144,7 +144,7 @@ func TestProjectStatusChange(t *testing.T) {
 	cur := s.statused(t, p.ID)
 
 	// Whoever manages it moves it freely (RF-17, RF-18).
-	s.setStatus(s.outsider, p.ID, cur.Version, st["En ejecución"].ID).Expect(t, http.StatusForbidden)
+	s.setStatus(s.outsider, p.ID, cur.Version, st["En ejecución"].ID).Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 	s.setStatus(s.viewer, p.ID, cur.Version, st["En ejecución"].ID).Expect(t, http.StatusForbidden)
 	s.setStatus(s.member, p.ID, cur.Version, st["En ejecución"].ID).Expect(t, http.StatusOK).JSON(t, &cur)
 	if cur.Lifecycle != "activo" || *cur.StatusID != st["En ejecución"].ID {

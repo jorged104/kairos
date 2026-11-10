@@ -79,7 +79,8 @@ func TestCommentThreads(t *testing.T) {
 	if got := s.comments(t, s.viewer, wi); got.CanComment || len(got.Threads) != 1 || got.Threads[0].Can.Edit {
 		t.Fatalf("viewer sees %+v", got)
 	}
-	// Someone of another team reads every project and comments too (spec 004 visibility).
+	// Someone of another team sees the project as its observer (spec 023) and comments too.
+	s.addMember(s.lead, project, s.outsiderID, "observer").Expect(t, http.StatusOK)
 	s.comment(t, s.outsider, wi, text("Desde fuera"), http.StatusCreated)
 
 	// Empty and over 10 000 characters are rejected with their reason (RF-27).
@@ -179,6 +180,7 @@ func TestCommentFiles(t *testing.T) {
 	other := s.item(t, s.member, project, map[string]any{}).ID
 
 	// A file of the comments goes in a comment of that work item only (RF-26).
+	s.addMember(s.lead, project, s.outsiderID, "observer").Expect(t, http.StatusOK)
 	var f fileDTO
 	s.outsider.Upload("/api/work-items/"+wi.String()+"/comment-files", "captura.png", pngData).Expect(t, http.StatusCreated).JSON(t, &f)
 	s.viewer.Upload("/api/work-items/"+wi.String()+"/comment-files", "captura.png", pngData).Expect(t, http.StatusForbidden)
@@ -218,6 +220,7 @@ func TestAnchoredComments(t *testing.T) {
 	}
 
 	// Someone who can't edit the work item anchors a comment (RF-45, RF-46).
+	s.addMember(s.lead, project, s.outsiderID, "observer").Expect(t, http.StatusOK)
 	t1 := uuid.New()
 	var seen workItemDTO
 	s.outsider.Get("/api/work-items/"+wi.String()).Expect(t, http.StatusOK).JSON(t, &seen)

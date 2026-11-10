@@ -67,6 +67,26 @@ func Load(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID
 	return row, project, err
 }
 
+// ownProgress reports whether the caller, without write, may still move one
+// of their own work items in a project they see only through them (spec
+// 023, RF-15).
+func ownProgress(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.WorkItem, project sqlc.Project) (bool, error) {
+	if project.IsInbox || !p.ReadsByAssignment(projects.Ref(project)) {
+		return false, nil
+	}
+	ids, err := assigneeIDs(ctx, q, row.ID)
+	return slices.Contains(ids, p.UserID), err
+}
+
+// pinToProgress keeps everything of the work item but its status, progress
+// and hours (RF-15).
+func pinToProgress(req *updateRequest, row sqlc.WorkItem) {
+	req.TypeID, req.PriorityID, req.Title, req.Description = row.TypeID, row.PriorityID, row.Title, nil
+	req.ParentID, req.AssigneeIDs, req.AssigneeID = row.ParentID, nil, row.AssigneeID
+	req.StartDate, req.DueDate, req.Weight = workcore.FromTime(row.StartDate), workcore.FromTime(row.DueDate), &row.Weight
+	req.SizeID, req.LabelIDs, req.CustomValues, req.Position = optionalID{}, nil, nil, row.Position
+}
+
 // forbidden is err, or forbidden when there is none.
 func forbidden(err error) error {
 	if err != nil {
@@ -564,8 +584,16 @@ func (s *Service) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, 
 		if err != nil {
 			return err
 		}
-		if a, err := Access(ctx, q, p, row, project); err != nil || !a.Write {
-			return forbidden(err)
+		a, err := Access(ctx, q, p, row, project)
+		if err != nil {
+			return err
+		}
+		if !a.Write {
+			own, err := ownProgress(ctx, q, p, row, project)
+			if err != nil || !own {
+				return forbidden(err)
+			}
+			pinToProgress(&req, row)
 		}
 		if err := projects.Writable(project); err != nil {
 			return err
@@ -1028,7 +1056,12 @@ func view(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Wor
 	for _, v := range values {
 		out.CustomValues[v.FieldID] = v.Value
 	}
-	if out.Can.Write && projects.Writable(project) == nil {
+	if !out.Can.Write && !project.IsInbox {
+		if out.Can.Progress, err = ownProgress(ctx, q, p, row, project); err != nil {
+			return out, err
+		}
+	}
+	if (out.Can.Write || out.Can.Progress) && projects.Writable(project) == nil {
 		if out.AllowedStatusIDs, err = catalog.AllowedTargets(ctx, q, p, row.TypeID, row.StatusID); err != nil {
 			return out, err
 		}

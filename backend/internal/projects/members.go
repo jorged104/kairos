@@ -59,13 +59,12 @@ var (
 )
 
 // Members lists the project's team for those who manage it (RF-4, RF-33).
+// Members lists the team of a project to whoever sees it; changing it is for
+// whoever manages it (spec 023, RF-12).
 func (s *Service) Members(ctx context.Context, p *authz.Principal, id uuid.UUID) ([]Member, error) {
 	row, err := Get(ctx, s.store.Queries, p, id, false)
 	if err != nil {
 		return nil, err
-	}
-	if !p.CanManageProject(Ref(row)) {
-		return nil, apperr.ErrForbidden
 	}
 	return members(ctx, s.store.Queries, row)
 }
@@ -74,7 +73,14 @@ func (s *Service) Members(ctx context.Context, p *authz.Principal, id uuid.UUID)
 // observers nor who can only read, for those who manage it (spec 021, RF-16 to
 // RF-18). Somebody deactivated stays while a member.
 func (s *Service) TeamSchedule(ctx context.Context, p *authz.Principal, id uuid.UUID, today time.Time) ([]workload.Row, error) {
-	ms, err := s.Members(ctx, p, id)
+	row, err := Get(ctx, s.store.Queries, p, id, false)
+	if err != nil {
+		return nil, err
+	}
+	if !p.CanManageProject(Ref(row)) { // RF-13
+		return nil, apperr.ErrForbidden
+	}
+	ms, err := members(ctx, s.store.Queries, row)
 	if err != nil {
 		return nil, err
 	}

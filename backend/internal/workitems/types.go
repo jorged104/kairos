@@ -35,6 +35,9 @@ type Derived struct {
 type Can struct {
 	Write  bool `json:"write"`
 	Delete bool `json:"delete"`
+	// Progress: without write, the status, progress and hours of one's own
+	// work item in a project seen only through it (spec 023, RF-15).
+	Progress bool `json:"progress"`
 }
 
 type WorkItem struct {

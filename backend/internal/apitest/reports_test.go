@@ -471,7 +471,7 @@ func TestReportGeneration(t *testing.T) {
 
 	// Only who manages the project generates (RF-34).
 	s.outsider.Post("/api/projects/"+s.root.ID.String()+"/reports/generate", map[string]any{"template_id": s.estadoID}).
-		Expect(t, http.StatusForbidden, "forbidden")
+		Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 	s.generate(s.pm, s.root.ID, map[string]any{}).Expect(t, http.StatusBadRequest, "validation_failed")
 
 	res := s.generate(s.pm, s.root.ID, map[string]any{"template_id": s.estadoID, "instructions": "Destaca los riesgos."}).Expect(t, http.StatusOK)

@@ -12,8 +12,67 @@ import (
 // belong to team BI, except for "lead:out", whose ones belong to team Otro.
 // "participant" is a member of BI Reportes (a subteam of BI); "owner" is a
 // member outside BI who owns the project or objective; "stranger" is a member
-// of Otro.
-var workActors = []string{"admin", "lead:in", "lead:out", "participant", "owner", "stranger", "viewer"}
+// of Otro; "director" has the role Dirección (spec 023).
+var workActors = []string{"admin", "director", "lead:in", "lead:out", "participant", "owner", "stranger", "viewer"}
+
+// inProject are the operations on one project. Since spec 023 a project is
+// seen only by its teams, its roles and its assignees, so "stranger" (Otro,
+// on a project of BI) and "lead:out" (who leads BI, on a project of Otro)
+// do not see it: 404, whatever the operation.
+var inProject = map[string]bool{}
+
+func init() {
+	for _, name := range []string{
+		"ver proyecto",
+		"ver plan del proyecto",
+		"fijar línea base",
+		"seguir tarea",
+		"crear reunión",
+		"comentar reunión",
+		"crear plantilla de reunión del proyecto",
+		"ver informes del proyecto",
+		"crear informe",
+		"generar informe sin IA configurada",
+		"cambiar estado de proyecto",
+		"editar proyecto",
+		"cerrar proyecto",
+		"activar tipos",
+		"marcar gate",
+		"ver equipo del proyecto",
+		"dar papel en el proyecto",
+		"ver sugerencias de asignación",
+		"ver cronograma por persona",
+		"crear hito",
+		"ligar work item a hito",
+		"desligar work items de un hito",
+		"cumplir hito",
+		"ver árbol",
+		"crear work item",
+		"cerrar work item",
+		"borrar work item ajeno",
+		"crear dependencia",
+		"subir archivo a work item",
+		"subir archivo a hito",
+		"subir archivo a proyecto",
+		"guardar página de work item",
+		"guardar página de hito",
+		"guardar página de proyecto",
+		"leer comentarios",
+		"comentar",
+		"responder comentario",
+		"editar comentario ajeno",
+		"borrar comentario de participante",
+		"resolver hilo",
+		"subir archivo a comentario",
+		"descargar archivo",
+	} {
+		inProject[name] = true
+	}
+}
+
+func unseen(op, actor string) bool {
+	return inProject[op] && (actor == "stranger" || actor == "lead:out")
+}
 
 type workMatrix struct {
 	*Env
@@ -155,21 +214,21 @@ var workOps = []workOp{
 	{"ver personas de los paneles", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/dashboard/people") }, workAll(200)},
 	{"ver panel de alguien del equipo", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/users/" + m.actors["participant"].String() + "/dashboard")
-	}, map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200, "participant": 200, "owner": 404, "stranger": 404, "viewer": 404}},
+	}, map[string]int{"admin": 200, "director": 200, "lead:in": 200, "lead:out": 200, "participant": 200, "owner": 404, "stranger": 404, "viewer": 404}},
 	{"ver panel de alguien de otro equipo", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/users/" + m.actors["stranger"].String() + "/dashboard")
-	}, map[string]int{"admin": 200, "lead:in": 404, "lead:out": 404, "participant": 404, "owner": 404, "stranger": 200, "viewer": 404}},
+	}, map[string]int{"admin": 200, "director": 200, "lead:in": 404, "lead:out": 404, "participant": 404, "owner": 404, "stranger": 200, "viewer": 404}},
 	// Spec 022: a task without a project for oneself, but a viewer; the team
 	// tasks for leads and the administrator; anybody sees what to take.
 	{"crear tarea sin proyecto para sí", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/loose-tasks", map[string]any{"title": "Suelta", "user_id": m.actors[a]})
-	}, map[string]int{"admin": 201, "lead:in": 201, "lead:out": 201, "participant": 201, "owner": 201, "stranger": 201}},
+	}, map[string]int{"admin": 201, "director": 201, "lead:in": 201, "lead:out": 201, "participant": 201, "owner": 201, "stranger": 201}},
 	{"ver tareas para tomar", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/claimable-tasks") }, workAll(200)},
 	{"ver tareas del equipo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/team-tasks") },
 		map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200}},
 	// Spec 021: Mi equipo, for whoever sees other people's panels.
 	{"ver mi equipo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/team") },
-		map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200}},
+		map[string]int{"admin": 200, "director": 200, "lead:in": 200, "lead:out": 200}},
 	// Spec 014: everyone sees their points and the tables; only the administrator changes them.
 	{"ver mis puntos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/me/points") }, workAll(200)},
 	{"ver tabla de puntos", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/gamification/values") }, workAll(200)},
@@ -248,7 +307,7 @@ var workOps = []workOp{
 	}, workAll(201)},
 	{"compartir vista de proyectos", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/project-views", map[string]any{"name": "V-" + uuid.NewString(), "shared": true, "config": map[string]any{}})
-	}, map[string]int{"admin": 201, "lead:in": 201, "lead:out": 201}},
+	}, map[string]int{"admin": 201, "director": 201, "lead:in": 201, "lead:out": 201}},
 	{"ver semáforo", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/schedule-settings") }, workAll(200)},
 	{"configurar semáforo", func(m *workMatrix, c *Client, a string) *Response {
 		var cur map[string]any
@@ -280,14 +339,14 @@ var workOps = []workOp{
 		return c.Post("/api/projects/"+m.project(a).String()+"/template", nil)
 	}, map[string]int{"admin": 200}},
 	{"listar plantillas", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/templates") },
-		map[string]int{"admin": 200, "lead:in": 200, "lead:out": 200}},
+		map[string]int{"admin": 200, "director": 200, "lead:in": 200, "lead:out": 200}},
 	{"proyecto desde plantilla", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/projects/from-template", map[string]any{"template_id": m.template, "identifier": m.identifier(), "name": "N", "team_id": m.teamFor(a)})
 	}, map[string]int{"admin": 201, "lead:in": 201}},
 	// Team of the project (spec 008, RF-4, RF-33, RF-52): its managers.
 	{"ver equipo del proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Get("/api/projects/" + m.project(a).String() + "/members")
-	}, managers(200)},
+	}, workAll(200)}, // whoever sees the project (spec 023, RF-12)
 	{"dar papel en el proyecto", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/projects/"+m.project(a).String()+"/members", map[string]any{"user_id": m.actors["stranger"], "role": "member"})
 	}, managers(200)},
@@ -383,7 +442,11 @@ var workOps = []workOp{
 		return c.Do(http.MethodPatch, "/api/comments/"+root.String(), map[string]any{"body": json.RawMessage(paragraph("otro"))})
 	}, map[string]int{"admin": 200}},
 	{"borrar comentario de participante", func(m *workMatrix, c *Client, a string) *Response {
-		_, root := m.comment(m.project(a), m.As(m.actors["participant"]))
+		author := m.As(m.actors["participant"])
+		if a == "lead:out" { // the participant does not see a project of Otro (spec 023)
+			author = m.admin
+		}
+		_, root := m.comment(m.project(a), author)
 		return c.Do(http.MethodDelete, "/api/comments/"+root.String(), nil)
 	}, map[string]int{"admin": 200, "lead:in": 200, "owner": 200, "participant": 200}},
 	{"resolver hilo", func(m *workMatrix, c *Client, a string) *Response {
@@ -418,6 +481,7 @@ func TestWorkPermissionMatrix(t *testing.T) {
 		"owner":       env.CreateUser(UserSpec{Name: "Owner", Email: "owner@x.com", Roles: []string{"member"}}),
 		"stranger":    env.CreateUser(UserSpec{Name: "Str", Email: "str@x.com", Roles: []string{"member"}, Teams: []uuid.UUID{m.other}}),
 		"viewer":      env.CreateUser(UserSpec{Name: "View", Email: "view@x.com", Roles: []string{"viewer"}, Teams: []uuid.UUID{m.bi}}),
+		"director":    env.CreateUser(UserSpec{Name: "Dir", Email: "dir@x.com", Roles: []string{"director"}}),
 	}
 	m.act = env.CatalogID("work_item_types", "Actividad")
 	m.cerrado = env.CatalogID("statuses", "Cerrado")
@@ -429,6 +493,9 @@ func TestWorkPermissionMatrix(t *testing.T) {
 			want, ok := op.want[actor]
 			if !ok {
 				want = http.StatusForbidden
+			}
+			if unseen(op.name, actor) {
+				want = http.StatusNotFound
 			}
 			t.Run(op.name+"/"+actor, func(t *testing.T) {
 				res := op.do(m, env.As(m.actors[actor]), actor)

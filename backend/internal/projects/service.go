@@ -58,11 +58,27 @@ func Writable(p sqlc.Project) error {
 	return nil
 }
 
-// Visible hides templates from users that cannot use them (RF-35).
+// Visible hides templates from users that cannot use them (RF-35) and every
+// other project the user does not see (spec 023, RF-1).
 func Visible(p *authz.Principal, row sqlc.Project) bool {
 	// The inbox of the work items without a project is never a project to
 	// anybody (spec 022): they are reached one by one.
-	return !row.IsInbox && (!row.IsTemplate || p.Has(authz.TemplatesUse))
+	if row.IsInbox {
+		return false
+	}
+	if row.IsTemplate {
+		return p.Has(authz.TemplatesUse)
+	}
+	return p.SeesProject(Ref(row))
+}
+
+// visibleNow is Visible with the assigned work items read live, so being
+// given or losing one shows at once (spec 023, RF-15, RF-16).
+func visibleNow(ctx context.Context, q *sqlc.Queries, p *authz.Principal, row sqlc.Project) (bool, error) {
+	if row.IsInbox || row.IsTemplate || p.SeesWithoutAssignments(Ref(row)) {
+		return Visible(p, row), nil
+	}
+	return q.HasAssignedWorkItem(ctx, sqlc.HasAssignedWorkItemParams{UserID: p.UserID, ProjectID: row.ID})
 }
 
 // Get loads a project the caller can see, optionally locking it.
@@ -72,11 +88,18 @@ func Get(ctx context.Context, q *sqlc.Queries, p *authz.Principal, id uuid.UUID,
 		get = q.GetProjectForUpdate
 	}
 	row, err := get(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !Visible(p, row)) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return sqlc.Project{}, apperr.ErrNotFound
 	}
 	if err != nil {
 		return sqlc.Project{}, fmt.Errorf("leer proyecto: %w", err)
+	}
+	ok, err := visibleNow(ctx, q, p, row)
+	if err != nil {
+		return sqlc.Project{}, fmt.Errorf("visibilidad del proyecto: %w", err)
+	}
+	if !ok {
+		return sqlc.Project{}, apperr.ErrNotFound
 	}
 	return row, nil
 }

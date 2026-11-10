@@ -137,7 +137,7 @@ func TestMilestoneRules(t *testing.T) {
 	// Whoever edits work items links them; others do not (RF-161).
 	wi := s.item(t, s.member, project, map[string]any{})
 	s.link(t, s.viewer, m.ID, wi.ID).Expect(t, http.StatusForbidden, "forbidden")
-	s.link(t, s.outsider, m.ID, wi.ID).Expect(t, http.StatusForbidden, "forbidden")
+	s.link(t, s.outsider, m.ID, wi.ID).Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 	s.link(t, s.member, m.ID, wi.ID).Expect(t, http.StatusNoContent)
 
 	// Complete with open items, reopen, cancel (RF-45 to RF-49).

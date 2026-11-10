@@ -91,7 +91,28 @@ func (l *PrincipalLoader) fetch(ctx context.Context, id uuid.UUID) (*authz.Princ
 	for _, r := range rolesIn {
 		inProjects[r.ProjectID] = authz.ProjectRole(r.Role)
 	}
-	return authz.NewPrincipal(u.ID, u.Status, roles, scope).WithParticipantTeams(participant).WithProjectRoles(inProjects), nil
+	teams, err := l.store.DirectTeamIDs(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("cargar equipos propios: %w", err)
+	}
+	seen, err := l.store.SeenTeamIDs(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("cargar equipos vistos: %w", err)
+	}
+	assigned, err := l.store.AssignedProjectIDs(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("cargar proyectos con tareas: %w", err)
+	}
+	projectRows, err := l.store.VisibilityProjects(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cargar proyectos: %w", err)
+	}
+	all := make([]authz.VisibilityProject, len(projectRows))
+	for i, r := range projectRows {
+		all[i] = authz.VisibilityProject{ProjectRef: authz.ProjectRef{ID: r.ID, TeamID: r.TeamID, OwnerID: r.OwnerID}, ParentID: r.ParentID, IsProgram: r.IsProgram}
+	}
+	p := authz.NewPrincipal(u.ID, u.Status, roles, scope).WithParticipantTeams(participant).WithProjectRoles(inProjects)
+	return p.WithVisibility(teams, seen, assigned, all), nil
 }
 
 // Invalidate drops one user's cached principal after a change made here.

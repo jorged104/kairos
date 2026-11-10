@@ -64,10 +64,11 @@ func TestProjectRoles(t *testing.T) {
 	if _, ok := team[s.outsiderID]; ok {
 		t.Fatal("an outsider is not a member")
 	}
-	// Only who manages the team sees and changes it (RF-4, RF-33).
-	s.member.Get("/api/projects/"+p.ID.String()+"/members").Expect(t, http.StatusForbidden)
+	// Whoever sees the project sees its team (spec 023, RF-12); only who
+	// manages it changes it (RF-33). An outsider does not see it at all.
+	s.member.Get("/api/projects/"+p.ID.String()+"/members").Expect(t, http.StatusOK)
 	s.addMember(s.member, p.ID, s.outsiderID, "member").Expect(t, http.StatusForbidden)
-	newItem(s.outsider).Expect(t, http.StatusForbidden)
+	newItem(s.outsider).Expect(t, http.StatusNotFound)
 
 	// A PM manages the project even with the global role member (RF-39).
 	s.addMember(s.lead, p.ID, s.outsiderID, "pm").Expect(t, http.StatusOK)
@@ -97,7 +98,7 @@ func TestProjectRoles(t *testing.T) {
 	tech := s.env.As(tl)
 	s.addMember(s.outsider, p.ID, tl, "tech_lead").Expect(t, http.StatusOK)
 	tech.Do(http.MethodDelete, "/api/work-items/"+byMember.ID.String(), nil).Expect(t, http.StatusNoContent)
-	tech.Get("/api/projects/"+p.ID.String()+"/members").Expect(t, http.StatusForbidden)
+	tech.Get("/api/projects/"+p.ID.String()+"/members").Expect(t, http.StatusOK) // sees it (spec 023, RF-12)
 	s.patchProject(tech, s.getProject(t, p.ID), map[string]any{"name": "No"}).Expect(t, http.StatusForbidden)
 
 	// A role never takes away a global grant (RF-43).
@@ -113,9 +114,10 @@ func TestProjectRoles(t *testing.T) {
 		Expect(t, http.StatusConflict, "member_from_team")
 	s.addMember(s.outsider, p.ID, s.outsiderID, "bogus").Expect(t, http.StatusBadRequest, "validation_failed")
 
-	// Taking the PM out takes the grant away at once (RF-44).
+	// Taking the PM out takes the grant away at once (RF-44), and with it the
+	// project, which is not of the outsider's team (spec 023).
 	s.lead.Do(http.MethodDelete, "/api/projects/"+p.ID.String()+"/members/"+s.outsiderID.String(), nil).Expect(t, http.StatusOK)
-	newItem(s.outsider).Expect(t, http.StatusForbidden)
+	newItem(s.outsider).Expect(t, http.StatusNotFound)
 
 	// Every change is audited on the project (RF-45).
 	n := 0

@@ -166,7 +166,7 @@ func TestUpdateProjectAndVersion(t *testing.T) {
 	s.patchProject(s.lead, updated, map[string]any{"owner_id": s.memberID}).Expect(t, http.StatusOK).JSON(t, &withOwner)
 	var afterMember projectDTO
 	s.patchProject(s.member, withOwner, map[string]any{"name": "Por Mario"}).Expect(t, http.StatusOK).JSON(t, &afterMember)
-	s.patchProject(s.outsider, afterMember, map[string]any{"name": "X"}).Expect(t, http.StatusForbidden, "forbidden")
+	s.patchProject(s.outsider, afterMember, map[string]any{"name": "X"}).Expect(t, http.StatusNotFound) // does not see the project (spec 023)
 	s.patchProject(s.viewer, afterMember, map[string]any{"name": "X"}).Expect(t, http.StatusForbidden, "forbidden")
 }
 
