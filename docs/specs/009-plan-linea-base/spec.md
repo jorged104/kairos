@@ -111,7 +111,7 @@ varios proyectos y mapa estratégico. Los conceptos sirven a cualquier industria
 ## Casos límite
 - Tarea con fin anterior al inicio: no puede existir (spec 004); la línea base nunca la contiene.
 - Tarea de peso 0: no aporta al plan ni al real, igual que hoy.
-- Tarea que estaba en la línea base y se borra: deja de contar para el plan y para el real.
+- Tarea que estaba en la línea base y se borra: deja de contar para el plan y para el real. Desde la spec 024 sigue guardada en la línea base para mostrarla como quitada al comparar.
 - Tarea rechazada o cerrada sin hacer: cuenta como cerrada (RF-26); quien no quiera que cuente la borra o le pone peso 0.
 - Tarea que cambia de proyecto: deja de contar en la línea base del proyecto de origen y entra en el nuevo como fuera de línea base.
 - Fijar la línea base dos veces el mismo día: crea dos versiones; manda la más reciente.
@@ -125,7 +125,7 @@ varios proyectos y mapa estratégico. Los conceptos sirven a cualquier industria
 - Umbrales distintos por proyecto o por programa.
 - Línea base de hitos u objetivos independiente de la de sus tareas.
 - Aprobación de una nueva línea base por un tercero.
-- Comparar dos versiones de línea base entre sí.
+- Comparar dos versiones de línea base entre sí (lo cubre la spec 024).
 - Programas, portafolio, seguimiento de varios proyectos y mapa estratégico (siguientes specs).
 
 ## Criterios de finalización

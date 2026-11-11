@@ -12,10 +12,71 @@ import (
 	"github.com/google/uuid"
 )
 
+const baselineCompareItems = `-- name: BaselineCompareItems :many
+SELECT bi.work_item_id AS id, bi.start_date, bi.due_date, bi.item_key, bi.title AS saved_title,
+       w.title, w.project_id, w.sequence_number, p.identifier, p.team_id, p.owner_id,
+       coalesce(p.is_inbox, false)::bool AS is_inbox
+FROM project_baseline_items bi
+LEFT JOIN work_items w ON w.id = bi.work_item_id
+LEFT JOIN projects p ON p.id = w.project_id
+WHERE bi.baseline_id = $1 AND (w.id IS NOT NULL OR bi.title IS NOT NULL)
+`
+
+type BaselineCompareItemsRow struct {
+	ID             uuid.UUID
+	StartDate      *time.Time
+	DueDate        *time.Time
+	ItemKey        *string
+	SavedTitle     *string
+	Title          *string
+	ProjectID      *uuid.UUID
+	SequenceNumber *int32
+	Identifier     *string
+	TeamID         *uuid.UUID
+	OwnerID        *uuid.UUID
+	IsInbox        bool
+}
+
+// The work items of a baseline as they are now (spec 024): deleted ones only
+// when the baseline kept their key and title (RF-25), and where each one is.
+func (q *Queries) BaselineCompareItems(ctx context.Context, baselineID uuid.UUID) ([]BaselineCompareItemsRow, error) {
+	rows, err := q.db.Query(ctx, baselineCompareItems, baselineID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BaselineCompareItemsRow
+	for rows.Next() {
+		var i BaselineCompareItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.StartDate,
+			&i.DueDate,
+			&i.ItemKey,
+			&i.SavedTitle,
+			&i.Title,
+			&i.ProjectID,
+			&i.SequenceNumber,
+			&i.Identifier,
+			&i.TeamID,
+			&i.OwnerID,
+			&i.IsInbox,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const copyBaselineItems = `-- name: CopyBaselineItems :execrows
-INSERT INTO project_baseline_items (baseline_id, work_item_id, start_date, due_date)
-SELECT $1::uuid, w.id, w.start_date, w.due_date
-FROM work_items w WHERE w.project_id = $2::uuid
+INSERT INTO project_baseline_items (baseline_id, work_item_id, start_date, due_date, item_key, title)
+SELECT $1::uuid, w.id, w.start_date, w.due_date, p.identifier || '-' || w.sequence_number, w.title
+FROM work_items w JOIN projects p ON p.id = w.project_id
+WHERE w.project_id = $2::uuid
 `
 
 type CopyBaselineItemsParams struct {
@@ -23,7 +84,8 @@ type CopyBaselineItemsParams struct {
 	ProjectID  uuid.UUID
 }
 
-// The current dates of every work item of the project (RF-1).
+// The current dates of every work item of the project (RF-1), with its key
+// and title so it outlives its deletion (spec 024, RF-24).
 func (q *Queries) CopyBaselineItems(ctx context.Context, arg CopyBaselineItemsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, copyBaselineItems, arg.BaselineID, arg.ProjectID)
 	if err != nil {
@@ -60,6 +122,83 @@ func (q *Queries) CreateBaseline(ctx context.Context, arg CreateBaselineParams) 
 		&i.Reason,
 		&i.CreatedBy,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const currentCompareItems = `-- name: CurrentCompareItems :many
+SELECT w.id, w.start_date, w.due_date, w.title, w.sequence_number, p.identifier
+FROM work_items w JOIN projects p ON p.id = w.project_id
+WHERE w.project_id = $1
+`
+
+type CurrentCompareItemsRow struct {
+	ID             uuid.UUID
+	StartDate      *time.Time
+	DueDate        *time.Time
+	Title          string
+	SequenceNumber int32
+	Identifier     string
+}
+
+// The work items of a project with their current dates (spec 024, «Hoy»).
+func (q *Queries) CurrentCompareItems(ctx context.Context, projectID uuid.UUID) ([]CurrentCompareItemsRow, error) {
+	rows, err := q.db.Query(ctx, currentCompareItems, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CurrentCompareItemsRow
+	for rows.Next() {
+		var i CurrentCompareItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.StartDate,
+			&i.DueDate,
+			&i.Title,
+			&i.SequenceNumber,
+			&i.Identifier,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBaselineByVersion = `-- name: GetBaselineByVersion :one
+SELECT b.id, b.version, b.reason, b.created_at, u.id AS author_id, u.name AS author_name
+FROM project_baselines b JOIN users u ON u.id = b.created_by
+WHERE b.project_id = $1 AND b.version = $2
+`
+
+type GetBaselineByVersionParams struct {
+	ProjectID uuid.UUID
+	Version   int32
+}
+
+type GetBaselineByVersionRow struct {
+	ID         uuid.UUID
+	Version    int32
+	Reason     *string
+	CreatedAt  time.Time
+	AuthorID   uuid.UUID
+	AuthorName string
+}
+
+func (q *Queries) GetBaselineByVersion(ctx context.Context, arg GetBaselineByVersionParams) (GetBaselineByVersionRow, error) {
+	row := q.db.QueryRow(ctx, getBaselineByVersion, arg.ProjectID, arg.Version)
+	var i GetBaselineByVersionRow
+	err := row.Scan(
+		&i.ID,
+		&i.Version,
+		&i.Reason,
+		&i.CreatedAt,
+		&i.AuthorID,
+		&i.AuthorName,
 	)
 	return i, err
 }

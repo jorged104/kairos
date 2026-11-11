@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import { getProjectSchedule, setBaseline } from '@/api/schedule'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,10 @@ function start() {
       <h2 id="ov-baseline" class="text-base font-semibold">{{ t('schedule.baseline.title') }}</h2>
       <Button v-if="canSet && !asking" size="sm" variant="outline" class="ml-auto" :disabled="save.isPending.value" data-testid="baseline-set" @click="start">
         {{ data?.baseline ? t('schedule.baseline.reset') : t('schedule.baseline.set') }}
+      </Button>
+      <!-- Spec 024, RF-1. -->
+      <Button v-if="data?.baseline" as-child size="sm" variant="outline" :class="!(canSet && !asking) && 'ml-auto'">
+        <RouterLink :to="{ query: { tab: 'overview', compare: '1' } }" data-testid="baseline-compare-open">{{ t('schedule.compare.action') }}</RouterLink>
       </Button>
     </div>
     <Alert v-if="save.error.value" variant="destructive" role="alert">

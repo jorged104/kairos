@@ -49,13 +49,37 @@ VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: CopyBaselineItems :execrows
--- The current dates of every work item of the project (RF-1).
-INSERT INTO project_baseline_items (baseline_id, work_item_id, start_date, due_date)
-SELECT sqlc.arg(baseline_id)::uuid, w.id, w.start_date, w.due_date
-FROM work_items w WHERE w.project_id = sqlc.arg(project_id)::uuid;
+-- The current dates of every work item of the project (RF-1), with its key
+-- and title so it outlives its deletion (spec 024, RF-24).
+INSERT INTO project_baseline_items (baseline_id, work_item_id, start_date, due_date, item_key, title)
+SELECT sqlc.arg(baseline_id)::uuid, w.id, w.start_date, w.due_date, p.identifier || '-' || w.sequence_number, w.title
+FROM work_items w JOIN projects p ON p.id = w.project_id
+WHERE w.project_id = sqlc.arg(project_id)::uuid;
 
 -- name: ListBaselines :many
 SELECT b.id, b.version, b.reason, b.created_at, u.id AS author_id, u.name AS author_name
 FROM project_baselines b JOIN users u ON u.id = b.created_by
 WHERE b.project_id = $1
 ORDER BY b.version DESC;
+
+-- name: GetBaselineByVersion :one
+SELECT b.id, b.version, b.reason, b.created_at, u.id AS author_id, u.name AS author_name
+FROM project_baselines b JOIN users u ON u.id = b.created_by
+WHERE b.project_id = $1 AND b.version = $2;
+
+-- name: BaselineCompareItems :many
+-- The work items of a baseline as they are now (spec 024): deleted ones only
+-- when the baseline kept their key and title (RF-25), and where each one is.
+SELECT bi.work_item_id AS id, bi.start_date, bi.due_date, bi.item_key, bi.title AS saved_title,
+       w.title, w.project_id, w.sequence_number, p.identifier, p.team_id, p.owner_id,
+       coalesce(p.is_inbox, false)::bool AS is_inbox
+FROM project_baseline_items bi
+LEFT JOIN work_items w ON w.id = bi.work_item_id
+LEFT JOIN projects p ON p.id = w.project_id
+WHERE bi.baseline_id = $1 AND (w.id IS NOT NULL OR bi.title IS NOT NULL);
+
+-- name: CurrentCompareItems :many
+-- The work items of a project with their current dates (spec 024, «Hoy»).
+SELECT w.id, w.start_date, w.due_date, w.title, w.sequence_number, p.identifier
+FROM work_items w JOIN projects p ON p.id = w.project_id
+WHERE w.project_id = $1;

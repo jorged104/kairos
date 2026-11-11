@@ -29,6 +29,7 @@ ORDER BY p.name, p.identifier;
 SELECT pb.project_id, bi.start_date, bi.due_date
 FROM project_baselines pb
 JOIN project_baseline_items bi ON bi.baseline_id = pb.id
+JOIN work_items w ON w.id = bi.work_item_id -- deleted ones are kept (spec 024)
 WHERE pb.version = (SELECT max(x.version) FROM project_baselines x WHERE x.project_id = pb.project_id);
 
 -- name: BoardMilestones :many
