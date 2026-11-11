@@ -48,6 +48,7 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Get("/projects/{id}/overview", h.overview)
 		r.Get("/projects/{id}/schedule", h.schedule)
 		r.Post("/projects/{id}/baseline", h.baseline)
+		r.Get("/projects/{id}/baseline/compare", h.compare)
 		r.Put("/projects/{id}/portfolio", h.portfolio)
 		r.Put("/projects/{id}/status", h.status)
 		r.Put("/projects/{id}/column-limits/{statusId}", h.columnLimit)
@@ -215,6 +216,17 @@ func (h *Handler) baseline(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.SetBaseline(r.Context(), authz.FromContext(r.Context()), id, req)
 	h.reply(w, http.StatusCreated, out, err)
+}
+
+// compare: ?from=&to= are version numbers or "today" (spec 024).
+func (h *Handler) compare(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	q := r.URL.Query()
+	out, err := h.svc.Compare(r.Context(), authz.FromContext(r.Context()), id, q.Get("from"), q.Get("to"))
+	h.reply(w, http.StatusOK, out, err)
 }
 
 func (h *Handler) portfolio(w http.ResponseWriter, r *http.Request) {

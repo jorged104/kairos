@@ -381,6 +381,8 @@ type ProjectBaselineItem struct {
 	WorkItemID uuid.UUID
 	StartDate  *time.Time
 	DueDate    *time.Time
+	ItemKey    *string
+	Title      *string
 }
 
 type ProjectColumnLimit struct {
