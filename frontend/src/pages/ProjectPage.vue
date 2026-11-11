@@ -19,6 +19,7 @@ import ProjectSummary from '@/features/projects/ProjectSummary.vue'
 import ProjectTeam from '@/features/projects/ProjectTeam.vue'
 import ProjectWorkItems from '@/features/projects/ProjectWorkItems.vue'
 import ReportsTab from '@/features/reports/ReportsTab.vue'
+import BaselineCompare from '@/features/schedule/BaselineCompare.vue'
 import ProjectTimeline from '@/features/timeline/ProjectTimeline.vue'
 import FilterBar from '@/features/views/FilterBar.vue'
 import { useFilterOptions } from '@/features/views/useFilterOptions'
@@ -134,7 +135,8 @@ function reload() {
         />
       </template>
 
-      <ProjectOverview v-if="tab === 'overview'" :project="project" />
+      <BaselineCompare v-if="tab === 'overview' && route.query.compare" :project="project" />
+      <ProjectOverview v-else-if="tab === 'overview'" :project="project" />
       <ProjectWorkItems
         v-else-if="tab === 'table'"
         :project="project"

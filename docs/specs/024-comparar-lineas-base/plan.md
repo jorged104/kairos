@@ -12,7 +12,7 @@
 - Permiso: el de ver el proyecto (`work:read` + visibilidad). Fila nueva en la matriz.
 
 ## Frontend
-- Ruta `/projects/:id/baseline-compare?from=&to=` con `BaselineCompare.vue` en `features/schedule`.
+- En la ficha del proyecto, `?tab=overview&compare=1&from=&to=` muestra `BaselineCompare.vue` (`features/schedule`) en lugar del Resumen; volver al Resumen quita la comparación.
 - Acción «Comparar» en `BaselinePanel.vue` cuando hay línea base.
 - Selectores de lado que escriben en la dirección (RF-8), resumen, filtros por tipo de cambio (por defecto sin «Sin cambios») y tabla.
 - Textos en `es.json` bajo `schedule.compare`.

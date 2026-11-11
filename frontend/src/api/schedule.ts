@@ -61,3 +61,43 @@ export const getProjectSchedule = (projectId: string) =>
 
 export const setBaseline = (projectId: string, reason: string | null) =>
   api<Baseline>(`/api/projects/${projectId}/baseline`, { method: 'POST', body: { reason } })
+
+// Spec 024: two versions of the baseline, or one against today.
+export type Change = 'added' | 'removed' | 'moved' | 'unchanged'
+export const CHANGES: Change[] = ['added', 'removed', 'moved', 'unchanged']
+
+export interface CompareItem {
+  id: string | null // null: deleted or in a project one does not see
+  key: string
+  title: string
+  change: Change
+  before_start: string | null
+  before_due: string | null
+  after_start: string | null
+  after_due: string | null
+  start_shift: number | null
+  due_shift: number | null
+  deleted: boolean
+  elsewhere: boolean
+  hidden: boolean
+}
+
+export interface BaselineComparison {
+  before: Baseline
+  after: Baseline | null // null: today
+  versions: Baseline[]
+  summary: {
+    added: number
+    removed: number
+    moved: number
+    unchanged: number
+    before_end: string | null
+    after_end: string | null
+    end_shift: number | null
+  }
+  items: CompareItem[]
+}
+
+// from and to: a version number or "today"; both empty pick the default ones.
+export const compareBaselines = (projectId: string, from?: string, to?: string) =>
+  api<BaselineComparison>(`/api/projects/${projectId}/baseline/compare`, { query: from && to ? { from, to } : {} })

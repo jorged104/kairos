@@ -1225,6 +1225,37 @@
       },
       "order": "Los umbrales deben ir de mayor a menor: adelantado, en riesgo y atrasado.",
       "save": "Guardar semáforo"
+    },
+    "compare": {
+      "action": "Comparar",
+      "title": "Comparar líneas base",
+      "back": "Volver al resumen",
+      "from": "Comparar",
+      "to": "Con",
+      "today": "Hoy",
+      "todayHelp": "Hoy: las fechas actuales de las tareas",
+      "version": "Versión {version} · {date}",
+      "before": "Antes",
+      "after": "Después",
+      "same": "Elige dos lados distintos para comparar.",
+      "changes": {
+        "added": "Añadidas",
+        "removed": "Quitadas",
+        "moved": "Movidas",
+        "unchanged": "Sin cambios"
+      },
+      "end": "Fin del proyecto",
+      "days": "{n} días",
+      "noDate": "Sin fecha",
+      "filter": "Mostrar",
+      "task": "Tarea",
+      "change": "Cambio",
+      "start": "Inicio",
+      "due": "Fin",
+      "deleted": "Borrada",
+      "elsewhere": "En otro proyecto",
+      "otherProject": "Tarea de otro proyecto",
+      "empty": "No hay tareas con estos cambios."
     }
   },
   "portfolio": {
