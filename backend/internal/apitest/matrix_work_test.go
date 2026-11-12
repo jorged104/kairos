@@ -26,6 +26,7 @@ func init() {
 		"ver proyecto",
 		"ver plan del proyecto",
 		"fijar línea base",
+		"comparar líneas base",
 		"seguir tarea",
 		"crear reunión",
 		"comentar reunión",
@@ -205,6 +206,12 @@ var workOps = []workOp{
 	{"fijar línea base", func(m *workMatrix, c *Client, a string) *Response {
 		return c.Post("/api/projects/"+m.project(a).String()+"/baseline", map[string]any{})
 	}, managers(201)},
+	// Spec 024: whoever sees the project compares its baselines.
+	{"comparar líneas base", func(m *workMatrix, c *Client, a string) *Response {
+		id := m.project(a).String()
+		m.admin.Post("/api/projects/"+id+"/baseline", map[string]any{}).Expect(m.t, http.StatusCreated)
+		return c.Get("/api/projects/" + id + "/baseline/compare")
+	}, workAll(200)},
 	// Spec 010: everyone sees the portfolio; only the administrator marks programs.
 	// Specs 010 and 011: administrators, Dirección and leads (spec 023, RF-17a).
 	{"ver seguimiento", func(m *workMatrix, c *Client, a string) *Response { return c.Get("/api/tracking") }, oversight(200)},
